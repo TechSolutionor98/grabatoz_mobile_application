@@ -1,0 +1,2 @@
+D:/tech solutionor pro/Graba2z-App-main/android/app/.cxx/Debug/d1y6v3f6/x86_64/CMakeFiles/edit_cache.dir
+D:/tech solutionor pro/Graba2z-App-main/android/app/.cxx/Debug/d1y6v3f6/x86_64/CMakeFiles/rebuild_cache.dir

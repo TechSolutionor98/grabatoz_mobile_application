@@ -1,0 +1,41 @@
+class Configss {
+  static String baseUrl = 'https://api.grabatoz.ae';
+  // static String baseUrl = 'https://graba2z-backend-orpin.vercel.app';
+  static String signup = "$baseUrl/api/users/register";
+  static String login = "$baseUrl/api/users/login";
+  static String getAllCategories = '$baseUrl/api/categories';
+  static String getSubCategories = '$baseUrl/api/subcategories';
+  static String getBanners = '$baseUrl/api/banners';
+  static String getallbrands = '$baseUrl/api/brands';
+  static String getAllProducts = '$baseUrl/api/products';
+  static String getuserProfile = '$baseUrl/api/users/profile';
+  static String verifyEmail = "$baseUrl/api/users/verify-email";
+  static String forgotPassword = "$baseUrl/api/users/forgot-password";
+  static String resendVerification = "$baseUrl/api/users/resend-verification";
+  // static String postReview = "$baseUrl/api/products";
+  static String postReview = "$baseUrl/api/reviews";
+  static String getReview = "$baseUrl/api/reviews/product/:productId";
+  // Add guest verification endpoints
+  static String verifyReviewEmail = "$baseUrl/api/reviews/verify-email";
+  static String resendReviewVerification = "$baseUrl/api/reviews/resend-verification";
+  static String getCoupon = "$baseUrl/api/coupons";
+  static String requestCallback = "$baseUrl/api/request-callback";
+  // static String userProfile = "$baseUrl/api/users/profile";
+  static String updateProfile = "$baseUrl/api/users/profile";
+  static String createOrder = "$baseUrl/api/orders";
+  static String paymentCardRequest = "$baseUrl/api/payment/ngenius/card";
+  static String getOrders = "$baseUrl/api/orders/myorders";
+  static String trackOrders = "$baseUrl/api/orders/track";
+  static String applyCoupon = "$baseUrl/api/coupons/validate";
+  // static String rangeFilter = "$baseUrl/api/app/products";
+  static String getShippingCharge = "$baseUrl/api/delivery-charges";
+  static String searchAll = "$baseUrl/api/mobile/products";
+  // Public website URL for Tamara redirects
+  static String webBaseUrl = "https://grabatoz.ae";
+  // Tamara checkout creation endpoint (adjust if your backend uses a different path)
+  static String paymentTamaraRequest = "$baseUrl/api/payment/tamara/checkout";
+  
+  // Account deletion endpoints
+  static String requestAccountDeletion = "$baseUrl/api/users/request-account-deletion";
+  static String verifyAccountDeletion = "$baseUrl/api/users/verify-account-deletion";
+}
