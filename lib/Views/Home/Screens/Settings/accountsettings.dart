@@ -33,6 +33,7 @@ class Settings extends StatefulWidget {
 
 class _SettingsState extends State<Settings> {
   getUserData() async {
+    
     SharedPreferences sp = await SharedPreferences.getInstance();
     name = sp.getString('userName') ?? '';
     email = sp.getString('userEmail') ?? '';
@@ -66,10 +67,21 @@ class _SettingsState extends State<Settings> {
   AuthController _authController = Get.put(AuthController());
   @override
   Widget build(BuildContext context) {
+      final navigationProvider = Get.put(BottomNavigationController());
     return Scaffold(
       appBar: CustomAppBar(
         titleText: "Settings",
-        showLeading: false,
+        showLeading: true,
+        leadingWidget: Builder(
+          builder: (context){
+            return IconButton(onPressed: (){
+                  
+                navigationProvider.setTabIndex(0);
+
+            }, icon: const Icon(Icons.arrow_back_ios, size: 20),);
+          },
+
+        ),
         actionicon: GetBuilder<CartNotifier>(
           builder: (
             cartNotifier,

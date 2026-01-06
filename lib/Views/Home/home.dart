@@ -2,8 +2,9 @@ import 'package:get/get.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Views/Home/Screens/Favorite%20Product/favproduct_screen.dart';
-import 'package:graba2z/Views/Home/Screens/Search%20Screen/searchscreen.dart';
 import 'package:graba2z/Views/Home/Screens/Settings/accountsettings.dart';
+import 'package:graba2z/Views/Home/Screens/Shop%20Screen/Shop.dart';
+import 'package:graba2z/Views/Product%20Folder/new_all_products.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../Utils/packages.dart';
 
@@ -184,7 +185,7 @@ class _HomeState extends State<Home> {
               child: BottomNavigationBar(
                 currentIndex: navigationProvider.tabIndex,
                 onTap: (index) {
-                  if (index == 2) {
+                  if (index == 4) {
                     _launchWhatsApp();
                   } else {
                     navigationProvider.setTabIndex(index);
@@ -221,10 +222,10 @@ class _HomeState extends State<Home> {
                   ),
                   BottomNavigationBarItem(
                     icon: ImageIcon(
-                      AssetImage("assets/icons/chat.png"),
+                      AssetImage("assets/icons/shop.png"),
                       size: 20,
                     ),
-                    label: 'Chat',
+                    label: 'Shop',
                   ),
                   BottomNavigationBarItem(
                     icon: ImageIcon(
@@ -235,10 +236,10 @@ class _HomeState extends State<Home> {
                   ),
                   BottomNavigationBarItem(
                     icon: ImageIcon(
-                      AssetImage("assets/icons/others.png"),
+                      AssetImage("assets/icons/chat.png"),
                       size: 20,
                     ),
-                    label: 'Search',
+                    label: 'Chat',
                   ),
                 ],
               ),
@@ -252,18 +253,22 @@ class _HomeState extends State<Home> {
                 controller: navigationProvider.pageController,
                 onPageChanged: (index) {
                   setState(() {});
-                  if (index == 2) {
+                  if (index == 4) {
                     _launchWhatsApp(); // Open WhatsApp when Chat is selected
                   } else {
                     navigationProvider.setTabIndex(index);
                   }
                 },
-                children: const [
+                children:  [
                   HomeScreenView(),
                   Favorite(),
-                  SizedBox(), // Empty placeholder for WhatsApp
+                  NewAllProduct(
+                    id: '2',
+                    parentType: '',
+                    displayTitle: 'All Products',
+                  ),
                   Settings(),
-                  SearchScreen(),
+                  SizedBox(), // Empty placeholder for WhatsApp
                 ],
               ),
       ),

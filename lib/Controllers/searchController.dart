@@ -1,9 +1,6 @@
 import 'dart:convert';
 import 'dart:developer';
-
 import 'package:graba2z/Configs/config.dart';
-import 'package:graba2z/Controllers/home_controller.dart';
-// import 'package:graba2z/Api/Models/productsModel.dart';
 import 'package:http/http.dart' as http;
 import 'package:get/get.dart';
 
@@ -60,6 +57,8 @@ class SearchScController extends GetxController {
     } else {
       isrequesting.value = 1;
     }
+    var apiUrl = Configss.searchAll;
+
     // Build query params safely
     final Map<String, String> params = {};
     if (sortby.isNotEmpty) params['sortBy'] = sortby;
@@ -69,8 +68,10 @@ class SearchScController extends GetxController {
     if (minPrice > 0) params['minPrice'] = minPrice.toStringAsFixed(0);
     if (maxPrice > 0) params['maxPrice'] = maxPrice.toStringAsFixed(0);
     params['limit'] = limit.value.toString();
-    final uri = Uri.parse(Configss.searchAll).replace(queryParameters: params);
+    final uri = Uri.parse(apiUrl).replace(queryParameters: params);
     log("the url of search is data $uri");
+
+    print("$uri");
 
     var response = await http.get(uri);
 
@@ -105,6 +106,8 @@ class SearchScController extends GetxController {
           }
           log('the url is and lmit ${limit.value}');
           log('the url is and lenght ${searhProducts.length}');
+          print('the url is and lmit ${limit.value}');
+          print('the url is and lenght ${searhProducts.length}');
         }
 
         // If server returned less than requested limit, no more data

@@ -149,6 +149,14 @@ class _SignUpState extends State<SignUp> {
     // }
 
     return Scaffold(
+        appBar: CustomAppBar(
+         titleWidget: Image.asset(
+          AppImages.logoicon,
+          width: 100,
+          height: 100,
+          color: kdefwhiteColor,
+        ),
+      ),
       body: Stack(
         children: [
           AnimatedPositioned(

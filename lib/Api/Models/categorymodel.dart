@@ -65,6 +65,7 @@ class Category {
   String? sId;
   String? name;
   String? slug;
+  String? image;
 
   Category({this.sId, this.name, this.slug});
 
@@ -72,6 +73,7 @@ class Category {
     sId = json['_id'];
     name = json['name'];
     slug = json['slug'];
+    image = json['image'];
   }
 
   Map<String, dynamic> toJson() {
@@ -79,6 +81,7 @@ class Category {
     data['_id'] = this.sId;
     data['name'] = this.name;
     data['slug'] = this.slug;
+    data['image'] = this.image;
     return data;
   }
 }

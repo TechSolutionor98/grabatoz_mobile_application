@@ -4,11 +4,15 @@ import 'package:graba2z/Api/Models/categorymodel.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Controllers/brand_controller.dart';
 import 'package:graba2z/Controllers/home_controller.dart';
+import 'package:graba2z/Controllers/menuController.dart';
 import 'package:graba2z/Utils/appextensions.dart';
+import 'package:graba2z/Utils/image_helper.dart';
 import 'package:graba2z/Views/Auth/login.dart';
 import 'package:graba2z/Views/Auth/signup.dart';
 import 'package:graba2z/Views/Home/Screens/Favorite%20Product/favproduct_screen.dart';
+import 'package:graba2z/Views/Home/Screens/Search%20Screen/searchscreen.dart';
 import 'package:graba2z/Views/Home/Screens/Settings/Modules/Order%20History/track_order_view.dart';
+import 'package:graba2z/Widgets/buildCategoryDrawer.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:graba2z/Views/Categories%20Folder/allcategoriesscreen.dart';
 import 'package:graba2z/Views/Home/Screens/Cart/cart.dart';
@@ -23,6 +27,7 @@ import 'package:graba2z/Widgets/footertile.dart';
 import '../../../../Widgets/socialicon.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:graba2z/Configs/config.dart';
 
 class HomeScreenView extends StatefulWidget {
   const HomeScreenView({super.key});
@@ -48,6 +53,7 @@ class _HomeScreenViewState extends State<HomeScreenView> {
 
   static const int homeScreenSectionFetchLimit = 20;
   static const int homeScreenSectionDisplayLimit = 5;
+ 
 
   final ScrollController _brandsScrollController = ScrollController();
   bool _brandsAutoLoopStarted = false;
@@ -252,9 +258,24 @@ class _HomeScreenViewState extends State<HomeScreenView> {
 
   @override
   Widget build(BuildContext context) {
+    final menuController controller = Get.find<menuController>();
     return Scaffold(
+      drawer: buildCategoryDrawer(),
       appBar: CustomAppBar(
-        showLeading: false,
+        // Show Drawer Menu
+        showLeading: true,
+          leadingWidget: Builder(
+    builder: (context) {
+      return IconButton(
+        icon: const Icon(Icons.menu, color: kdefwhiteColor),
+        onPressed: () {
+          Scaffold.of(context).openDrawer();
+        },
+      );
+    },
+  ),
+  
+        
         // Change: always show logo on Home
         titleWidget: Image.asset(
           AppImages.logoicon,
@@ -262,7 +283,14 @@ class _HomeScreenViewState extends State<HomeScreenView> {
           height: 100,
           color: kdefwhiteColor,
         ),
-        actionicon: GetBuilder<CartNotifier>(
+        actionicon:Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(onPressed: (){ 
+              Navigator.push(context
+                , MaterialPageRoute(builder: (context) => SearchScreen()));
+            }, icon: const Icon(Icons.search, color: kdefwhiteColor, size: 28)),
+             GetBuilder<CartNotifier>(
           builder: (cartNotifier) {
             return Stack(
               alignment: Alignment.topRight,
@@ -308,6 +336,12 @@ class _HomeScreenViewState extends State<HomeScreenView> {
             );
           },
         ),
+        
+          ],
+      
+      
+        )
+        
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -377,7 +411,7 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                                     ],
                                   ),
                                   child: CachedNetworkImage(
-                                    imageUrl: category.image != null && category.image!.isNotEmpty ? category.image! : 'https://i.postimg.cc/SsWYSvq6/noimage.png',
+                                 imageUrl: Configss.baseUrl + category.image!,
                                     imageBuilder: (context, imageProvider) => Container(
                                       height: 65, width: 60,
                                       decoration: BoxDecoration(image: DecorationImage(image: imageProvider, fit: BoxFit.cover)),
@@ -623,11 +657,11 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                 padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
                 child: GestureDetector(
                   onTap: () {
-                    Get.to(() => NewAllProduct(id: networkingCategoryId, parentType: "category"));
+                    Get.to(() => NewAllProduct(id: networkingCategoryId, parentType: "subcategory"));
                   },
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8.0),
-                    child: Image.asset('assets/images/networking.png', height: 140, fit: BoxFit.fill, width: double.infinity),
+                    // child: Image.asset('assets/images/networking.png', height: 140, fit: BoxFit.fill, width: double.infinity),
                   ),
                 ),
               ),
@@ -645,7 +679,7 @@ class _HomeScreenViewState extends State<HomeScreenView> {
 
                 return HorizontalProducts(
                   onTap: () {
-                     Get.to(() => NewAllProduct(id: networkingCategoryId, parentType: "category"));
+                     Get.to(() => NewAllProduct(id: networkingCategoryId, parentType: "subcategory"));
                   },
                   name: "Networking",
                   loading: isLoadingNetworking,
@@ -879,7 +913,7 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                                   child: Center(
                                     child: BrandCard(
                                       id: (brand['_id'] ?? '').toString(),
-                                      imageUrl: (brand['logo'] ?? 'https://i.postimg.cc/SsWYSvq6/noimage.png').toString(),
+                                      imageUrl: (ImageHelper.getUrl(brand['logo']) ?? 'https://i.postimg.cc/SsWYSvq6/noimage.png').toString(),
                                       name: (brand['name'] ?? 'No Name').toString(),
                                       width: cardWidth, // visual size inside the slot
                                     ),
@@ -900,49 +934,49 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 17.0),
                 child: Column(
                   children: [
-                    const Text(
-                      "Core Service Aspects",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: kSecondaryColor,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
+                    // const Text(
+                    //   "Core Service Aspects",
+                    //   style: TextStyle(
+                    //     fontSize: 16,
+                    //     fontWeight: FontWeight.bold,
+                    //     color: kSecondaryColor,
+                    //   ),
+                    //   textAlign: TextAlign.center,
+                    // ),
+                    // const SizedBox(height: 20),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: const [
-                        ServiceCard(
-                          image: "assets/images/wallet.png",
-                          title: "Secure Payment Method",
-                          subtitle: "Available Different secure Payment Methods",
-                        ),
-                        ServiceCard(
-                          image: "assets/images/delivery.png",
-                          title: "Extreme Fast Delivery",
-                          subtitle: "Fast and convenient From door to door delivery",
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: const [
-                        ServiceCard(
-                          image: "assets/images/heart.png",
-                          title: "Quality & Savings",
-                          subtitle: "Comprehensive quality control and affordable price",
-                        ),
-                        ServiceCard(
-                          image: "assets/images/headphone1.png",
-                          title: "Professional Support",
-                          subtitle: "Efficient customer support from passionate team",
-                        ),
-                      ],
-                    ),
-                    40.0.heightbox,
+                    // Row(
+                    //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    //   children: const [
+                    //     ServiceCard(
+                    //       image: "assets/images/wallet.png",
+                    //       title: "Secure Payment Method",
+                    //       subtitle: "Available Different secure Payment Methods",
+                    //     ),
+                    //     ServiceCard(
+                    //       image: "assets/images/delivery.png",
+                    //       title: "Extreme Fast Delivery",
+                    //       subtitle: "Fast and convenient From door to door delivery",
+                    //     ),
+                    //   ],
+                    // ),
+                    // SizedBox(height: 20), SizedBox(height: 20),
+                    // Row(
+                    //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    //   children: const [
+                    //     ServiceCard(
+                    //       image: "assets/images/heart.png",
+                    //       title: "Quality & Savings",
+                    //       subtitle: "Comprehensive quality control and affordable price",
+                    //     ),
+                    //     ServiceCard(
+                    //       image: "assets/images/headphone1.png",
+                    //       title: "Professional Support",
+                    //       subtitle: "Efficient customer support from passionate team",
+                    //     ),
+                    //   ],
+                    // ),
+                    // 40.0.heightbox,
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 0.0),
                       child: Column(

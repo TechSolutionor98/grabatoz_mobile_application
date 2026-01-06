@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:graba2z/Configs/config.dart';
 import 'package:graba2z/Utils/appextensions.dart';
+import 'package:graba2z/Utils/image_helper.dart';
 
 import '../Utils/packages.dart';
 import 'package:http/http.dart' as http;
@@ -77,7 +78,7 @@ class ImageCarouselSliderState extends State<ImageCarouselSlider> {
               child: CachedNetworkImage(
                 // fit: BoxFit.fill,
                 width: double.infinity,
-                imageUrl: imageUrl,
+                  imageUrl: ImageHelper.getUrl(imageUrl ?? ""),
                 // fit: BoxFit.cover,
                 placeholder: (context, url) => Container(
                   decoration: BoxDecoration(

@@ -7,7 +7,7 @@ class Configss {
   static String getSubCategories = '$baseUrl/api/subcategories';
   static String getBanners = '$baseUrl/api/banners';
   static String getallbrands = '$baseUrl/api/brands';
-  static String getAllProducts = '$baseUrl/api/products';
+  static String getAllProducts = '$baseUrl/api/mobile/products';
   static String getuserProfile = '$baseUrl/api/users/profile';
   static String verifyEmail = "$baseUrl/api/users/verify-email";
   static String forgotPassword = "$baseUrl/api/users/forgot-password";
@@ -34,6 +34,9 @@ class Configss {
   static String webBaseUrl = "https://grabatoz.ae";
   // Tamara checkout creation endpoint (adjust if your backend uses a different path)
   static String paymentTamaraRequest = "$baseUrl/api/payment/tamara/checkout";
+
+  static String menu = "$baseUrl/api/categories/tree";
+  static String product = "$baseUrl/api/products";
   
   // Account deletion endpoints
   static String requestAccountDeletion = "$baseUrl/api/users/request-account-deletion";

@@ -6,6 +6,7 @@ import 'package:graba2z/Configs/config.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Controllers/favController.dart';
 import 'package:graba2z/Utils/appextensions.dart';
+import 'package:graba2z/Utils/image_helper.dart';
 import 'package:graba2z/Views/Product%20Folder/newProductDetails.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -436,12 +437,15 @@ class _NewProductCardState extends State<NewProductCard> {
                   final gapBelowImage = 6.0; // was 8.0
                   final gapBelowChip = 4.0;  // was 6.0
                   final gapTiny = 2.0;
+                  final urlForImage = ImageHelper.getUrl(imageUrlToDisplay ?? placeholderImage);
                   final addToCartH = 26.0;   // shave a bit to prevent 5px overflow
                   return Column(
                     children: [
                       // Image
+
                       CachedNetworkImage(
-                        imageUrl: imageUrlToDisplay ?? placeholderImage,
+
+                        imageUrl: urlForImage,
                         imageBuilder: (context, imageProvider) => Container(
                           height: imgSize.toDouble(),
                           width: imgSize.toDouble(),

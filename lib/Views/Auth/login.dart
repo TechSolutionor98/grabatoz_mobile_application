@@ -54,6 +54,14 @@ class _LoginState extends State<Login> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
+      appBar: CustomAppBar(
+         titleWidget: Image.asset(
+          AppImages.logoicon,
+          width: 100,
+          height: 100,
+          color: kdefwhiteColor,
+        ),
+      ),
       body: Stack(
         children: [
           AnimatedPositioned(
@@ -81,12 +89,12 @@ class _LoginState extends State<Login> {
                   children: [
                     50.0.heightbox,
                     //app logo
-                    Image.asset(
-                      'assets/images/logoicon.png',
-                      color: kdefwhiteColor,
-                      width: 150,
-                    ),
-                    50.0.heightbox,
+                    // Image.asset(
+                    //   'assets/images/logoicon.png',
+                    //   color: kdefwhiteColor,
+                    //   width: 150,
+                    // ),
+                    // 50.0.heightbox,
                     const Text('Login',
                         style: TextStyle(
                             fontSize: 34.0,

@@ -154,7 +154,7 @@ class HomeController extends GetxController {
     if (secondId.value.isEmpty) return;
     isprobyCateloaded2.value = true;
     // Similarly, this specific method uses limit=5.
-    String url = "${Configss.searchAll}?parentCategory=${secondId.value}&limit=5"; 
+    String url = "${Configss.searchAll}?parentCategory=${secondId.value}&limit=5";
     var response = await http.get(Uri.parse(url));
     isprobyCateloaded2.value = false;
     if (response.statusCode == 200) {
@@ -225,13 +225,20 @@ class HomeController extends GetxController {
     log('Fetching all products for $effectiveParentType: $effectiveCategoryId (Original request ID: $categoryId, LogName: $logName)');
 
     try {
-      Uri baseUri = Uri.parse(Configss.searchAll);
+      Uri baseUri = Uri.parse(Configss.product);
       Map<String, String> queryParams = {
       };
 
-      if (effectiveParentType.isNotEmpty && effectiveCategoryId.isNotEmpty) {
-          queryParams[effectiveParentType] = effectiveCategoryId;
+      if (firstName != null && firstValue != null && firstName.isNotEmpty && firstValue.isNotEmpty) {
+        queryParams[firstName] = firstValue;
       }
+
+// Add subcategory if exists
+      if (secondName != null && secondValue != null && secondName.isNotEmpty && secondValue.isNotEmpty) {
+        queryParams[secondName] = secondValue;
+      }
+
+
       
       if (sortBy != null && sortBy.isNotEmpty) {
         queryParams['sortBy'] = sortBy;

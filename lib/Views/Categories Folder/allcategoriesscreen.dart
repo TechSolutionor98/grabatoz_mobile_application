@@ -6,6 +6,7 @@ import 'package:graba2z/Views/Categories%20Folder/subcategories_view.dart';
 import 'package:graba2z/Views/Home/Screens/Cart/cart.dart';
 import 'package:graba2z/Views/Home/home.dart';
 import '../../Utils/packages.dart';
+import 'package:graba2z/Configs/config.dart';
 
 class AllCategoriesScreen extends StatefulWidget {
   const AllCategoriesScreen({super.key});
@@ -170,9 +171,8 @@ class _AllCategoriesScreenState extends State<AllCategoriesScreen> {
                             ],
                           ),
                           child: CachedNetworkImage(
-                            imageUrl: category.image != null
-                                ? category.image!
-                                : 'https://via.placeholder.com/150?text=No+Image+Available&fg=FFFFFF',
+                            
+                                 imageUrl: Configss.baseUrl + category.image!,
                             imageBuilder: (context, imageProvider) => Container(
                               height: 80,
                               width: 75,

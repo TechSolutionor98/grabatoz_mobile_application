@@ -8,6 +8,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Color? backgroundColor;
   final bool showLeading;
   final VoidCallback? tapaction;
+  final Widget? leadingWidget; 
   const CustomAppBar({
     super.key,
     this.titleText,
@@ -16,23 +17,22 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.backgroundColor,
     this.tapaction,
     this.titleWidget,
+     this.leadingWidget,
   });
 
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      automaticallyImplyLeading: true,
-      leading: showLeading
-          ? GestureDetector(
-              onTap: () {
-                Navigator.pop(context);
-              },
-              child: const Icon(
-                Icons.arrow_back_ios,
-                size: 20,
-              ),
-            )
-          : null,
+      
+      automaticallyImplyLeading: false,
+  leading: leadingWidget ??
+    (showLeading
+        ? IconButton(
+            icon: const Icon(Icons.arrow_back_ios, size: 20),
+            onPressed: () => Navigator.pop(context),
+          )
+        : null),
+      
       centerTitle: true,
       actions: [
         if (actionicon != null)

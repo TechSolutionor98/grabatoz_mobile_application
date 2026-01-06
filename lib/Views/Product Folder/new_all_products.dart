@@ -226,7 +226,7 @@ class _NewAllProductState extends State<NewAllProduct> {
     _effectiveId = widget.id;
     _effectiveParentType = _normalizeParentType(widget.parentType);
     _visibleCount = _pageSize;
-
+    log("parent type $_effectiveParentType id $_effectiveId");
     // NEW: recompute sorted list when local controller's products change (debounced)
     _sortedWorker = debounce<List<dynamic>>(
       _searchScController.searhProducts,
@@ -235,6 +235,7 @@ class _NewAllProductState extends State<NewAllProduct> {
     );
 
     _fetchAllFromSearchForInitial();
+
   }
 
   Future<void> _recomputeSortedLocal() async {
@@ -504,6 +505,7 @@ class _NewAllProductState extends State<NewAllProduct> {
 
   @override
   Widget build(BuildContext context) {
+    final navigationProvider = Get.put(BottomNavigationController());
     return Scaffold(
       endDrawer: FilterScreen(
         onApplyFilters: (filters) async {
@@ -513,6 +515,17 @@ class _NewAllProductState extends State<NewAllProduct> {
       ),
       appBar: CustomAppBar(
         // Change: show dynamic title
+        showLeading: true,
+        leadingWidget: Builder(
+          builder: (context){
+            return IconButton(onPressed: (){
+              if (widget.id == '2') {
+                navigationProvider.setTabIndex(0);
+              } else {
+                Navigator.of(context).pop();
+              }
+            }, icon: const Icon(Icons.arrow_back_ios, size: 20),);
+          },),
         titleText: _computeTitle(),
         actionicon: GetBuilder<CartNotifier>(
           builder: (cartNotifier) {
@@ -825,7 +838,10 @@ class _NewAllProductState extends State<NewAllProduct> {
           ),
         );
       }),
-      bottomNavigationBar: SafeArea(
+
+      bottomNavigationBar: widget.id == '2'
+          ? const SizedBox.shrink()
+          : SafeArea(
         child: SizedBox(
           height: 60,
           child: Builder(builder: (context) {
@@ -853,6 +869,7 @@ class _NewAllProductState extends State<NewAllProduct> {
           }),
         ),
       ),
+
     );
   }
 }

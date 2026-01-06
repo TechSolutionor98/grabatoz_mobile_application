@@ -3,6 +3,7 @@ import 'package:graba2z/Api/Services/apiservices.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Controllers/deliveryController.dart';
 import 'package:graba2z/Controllers/favController.dart';
+import 'package:graba2z/Controllers/menuController.dart';
 import 'package:graba2z/Controllers/orderController.dart';
 import 'package:graba2z/Controllers/paymentprovider.dart';
 import 'package:graba2z/Controllers/searchController.dart';
@@ -103,6 +104,7 @@ class _MyAppState extends State<MyApp> {
     Get.put(PaymentMethodController());
     Get.put(FocusController());
     Get.put(OrderController());
+    Get.put(menuController());
     // Get.put(AddressLabelController());
     // Get.put(PaymentMethodProvider(widget.userId ?? 'guest_user'));
 

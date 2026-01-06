@@ -117,10 +117,17 @@ class _FavoriteState extends State<Favorite> {
   Widget build(BuildContext context) {
     final provider = FavoriteController.of(context, listen: true);
     final favoriteList = provider.favorites;
+     final navigationProvider = Get.put(BottomNavigationController());
 
     return Scaffold(
       appBar: CustomAppBar(
-        showLeading: false,
+        showLeading: true,
+        leadingWidget: Builder(builder:(context){
+         return IconButton(onPressed: () {
+            navigationProvider.setTabIndex(0);
+
+          }, icon: const Icon(Icons.arrow_back_ios, size: 20),);
+        }),
         titleText: "Favorites",
         actionicon: GetBuilder<CartNotifier>(
           builder: (
