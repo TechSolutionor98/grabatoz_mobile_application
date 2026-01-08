@@ -2,12 +2,14 @@ import 'package:get/get.dart';
 import 'package:graba2z/Api/Services/apiservices.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Utils/appextensions.dart';
+import 'package:graba2z/Utils/image_helper.dart';
 import 'package:graba2z/Views/Brand%20Folder/brandcard.dart';
 import 'package:graba2z/Views/Home/Screens/Cart/cart.dart';
 import '../../../Utils/packages.dart';
 
 class AllBrandScreen extends StatelessWidget {
   List brandList;
+
   AllBrandScreen({super.key, required this.brandList});
 
   @override
@@ -60,7 +62,6 @@ class AllBrandScreen extends StatelessWidget {
                 //     child: Icon(Icons.home, color: kdefwhiteColor, size: 28),
                 //   ),
                 // ),
-
                 // Cart Icon with Badge
                 Stack(
                   alignment: Alignment.topRight,
@@ -125,7 +126,7 @@ class AllBrandScreen extends StatelessWidget {
                 id: brand['_id'].toString(),
                 imageUrl:
                     brand['logo'] != null && brand['logo'].toString().isNotEmpty
-                        ? brand['logo']
+                        ? ImageHelper.getUrl(brand['logo'])
                         : 'https://i.postimg.cc/SsWYSvq6/noimage.png',
                 name: brand['name'] ?? 'No Name',
                 // Pass as map if BrandCard accepts it

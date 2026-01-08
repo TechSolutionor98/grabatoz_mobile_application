@@ -54,6 +54,7 @@ class ErrorInfo extends StatelessWidget {
   final String description;
   final Widget? button;
   final String? btnText;
+
   // final VoidCallback press;
 
   @override

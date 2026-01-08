@@ -348,7 +348,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
     });
 
     _selectedImageUrl = widget.images.isNotEmpty
-        ? widget.images.first?.toString() ?? "https://i.postimg.cc/SsWYSvq6/noimage.png"
+        ? ImageHelper.getUrl(widget.images.first) ?? "https://i.postimg.cc/SsWYSvq6/noimage.png"
         : "https://i.postimg.cc/SsWYSvq6/noimage.png";
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1306,7 +1306,9 @@ class _NewProductDetailsState extends State<NewProductDetails>
                       children: widget.images.length > 1
                           ? widget.images.map((imageItem) {
                               int index = widget.images.indexOf(imageItem);
-                              String imageUrl = (imageItem is String ? imageItem : null) ?? placeholderImage;
+                              String url = (imageItem is String ? imageItem : null) ?? placeholderImage;
+
+                              String imageUrl = ImageHelper.getUrl(url);
 
 
                               if (imageUrl.isEmpty) imageUrl = placeholderImage;
