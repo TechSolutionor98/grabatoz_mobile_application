@@ -20,7 +20,7 @@ class UserController extends GetxController {
   var state = ''.obs;
   var subtotalAmount = 0.0.obs;
   var fullName = ''.obs;
-
+  final namecontroller = TextEditingController();
   final homeNameController = TextEditingController();
   final homeemailAddress = TextEditingController();
   final optionalNote = TextEditingController();

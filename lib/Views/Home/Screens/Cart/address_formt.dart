@@ -44,6 +44,7 @@ class _AddressDetailsBottomSheetState extends State<AddressDetailsBottomSheet> {
   bool isDefault = false;
   final addressController = TextEditingController();
   final zipCodeController = TextEditingController();
+  final nameController = TextEditingController();
   final cityController = TextEditingController();
   UserController _userController = Get.put(UserController());
   final AuthController _authController = Get.find<AuthController>();
@@ -69,30 +70,50 @@ class _AddressDetailsBottomSheetState extends State<AddressDetailsBottomSheet> {
     }
   }
 
-  void _saveAndSyncAddress() {
+  Future<void> _saveAndSyncAddress() async {
     if (addressController.text.isNotEmpty &&
         cityController.text.isNotEmpty &&
         selectedState != 'Select State' &&
-        zipCodeController.text.isNotEmpty) {
-      
-      // Save to checkout controller
-      _userController.saveAddress(
-        phone: widget.phone,
-        street: addressController.text.toString(),
-        city: cityController.text.toString(),
-        state: selectedState,
-        zipCode: zipCodeController.text.toString(),
-        country: 'UAE',
-      );
-      
-      // Also sync to AuthController for Edit Profile
-      _authController.editaddressController.text = addressController.text;
-      _authController.editcityController.text = cityController.text;
-      _authController.editzipcodeController.text = zipCodeController.text;
-      _authController.editStateController.text = selectedState;
-      
-      // Update observable values too
-      _authController.address.value = addressController.text;
+        zipCodeController.text.isNotEmpty || nameController.text.isNotEmpty) {
+      if(widget.isforGuest) {
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('guest_name', nameController.text);
+        await prefs.setString('guest_city', cityController.text);
+        await prefs.setString('guest_address', addressController.text);
+        await prefs.setString('guest_zip', zipCodeController.text);
+        await prefs.setString('guest_state', selectedState );
+        await prefs.setBool('Guest', true);
+
+        _userController.saveAddress(
+          phone: widget.phone,
+          street: addressController.text.toString(),
+          city: cityController.text.toString(),
+          state: selectedState,
+          zipCode: zipCodeController.text.toString(),
+          country: 'UAE',
+        );
+
+      }
+      else{
+        _userController.saveAddress(
+          phone: widget.phone,
+          street: addressController.text.toString(),
+          city: cityController.text.toString(),
+          state: selectedState,
+          zipCode: zipCodeController.text.toString(),
+          country: 'UAE',
+        );
+
+        // Also sync to AuthController for Edit Profile
+        _authController.editaddressController.text = addressController.text;
+        _authController.editcityController.text = cityController.text;
+        _authController.editzipcodeController.text = zipCodeController.text;
+        _authController.editStateController.text = selectedState;
+
+        // Update observable values too
+        _authController.address.value = addressController.text;
+      }
       
     } else {
       Get.snackbar('Warning', "Some fields are missing",
@@ -142,6 +163,10 @@ class _AddressDetailsBottomSheetState extends State<AddressDetailsBottomSheet> {
                     ],
                   ),
                   SizedBox(height: 16),
+                  if (widget.isforGuest) ...[
+                    _buildTextField('Name *', controller: nameController),
+                    SizedBox(height: 12),
+                  ],
                   _buildTextField('Address *', controller: addressController),
                   SizedBox(height: 12),
                   _buildTextField('Zip Code *', controller: zipCodeController),

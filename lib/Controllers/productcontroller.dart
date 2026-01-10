@@ -16,8 +16,7 @@ class ShopController extends GetxController {
       String url = "";
 
       if (parentType == "subcategory") {
-        url =
-        "https://api.grabatoz.ae/api/products?subcategory=$id";
+        url = "https://api.grabatoz.ae/api/products?subcategory=$id";
       } else if (parentType == "parentCategory") {
         url = "https://api.grabatoz.ae/api/products?parentCategory=$id";
       } else {

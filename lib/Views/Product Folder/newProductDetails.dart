@@ -42,6 +42,9 @@ const String _homeSvg = '''
 </svg>
 ''';
 
+const String _chat = '''
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-circle-icon lucide-message-circle"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></svg>
+''';
 class NewProductDetails extends StatefulWidget {
   List images;
   List specs;
@@ -58,7 +61,7 @@ class NewProductDetails extends StatefulWidget {
   String description;
   String shortdesc;
   String subcategoryName; // already exists
-  
+
   NewProductDetails({
     super.key,
     required this.images,
@@ -341,7 +344,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
     _tabController = TabController(length: _tabs.length, vsync: this);
 
     _tabController.addListener(() {
-      if (mounted) { 
+      if (mounted) {
         setState(() {
         });
       }
@@ -377,7 +380,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
 
   @override
   void dispose() {
-    _tabController.dispose(); 
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -436,17 +439,17 @@ class _NewProductDetailsState extends State<NewProductDetails>
 
   bool _isMainProductType(String text, List<String> excludeWords) {
     final lower = text.toLowerCase();
-    
+
     for (final word in excludeWords) {
       final w = word.toLowerCase();
-      
+
       // Exact match
       if (lower == w) return true;
-      
+
       // Word boundary match
       final pattern = RegExp(r'\b' + RegExp.escape(w) + r'\b');
       if (pattern.hasMatch(lower)) return true;
-      
+
       // Common patterns
       if (w == 'laptop' && (lower.contains('laptop') || lower.contains('notebook'))) return true;
       if (w == 'desktop' && (lower.contains('desktop') || lower.contains(' pc') || lower.contains('workstation'))) return true;
@@ -454,14 +457,14 @@ class _NewProductDetailsState extends State<NewProductDetails>
       if (w == 'printer' && (lower.contains('printer') || lower.contains('copier'))) return true;
       if (w == 'mobile' && (lower.contains('mobile') || lower.contains('phone') || lower.contains('smartphone'))) return true;
     }
-    
+
     return false;
   }
 
   Map<String, dynamic>? _pickGroupByMatch(String productName, String categoryName) {
     final subcategoryName = widget.subcategoryName;
     final combined = '$productName $categoryName $subcategoryName'.toLowerCase();
-    
+
     for (final group in _accessoryGroups) {
       final matches = (group['match'] as List).cast<String>();
       if (_includesAny(combined, matches)) {
@@ -473,22 +476,22 @@ class _NewProductDetailsState extends State<NewProductDetails>
 
   List<String> _extractGroupFallbackKeywords(Map<String, dynamic>? group) {
     if (group == null) return const [];
-    
+
     final suggestions = (group['suggestions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
     final keywords = <String>{};
-    
+
     for (final suggestion in suggestions) {
       final kws = (suggestion['keywords'] as List?)?.cast<String>() ?? [];
       keywords.addAll(kws);
     }
-    
+
     return keywords.toList();
   }
 
   // NEW: Helper to detect similar product names (prevents duplicate mouse/keyboard/etc.)
   String _normalizeProductName(String name) {
     final lower = name.toLowerCase().trim();
-    
+
     // Common brand names to strip out completely
     final brandWords = {
       'logitech', 'hp', 'dell', 'lenovo', 'asus', 'acer', 'apple', 'samsung',
@@ -498,7 +501,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
       'anker', 'belkin', 'targus', 'kensington', 'sandisk', 'western', 'digital',
       'seagate', 'crucial', 'kingston', 'corsair', 'gskill', 'team', 'patriot',
     };
-    
+
     // Words to skip (colors, adjectives, models)
     final skipWords = {
       'black', 'white', 'blue', 'red', 'grey', 'gray', 'silver', 'gold', 'rose',
@@ -507,7 +510,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
       'rgb', 'led', 'mechanical', 'optical', 'laser', 'wired', 'wireless', 'bluetooth',
       'usb', 'type-c', 'lightning', 'hdmi', 'displayport', 'vga', 'dvi',
     };
-    
+
     // Core product types we care about (in order of priority)
     final productTypes = {
       'mouse': ['mouse', 'mice'],
@@ -533,54 +536,54 @@ class _NewProductDetailsState extends State<NewProductDetails>
       'switch': ['switch'],
       'modem': ['modem'],
     };
-    
+
     final words = lower.split(RegExp(r'\s+'));
-    
+
     // Find the primary product type
     for (final entry in productTypes.entries) {
       final typeName = entry.key;
       final aliases = entry.value;
-      
+
       for (final word in words) {
         if (aliases.any((alias) => word.contains(alias) || alias.contains(word))) {
           return typeName; // Return the canonical product type
         }
       }
     }
-    
+
     // Fallback: extract first non-brand, non-skip word
     for (final word in words) {
-      if (word.length > 2 && 
-          !brandWords.contains(word) && 
+      if (word.length > 2 &&
+          !brandWords.contains(word) &&
           !skipWords.contains(word)) {
         return word;
       }
     }
-    
+
     // Last resort: return first word
     return words.isNotEmpty ? words.first : lower;
   }
 
   bool _isDuplicateProduct(String newProductName, List<Map<String, dynamic>> existingProducts) {
     final newNorm = _normalizeProductName(newProductName);
-    
+
     for (final existing in existingProducts) {
       final existingName = (existing['name'] ?? '').toString();
       final existingNorm = _normalizeProductName(existingName);
-      
+
       // Check for exact normalized match
       if (newNorm == existingNorm) return true;
-      
+
       // Check for substantial overlap (e.g., "wireless mouse" vs "mouse wireless")
       final newWords = newNorm.split(' ').toSet();
       final existingWords = existingNorm.split(' ').toSet();
       final intersection = newWords.intersection(existingWords);
-      
+
       // If 80%+ words overlap, consider it a duplicate
       final overlapRatio = intersection.length / newWords.length;
       if (overlapRatio >= 0.8) return true;
     }
-    
+
     return false;
   }
 
@@ -596,7 +599,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
       final productName = widget.name;
       final categoryName = widget.categoryName;
       final subcategoryName = widget.subcategoryName;
-      
+
       log('==========================================');
       log('Fetching frequently bought together for: ');
       log('  Product Name: $productName');
@@ -607,7 +610,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
       final group = _pickGroupByMatch(productName, categoryName);
       final suggestions = (group?['suggestions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
       final excludeWords = (group?['excludeMain'] as List?)?.cast<String>() ?? [];
-      
+
       final fallbackKeywords = _extractGroupFallbackKeywords(group);
 
       log('Selected group has ${suggestions.length} suggestion types');
@@ -635,7 +638,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
             try {
               final url = '${Configss.baseUrl}/api/products?search=${Uri.encodeComponent(searchTerm)}&limit=20';
               log('Searching: $searchTerm');
-              
+
               final res = await http.get(Uri.parse(url));
               if (res.statusCode == 200) {
                 final body = json.decode(res.body);
@@ -740,7 +743,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
         log('Using UNIVERSAL FALLBACK (laptop-style accessories)');
         log('Current results count: ${results.length}');
         log('==========================================');
-        
+
         // Use broader exclude list to avoid suggesting main product types
         final universalExcludes = [
           'laptop', 'notebook', 'desktop', 'pc', 'workstation',
@@ -755,7 +758,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
           try {
             final url = '${Configss.baseUrl}/api/products?search=${Uri.encodeComponent(searchTerm)}&limit=20';
             log('Universal search: $searchTerm');
-            
+
             final res = await http.get(Uri.parse(url));
             if (res.statusCode == 200) {
               final body = json.decode(res.body);
@@ -782,7 +785,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
                 }
 
                 // Simple check: must contain the search term
-                if (!pNameLower.contains(searchTerm.toLowerCase()) && 
+                if (!pNameLower.contains(searchTerm.toLowerCase()) &&
                     !pCat.contains(searchTerm.toLowerCase())) {
                   continue;
                 }
@@ -813,8 +816,8 @@ class _NewProductDetailsState extends State<NewProductDetails>
         _frequentlyBoughtLoading = false;
 
         _selectedBundleItems[widget.productId] = true;
-        final preselectCount = results.length >= _defaultPreselectedCount 
-            ? _defaultPreselectedCount 
+        final preselectCount = results.length >= _defaultPreselectedCount
+            ? _defaultPreselectedCount
             : results.length;
         final preselect = results.take(preselectCount);
         for (final p in preselect) {
@@ -931,7 +934,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
   // NEW: Bundle-specific notification showing total item count
   void _showBundleAddedToCartPopup(int itemCount) {
     log('📢 _showBundleAddedToCartPopup called with itemCount: $itemCount');
-    
+
     if (!mounted) {
       log('⚠️ Widget not mounted, cannot show notification');
       return;
@@ -954,7 +957,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
     }
 
     log('✅ Creating overlay entry for bundle notification');
-    
+
     final entry = OverlayEntry(
       builder: (_) => Positioned.fill(
         child: IgnorePointer(
@@ -1031,7 +1034,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
 
     overlayState.insert(entry);
     log('✅ Overlay inserted, will remove after 1500ms');
-    
+
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (entry.mounted) {
         entry.remove();
@@ -1044,11 +1047,11 @@ class _NewProductDetailsState extends State<NewProductDetails>
     final cart = Get.isRegistered<CartNotifier>() ? Get.find<CartNotifier>() : Get.put(CartNotifier());
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString('userId');
-    
+
     int totalItemsAdded = 0;
-    
+
     log('🛒 Starting bundle add to cart...');
-    
+
     // Add current item (suppress notification)
     final curPrice = _toDouble(widget.offerPrice.isNotEmpty ? widget.offerPrice : widget.price);
     final curImg = (widget.images.isNotEmpty && widget.images.first is String && (widget.images.first as String).isNotEmpty)
@@ -1067,7 +1070,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
     );
     totalItemsAdded++;
     log('✅ Added current item (${widget.name})');
-    
+
     // Add selected extras (at discounted price, suppress notifications)
     for (final p in _frequentlyBought) {
       final id = _idOf(p);
@@ -1088,9 +1091,9 @@ class _NewProductDetailsState extends State<NewProductDetails>
       totalItemsAdded++;
       log('✅ Added accessory: ${p['name']}');
     }
-    
+
     log('🎉 Bundle complete! Showing notification for $totalItemsAdded items');
-    
+
     // ✅ NEW: Manually trigger AwesomeNotifications for bundle
     final bool isNotificationEnabled = prefs.getBool('notification_enabled') ?? true;
     if (isNotificationEnabled) {
@@ -1107,7 +1110,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
     } else {
       log('🔇 Notifications disabled, skipping AwesomeNotification');
     }
-    
+
     // Show single bundle overlay notification after all items are added
     _showBundleAddedToCartPopup(totalItemsAdded);
   }
@@ -1268,7 +1271,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
                             autoPlayInterval: const Duration(seconds: 3),
                             onPageChanged: (index, reason) {
                               setState(() {
-                                _currentImageIndex = index;                              
+                                _currentImageIndex = index;
                                 String newSelectedImageUrl = (widget.images[index] is String ? widget.images[index] : null) ?? placeholderImage;
                                 if (newSelectedImageUrl.isEmpty) newSelectedImageUrl = placeholderImage;
                                 _selectedImageUrl = newSelectedImageUrl;
@@ -1322,7 +1325,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
                                      if (newSelectedImageUrl.isEmpty) newSelectedImageUrl = placeholderImage;
                                     _selectedImageUrl = newSelectedImageUrl;
                                   });
-                                  _slider.animateToPage(index); 
+                                  _slider.animateToPage(index);
                                 },
                                 child: Container(
                                   margin:
@@ -1341,7 +1344,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
                                     image: DecorationImage(
                                       image: CachedNetworkImageProvider(imageUrl),
                                       fit: BoxFit.cover,
-                                      onError: (exception, stackTrace) { 
+                                      onError: (exception, stackTrace) {
                                         log("Error loading thumbnail image: $imageUrl, error: $exception");
                                       },
                                     ),
@@ -1350,7 +1353,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
                               );
                             }).toList()
                           : [
-                              Container( 
+                              Container(
                                 padding: EdgeInsets.all(8),
                                 child: const Text(
                                   "No additional images available.",
@@ -1428,7 +1431,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
                         ),
                         Expanded(
                           child: Text(
-                            ' ${widget.brandName}', 
+                            ' ${widget.brandName}',
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium!
@@ -1474,7 +1477,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
                             children: [
                               Expanded(
                                 child: Text(
-                                  ' ${widget.stockStatus}', 
+                                  ' ${widget.stockStatus}',
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleMedium!
@@ -1509,8 +1512,8 @@ class _NewProductDetailsState extends State<NewProductDetails>
                       builder: (context) {
                         double offerDisplayPrice = double.tryParse(widget.offerPrice) ?? 0.0;
                         double regularDisplayPrice = double.tryParse(widget.price) ?? 0.0;
-                        const double epsilon = 0.001; 
-            
+                        const double epsilon = 0.001;
+
                         bool isOfferValidAndBetter = offerDisplayPrice > epsilon && offerDisplayPrice < regularDisplayPrice;
 
                         if (isOfferValidAndBetter) {
@@ -1571,7 +1574,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
                           );
                         } else {
                           return const Text(
-                            'Price not available', 
+                            'Price not available',
                             textAlign: TextAlign.right,
                             style: TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -1756,11 +1759,11 @@ class _NewProductDetailsState extends State<NewProductDetails>
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _actionButton(Icons.chat, "Chat\nWith Specialist",
+                            _actionButton(Icons.chat_bubble_outline , "Chat\nWith Specialist",
                                 () {
                               requestCall();
                             }),
-                            _actionButton(Icons.phone, "Request a\nCallback", () {
+                            _actionButton(Icons.phone_outlined, "Request a\nCallback", () {
                               showModalBottomSheet(
                                 context: context,
                                 isScrollControlled: true,
@@ -1773,7 +1776,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
                                 },
                               );
                             }),
-                            _actionButton(Icons.shield, "Request Bulk\nPurchase",
+                            _actionButton(Icons.shield_outlined, "Request Bulk\nPurchase",
                                 () {
                               Get.to(() => BulkPurchaceView());
                             }),
@@ -1956,7 +1959,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
                       const itemGap = 8.0;
                       final cardWidth = (screenW - (horizontalPadding * 2) - itemGap) / 2;
                       final cardHeight = (cardWidth / 0.64) - 1; // shave 1px to avoid overflow
-                      
+
                       if (_homeController.isrelatedLoading.value) {
                         return SizedBox(
                           height: cardHeight,
@@ -1982,12 +1985,12 @@ class _NewProductDetailsState extends State<NewProductDetails>
                           ),
                         );
                       }
-                      
+
                       final list = _homeController.relatedProducts;
                       if (list.isEmpty) {
                         return const SizedBox.shrink();
                       }
-                      
+
                       return SizedBox(
                         height: cardHeight,
                         child: ListView.separated(
@@ -2064,8 +2067,8 @@ class _NewProductDetailsState extends State<NewProductDetails>
                           final prefs = await SharedPreferences.getInstance();
                           String? userId = prefs
                               .getString('userId')
-                              ?.toString(); 
-                          
+                              ?.toString();
+
                           // Safer image access
                           String productImageForCart = placeholderImage;
                           if (widget.images.isNotEmpty && widget.images.first is String && (widget.images.first as String).isNotEmpty) {
@@ -2076,7 +2079,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
 
                           double offerP = double.tryParse(widget.offerPrice.isNotEmpty ? widget.offerPrice : '0') ?? 0.0;
                           double regularP = double.tryParse(widget.price.isNotEmpty ? widget.price : '0') ?? 0.0;
-                          
+
                           cart.addItemInfo(
                               CartOtherInfo(
                                 productId: widget.productId,
@@ -2086,19 +2089,19 @@ class _NewProductDetailsState extends State<NewProductDetails>
                                 quantity: 1,
                               ),
                               userId);
-                          _showAddedToCartPopup(); 
+                          _showAddedToCartPopup();
                         }
                       },
                       child: Container(
                         color: isOutOfStock
                             ? kredColor
-                            : kPrimaryColor, 
+                            : kPrimaryColor,
                         child: Center(
                           child: Padding(
                             padding: defaultPadding(),
                             child: Text(
                               isOutOfStock
-                                  ? 'OUT OF STOCK' 
+                                  ? 'OUT OF STOCK'
                                   : 'ADD TO CART',
                               style: TextStyle(
                                 color: kdefwhiteColor,
@@ -2191,7 +2194,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
   }
 
   bool istapped = false;
-  Key descriptionKey = UniqueKey(); 
+  Key descriptionKey = UniqueKey();
 
   Widget buildMoreInformationTab() {
     return Padding(
@@ -2452,12 +2455,12 @@ class _NewProductDetailsState extends State<NewProductDetails>
           margin: const EdgeInsets.symmetric(horizontal: 4),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.green.shade300),
+            border: Border.all(color: kPrimaryColor),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Column(
             children: [
-              Icon(icon, color: Colors.green),
+              Icon(icon, color: kPrimaryColor),
               const SizedBox(height: 6),
               Text(
                 label,
@@ -2743,7 +2746,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
     // Show empty state if no items found after loading
     final items = _frequentlyBought;
     if (items.isEmpty) return const SizedBox.shrink();
-    
+
     final totals = _bundleTotals();
 
     // Original content (unchanged)

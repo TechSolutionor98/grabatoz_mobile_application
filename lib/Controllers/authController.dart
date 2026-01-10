@@ -13,6 +13,8 @@ import 'package:http/http.dart' as http;
 class AuthController extends GetxController {
   // String? _userId;
   String? _emailErrorMessage;
+  // guest user
+  final isGuest = false.obs;
   // String? _loginemailErrorMessage;
   final loginemailErrorMessage = ''.obs;
   final loginpassworderrorMessage = ''.obs;
@@ -102,7 +104,12 @@ class AuthController extends GetxController {
       
       hasProfileDataLoaded.value = true;
       update();
-    } else {
+      return;
+    }if (isGuest.value) {
+      print("🟡 Guest user → profile API skipped");
+      return;
+    }
+    else {
       await prefs.clear();
       final bottomNavProvider = Get.put(BottomNavigationController());
       bottomNavProvider.setTabIndex(0);

@@ -262,7 +262,7 @@ class _HomeState extends State<Home> {
                 children:  [
                   HomeScreenView(),
                   Favorite(),
-                  NewAllProduct(
+                  Shop(
                     id: '2',
                     parentType: '',
                     displayTitle: 'All Products',

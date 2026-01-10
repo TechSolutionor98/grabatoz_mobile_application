@@ -28,6 +28,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   double total = 0.0;
   double deliveryFee = 0.0;
   double subtotal = 0.0;
+
   getcalculations() {
     subtotal = _cartNotifier.cartOtherInfoList.fold(
         0.0, (sum, item) => sum + (item.productPrice! * (item.quantity ?? 0)));
@@ -111,71 +112,148 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                       width: 25,
                       child: Center(child: CircularProgressIndicator()))
                   : ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         // Resolve customer name: prefer typed name, then stored full name, else empty
-                        final String customerName =
-                            _usercontroller.homeNameController.text.trim().isNotEmpty
-                                ? _usercontroller.homeNameController.text.trim()
-                                : _usercontroller.fullName.value.trim();
+                        final String customerName = _usercontroller
+                                .homeNameController.text
+                                .trim()
+                                .isNotEmpty
+                            ? _usercontroller.homeNameController.text.trim()
+                            : _usercontroller.fullName.value.trim();
 
                         if (selectedMethod == 'COD' ||
                             selectedMethod == "Card" ||
                             selectedMethod == "Tabby" ||
                             selectedMethod == "Tamara") {
                           if (_usercontroller.isHomeDelivery.value) {
-                            createOrder(
-                                _usercontroller.orderItems,
-                                'home',
-                                {
-                                  "name": customerName,
-                                  "email":
-                                      _usercontroller.homeemailAddress.text,
-                                  "phone":
-                                      _usercontroller.homePhoneController.text,
-                                  "address": _usercontroller.street.value
-                                      .replaceAll('"', ''),
-                                  "city": _usercontroller.city.value
-                                      .replaceAll('"', ''),
-                                  "state": _usercontroller.state.value
-                                      .replaceAll('"', ''),
-                                  "zipCode": _usercontroller.zipcode.value
-                                      .replaceAll('"', '')
-                                },
-                                {},
-                                _usercontroller.subtotalAmount.value,
-                                _cartNotifier.deliveryFee, // was 0.0
-                                _cartNotifier.totalAmount.value,
-                                _mapPaymentMethod(selectedMethod), // normalized
-                                _usercontroller.optionalNote.text);
+                            SharedPreferences prefs =
+                                await SharedPreferences.getInstance();
+                            bool? checkGuest = prefs.getBool('Guest') ?? false;
+                            String? guestName = prefs.getString('guest_name');
+                            String? guestCity = prefs.getString('guest_city');
+                            String? guestZipCode = prefs.getString('guest_zip');
+                            String? guestState = prefs.getString('guest_state');
+                            String? guestAddress =
+                                prefs.getString('guest_address');
+                            String? guestEmail = prefs.getString('guest_email');
+                            String? guestPhone = prefs.getString('guest_phone');
+
+                            if (checkGuest) {
+
+                              createOrder(
+                                  _usercontroller.orderItems,
+                                  'home',
+                                  {
+                                    "name": guestName,
+                                    "email": guestEmail,
+                                    "phone": guestPhone,
+                                    "address": guestAddress,
+                                    "city": guestCity,
+                                    "state": guestState,
+                                    "zipCode": guestZipCode
+                                  },
+                                  {},
+                                  _usercontroller.subtotalAmount.value,
+                                  _cartNotifier.deliveryFee,
+                                  // was 0.0
+                                  _cartNotifier.totalAmount.value,
+                                  _mapPaymentMethod(selectedMethod),
+                                  // normalized
+                                  _usercontroller.optionalNote.text);
+                            } else {
+                              createOrder(
+                                  _usercontroller.orderItems,
+                                  'home',
+                                  {
+                                    "name": customerName,
+                                    "email":
+                                        _usercontroller.homeemailAddress.text,
+                                    "phone": _usercontroller
+                                        .homePhoneController.text,
+                                    "address": _usercontroller.street.value
+                                        .replaceAll('"', ''),
+                                    "city": _usercontroller.city.value
+                                        .replaceAll('"', ''),
+                                    "state": _usercontroller.state.value
+                                        .replaceAll('"', ''),
+                                    "zipCode": _usercontroller.zipcode.value
+                                        .replaceAll('"', '')
+                                  },
+                                  {},
+                                  _usercontroller.subtotalAmount.value,
+                                  _cartNotifier.deliveryFee,
+                                  // was 0.0
+                                  _cartNotifier.totalAmount.value,
+                                  _mapPaymentMethod(selectedMethod),
+                                  // normalized
+                                  _usercontroller.optionalNote.text);
+                            }
                           } else {
-                            createOrder(
-                                _usercontroller.orderItems,
-                                'pickup',
-                                {
-                                  "name": customerName,
-                                  "email":
-                                      _usercontroller.homeemailAddress.text,
-                                  "phone":
-                                      _usercontroller.homePhoneController.text,
-                                  "address": _usercontroller.street.value
-                                      .replaceAll('"', ''),
-                                  "city": _usercontroller.city.value
-                                      .replaceAll('"', ''),
-                                  "state": _usercontroller.state.value
-                                      .replaceAll('"', ''),
-                                  "zipCode": _usercontroller.zipcode.value
-                                      .replaceAll('"', '')
-                                },
-                                {
-                                  "phone": _usercontroller.storePhone.value,
-                                  "location": _usercontroller.storeName.value,
-                                  "storeId": _usercontroller.storeId.value
-                                },
-                                _usercontroller.subtotalAmount.value,
-                                _cartNotifier.deliveryFee, // was 0.0
-                                _cartNotifier.totalAmount.value,
-                                _mapPaymentMethod(selectedMethod), // normalized
-                                _usercontroller.optionalNote.text);
+                            SharedPreferences prefs =
+                                await SharedPreferences.getInstance();
+                            bool? checkGuest = prefs.getBool('Guest') ?? false;
+                            String? guestName = prefs.getString('guest_name');
+                            String? guestCity = prefs.getString('guest_city');
+                            String? guestZipCode = prefs.getString('guest_zip');
+                            String? guestState = prefs.getString('guest_state');
+                            String? guestAddress =
+                                prefs.getString('guest_address');
+                            String? guestEmail = prefs.getString('guest_email');
+                            String? guestPhone = prefs.getString('guest_phone');
+
+                            if (checkGuest) {
+                              createOrder(
+                                  _usercontroller.orderItems,
+                                  'pickup',
+                                  {
+                                    "name": guestName,
+                                    "email": guestEmail,
+                                    "phone": guestPhone,
+                                    "address": guestAddress,
+                                    "city": guestCity,
+                                    "state": guestState,
+                                    "zipCode": guestZipCode
+                                  },
+                                  {},
+                                  _usercontroller.subtotalAmount.value,
+                                  _cartNotifier.deliveryFee,
+                                  // was 0.0
+                                  _cartNotifier.totalAmount.value,
+                                  _mapPaymentMethod(selectedMethod),
+                                  // normalized
+                                  _usercontroller.optionalNote.text);
+                            } else {
+                              createOrder(
+                                  _usercontroller.orderItems,
+                                  'pickup',
+                                  {
+                                    "name": customerName,
+                                    "email":
+                                        _usercontroller.homeemailAddress.text,
+                                    "phone": _usercontroller
+                                        .homePhoneController.text,
+                                    "address": _usercontroller.street.value
+                                        .replaceAll('"', ''),
+                                    "city": _usercontroller.city.value
+                                        .replaceAll('"', ''),
+                                    "state": _usercontroller.state.value
+                                        .replaceAll('"', ''),
+                                    "zipCode": _usercontroller.zipcode.value
+                                        .replaceAll('"', '')
+                                  },
+                                  {
+                                    "phone": _usercontroller.storePhone.value,
+                                    "location": _usercontroller.storeName.value,
+                                    "storeId": _usercontroller.storeId.value
+                                  },
+                                  _usercontroller.subtotalAmount.value,
+                                  _cartNotifier.deliveryFee,
+                                  // was 0.0
+                                  _cartNotifier.totalAmount.value,
+                                  _mapPaymentMethod(selectedMethod),
+                                  // normalized
+                                  _usercontroller.optionalNote.text);
+                            }
                           }
                         } else {
                           EasyLoading.showError('Payment Method Not Available');
@@ -231,10 +309,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     _usercontroller.token.value = sp.getString('token') ?? '';
 
     // Basic validations (do not set loading yet)
-    if (_usercontroller.token.value.isEmpty) {
-      EasyLoading.showError('Session expired. Please login again.');
-      return;
-    }
+    // if (_usercontroller.token.value.isEmpty) {
+    //   EasyLoading.showError('Session expired. Please login again.');
+    //   return;
+    // }
     // Validate based on actual cart content, not the passed orderItems list
     if (_cartNotifier.cartOtherInfoList.isEmpty) {
       EasyLoading.showError('Your cart is empty.');
@@ -396,7 +474,8 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final String checkoutUrl = data['checkout_url'] ?? data['paymentUrl'] ?? '';
+        final String checkoutUrl =
+            data['checkout_url'] ?? data['paymentUrl'] ?? '';
         if (checkoutUrl.isEmpty) {
           EasyLoading.showError('Invalid Tamara response');
           return;
@@ -441,9 +520,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
   // Build Tamara address from current shipping data
   Map<String, dynamic> _buildTamaraAddress() {
-    final String fullName = _usercontroller.homeNameController.text.trim().isNotEmpty
-        ? _usercontroller.homeNameController.text.trim()
-        : _usercontroller.fullName.value.trim();
+    final String fullName =
+        _usercontroller.homeNameController.text.trim().isNotEmpty
+            ? _usercontroller.homeNameController.text.trim()
+            : _usercontroller.fullName.value.trim();
     final name = _splitName(fullName);
     return {
       "city": _usercontroller.city.value.replaceAll('"', ''),

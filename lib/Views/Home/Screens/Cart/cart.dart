@@ -3,6 +3,7 @@
 import 'dart:developer';
 // ADD: imports for local fetch
 import 'dart:convert';
+import 'package:graba2z/Utils/image_helper.dart';
 import 'package:http/http.dart' as http;
 import 'package:graba2z/Configs/config.dart';
 import 'package:get/get.dart';
@@ -370,7 +371,7 @@ class _CartState extends State<Cart> {
                                           _showRemoveDialog(
                                             context,
                                             cartItem.productName ?? "",
-                                            cartItem.productImage ??
+                                            ImageHelper.getUrl(cartItem.productImage.toString()) ??
                                                 "https://i.postimg.cc/SsWYSvq6/noimage.png",
                                             cartItem.productPrice.toString(),
                                             cartItem.quantity.toString(),
@@ -387,7 +388,7 @@ class _CartState extends State<Cart> {
                                           cartItem.productName ?? "",
                                           cartItem.productImage?.isNotEmpty ??
                                                   false
-                                              ? cartItem.productImage!
+                                              ? ImageHelper.getUrl(cartItem.productImage.toString())!
                                               : "https://i.postimg.cc/SsWYSvq6/noimage.png",
                                           cartItem.productPrice.toString(),
                                           cartItem.quantity.toString(),
@@ -909,7 +910,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               children: [
                 CachedNetworkImage(
                   imageUrl: widget.cartItem.productImage?.isNotEmpty ?? false
-                      ? widget.cartItem.productImage!
+                      ? ImageHelper.getUrl(widget.cartItem.productImage.toString())!
                       : "https://i.postimg.cc/SsWYSvq6/noimage.png",
                   imageBuilder: (context, imageProvider) => Container(
                     padding: const EdgeInsets.all(5),
@@ -1143,11 +1144,16 @@ void showCheckoutDialog(BuildContext context) {
           ),
           GestureDetector(
             onTap: () {
-              Navigator.of(context).pop();
-              // context.route(GuestDataForm());
-              Get.to(() => CheckoutStepper(
-                    isforguest: true,
-                  ));
+              // Navigator.of(context).pop();
+              // // context.route(GuestDataForm());
+              // Get.to(() => CheckoutStepper(
+              //       isforguest: true,
+              //     ));
+
+              final auth = Get.find<AuthController>();
+              auth.isGuest.value = true;
+
+              Get.to(() => CheckoutStepper(isforguest: true));
             },
             child: Container(
               alignment: Alignment.centerLeft,

@@ -11,6 +11,7 @@ import 'package:graba2z/Controllers/checkout_controller.dart';
 import 'package:graba2z/Controllers/paymentprovider.dart';
 import 'package:graba2z/Utils/appcolors.dart';
 import 'package:graba2z/Utils/appextensions.dart';
+import 'package:graba2z/Utils/image_helper.dart';
 import 'package:graba2z/Utils/packages.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
@@ -234,7 +235,7 @@ class _NewSummaryViewState extends State<NewSummaryView> {
                       children: [
                         CachedNetworkImage(
                           imageUrl: cartItem.productImage?.isNotEmpty ?? false
-                              ? cartItem.productImage!
+                              ? ImageHelper.getUrl(cartItem.productImage.toString())!
                               : "https://i.postimg.cc/SsWYSvq6/noimage.png",
                           imageBuilder: (context, imageProvider) => Container(
                             width: 55,

@@ -40,9 +40,10 @@ class _ShopState extends State<Shop> {
 
   static const int pageSize = 12;
   int visibleCount = pageSize;
-  double _calcSortMaxWidth(BoxConstraints c) => math.min(220.0, c.maxWidth * 0.38);
-  List<dynamic> _sortedLocalProducts = const [];
 
+  double _calcSortMaxWidth(BoxConstraints c) =>
+      math.min(220.0, c.maxWidth * 0.38);
+  List<dynamic> _sortedLocalProducts = const [];
 
   void _showAddedToCartPopup() {
     final overlay = Overlay.of(context, rootOverlay: true);
@@ -64,7 +65,8 @@ class _ShopState extends State<Shop> {
                   SizedBox(width: 8),
                   Text(
                     'Added to cart',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -81,6 +83,7 @@ class _ShopState extends State<Shop> {
 
   String _sortLabel = 'Newest First';
   bool _sortMenuOpen = false;
+
   Widget _sortMenuButton() {
     return PopupMenuButton<String>(
       onOpened: () => setState(() => _sortMenuOpen = true),
@@ -91,8 +94,10 @@ class _ShopState extends State<Shop> {
       }),
       itemBuilder: (_) => const [
         PopupMenuItem(value: 'Newest First', child: Text('Newest First')),
-        PopupMenuItem(value: 'Price: Low to High', child: Text('Price: Low to High')),
-        PopupMenuItem(value: 'Price: High to Low', child: Text('Price: High to Low')),
+        PopupMenuItem(
+            value: 'Price: Low to High', child: Text('Price: Low to High')),
+        PopupMenuItem(
+            value: 'Price: High to Low', child: Text('Price: High to Low')),
         PopupMenuItem(value: 'Name: A to Z', child: Text('Name: A to Z')),
       ],
       child: Container(
@@ -115,13 +120,15 @@ class _ShopState extends State<Shop> {
             const SizedBox(width: 6),
             Transform.rotate(
               angle: _sortMenuOpen ? 3.14159 : 0,
-              child: const Icon(Icons.expand_more, size: 16, color: Colors.black),
+              child:
+                  const Icon(Icons.expand_more, size: 16, color: Colors.black),
             ),
           ],
         ),
       ),
     );
   }
+
   ButtonStyle _webLikeLoadMoreStyle() {
     const Color green600 = Color(0xFF16A34A); // Tailwind green-600
     const Color green700 = Color(0xFF15803D); // Tailwind green-700
@@ -155,10 +162,17 @@ class _ShopState extends State<Shop> {
           green700.withOpacity(0.12)), // transition-colors feedback
     );
   }
+
   // Extractors for sorting
   num _priceOf(dynamic e) {
     if (e is Map) {
-      final keys = ['finalPrice', 'discountedPrice', 'salePrice', 'sellingPrice', 'price'];
+      final keys = [
+        'finalPrice',
+        'discountedPrice',
+        'salePrice',
+        'sellingPrice',
+        'price'
+      ];
       for (final k in keys) {
         final v = e[k];
         if (v is num) return v;
@@ -181,6 +195,7 @@ class _ShopState extends State<Shop> {
     }
     return '';
   }
+
   // Apply the selected sorting inside stock groups, then combine (Available -> PreOrder -> Out of Stock)
   List<dynamic> _applySortOption(List<dynamic> base) {
     if (base.isEmpty) return base;
@@ -213,11 +228,12 @@ class _ShopState extends State<Shop> {
         cmp = (a, b) => _priceOf(b).compareTo(_priceOf(a));
         break;
       case 'Name: A to Z':
-        cmp = (a, b) => _nameOf(a).toLowerCase().compareTo(_nameOf(b).toLowerCase());
+        cmp = (a, b) =>
+            _nameOf(a).toLowerCase().compareTo(_nameOf(b).toLowerCase());
         break;
       case 'Newest First':
       default:
-      // Preserve incoming order (already grouped)
+        // Preserve incoming order (already grouped)
         return base;
     }
 
@@ -227,6 +243,7 @@ class _ShopState extends State<Shop> {
 
     return [...available, ...preorder, ...outOfStock];
   }
+
   List<dynamic> _getSortedDisplayProducts(List<dynamic> productList) {
     if (productList.isEmpty) return [];
 
@@ -264,8 +281,24 @@ class _ShopState extends State<Shop> {
 
   @override
   Widget build(BuildContext context) {
+    final navigationProvider = Get.put(BottomNavigationController());
     return Scaffold(
       appBar: CustomAppBar(
+        showLeading: true,
+        leadingWidget: Builder(
+          builder: (context) {
+            return IconButton(
+              onPressed: () {
+                if (widget.id == '2') {
+                  navigationProvider.setTabIndex(0);
+                } else {
+                  Navigator.of(context).pop();
+                }
+              },
+              icon: const Icon(Icons.arrow_back_ios, size: 20),
+            );
+          },
+        ),
         titleText: widget.displayTitle,
         actionicon: GetBuilder<CartNotifier>(
           builder: (cartNotifier) {
@@ -364,12 +397,14 @@ class _ShopState extends State<Shop> {
                     final maxW = _calcSortMaxWidth(constraints);
                     return Row(
                       children: [
-                        const Icon(Icons.inventory_2, size: 18, color: kPrimaryColor),
+                        const Icon(Icons.inventory_2,
+                            size: 18, color: kPrimaryColor),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
                             '${controller.productList.length} products found',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w700),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
