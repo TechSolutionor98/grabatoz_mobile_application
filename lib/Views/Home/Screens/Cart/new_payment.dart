@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:graba2z/Configs/config.dart';
@@ -9,7 +8,6 @@ import 'package:graba2z/Controllers/checkout_controller.dart';
 import 'package:graba2z/Utils/packages.dart';
 import 'package:graba2z/Views/success_page/successpayment.dart';
 import 'package:graba2z/Views/Home/Screens/Cart/pay_by_card_webview.dart';
-import 'package:graba2z/Views/Home/home.dart';
 import 'package:http/http.dart' as http;
 
 class PaymentMethodScreen extends StatefulWidget {
@@ -458,15 +456,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       "is_mobile": true,
       "locale": "en_US",
     };
-
     log('Tamara request payload: ${jsonEncode(payload)}');
-
     try {
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${_usercontroller.token.value}',
+
         },
         body: jsonEncode(payload),
       );

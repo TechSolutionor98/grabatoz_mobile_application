@@ -43,7 +43,7 @@ class ImageCarouselSliderState extends State<ImageCarouselSlider> {
         var data = jsonDecode(response.body);
         // Map JSON to a list of ProductApiModel
         for (var i = 0; i < data.length; i++) {
-          if (data[i]['deviceType'] == 'mobile') {
+          if ( data[i]['deviceType'] == 'mobile' && data[i]['position'] == 'hero' ) {
             bannerList.add(data[i]['image']);
           }
         }

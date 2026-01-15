@@ -1,5 +1,4 @@
 import 'package:graba2z/Utils/appextensions.dart';
-
 import '../Utils/packages.dart';
 
 class NoconnectionScreen extends StatelessWidget {
@@ -29,7 +28,6 @@ class NoconnectionScreen extends StatelessWidget {
                 title: "Oops!....",
                 description:
                     "Something wrong with your connection, Please connect to internet.",
-
                 // press: () {},
               ),
             ],

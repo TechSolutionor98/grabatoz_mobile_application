@@ -2,12 +2,9 @@ import 'package:get/get.dart';
 import 'package:graba2z/Api/Models/newProductModel.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Controllers/favController.dart';
-// import 'package:graba2z/Api/Models/productsModel.dart';
 import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Views/Home/Screens/Cart/cart.dart';
-import 'package:graba2z/Views/Product%20Folder/newProductDetails.dart';
 import 'package:graba2z/Views/Product%20Folder/newProduct_card.dart';
-import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../../../Utils/packages.dart';
 
@@ -17,7 +14,6 @@ class Favorite extends StatefulWidget {
   @override
   State<Favorite> createState() => _FavoriteState();
 }
-
 class _FavoriteState extends State<Favorite> {
   void _showAddedToCartPopup() {
     final overlay = Overlay.of(context, rootOverlay: true);

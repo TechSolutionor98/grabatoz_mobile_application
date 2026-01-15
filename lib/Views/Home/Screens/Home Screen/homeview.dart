@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:graba2z/Api/Models/categorymodel.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
@@ -7,13 +7,9 @@ import 'package:graba2z/Controllers/home_controller.dart';
 import 'package:graba2z/Controllers/menuController.dart';
 import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Utils/image_helper.dart';
-import 'package:graba2z/Views/Auth/login.dart';
-import 'package:graba2z/Views/Auth/signup.dart';
-import 'package:graba2z/Views/Home/Screens/Favorite%20Product/favproduct_screen.dart';
 import 'package:graba2z/Views/Home/Screens/Search%20Screen/searchscreen.dart';
-import 'package:graba2z/Views/Home/Screens/Settings/Modules/Order%20History/track_order_view.dart';
 import 'package:graba2z/Widgets/buildCategoryDrawer.dart';
-import 'package:url_launcher/url_launcher_string.dart';
+import 'package:http/http.dart' as http;
 import 'package:graba2z/Views/Categories%20Folder/allcategoriesscreen.dart';
 import 'package:graba2z/Views/Home/Screens/Cart/cart.dart';
 import 'package:graba2z/Views/Home/Screens/Home%20Screen/horizontal_scrolling_products.dart';
@@ -22,11 +18,6 @@ import 'package:graba2z/Views/Brand%20Folder/allbrandscreen.dart';
 import 'package:graba2z/Views/Brand%20Folder/brandcard.dart';
 import 'package:graba2z/Widgets/homecaresoule.dart';
 import '../../../../Utils/packages.dart';
-import 'package:graba2z/Widgets/servicecard.dart';
-import 'package:graba2z/Widgets/footertile.dart';
-import '../../../../Widgets/socialicon.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:graba2z/Configs/config.dart';
 
 class HomeScreenView extends StatefulWidget {
@@ -47,7 +38,6 @@ class _HomeScreenViewState extends State<HomeScreenView> {
   static const String _msiSectionBrandId = '687609810de49396755b9002';
   static const String _appleSectionBrandId = '6874de4381c33433c61f9bd4';
   static const String _lenovoSectionBrandId = '687609800de49396755b9000';
-
   static const String accessoriesCategoryId = '687659fcac482fc1560134d1';
   static const String networkingCategoryId = '68765a76ac482fc156013ad0';
 
@@ -84,32 +74,27 @@ class _HomeScreenViewState extends State<HomeScreenView> {
     super.dispose();
   }
 
-  Future<void> _launchURL(String url) async {
-    if (url.isEmpty) {
-      print('URL is empty, cannot launch.');
-      Get.snackbar("Error", "Link is not available.", snackPosition: SnackPosition.BOTTOM);
-      return;
-    }
-    try {
-      if (await canLaunchUrlString(url)) {
-        await launchUrlString(url);
-      } else {
-        print('Could not launch $url (canLaunchUrlString returned false).');
-        Get.snackbar("Error", "Could not open link.", snackPosition: SnackPosition.BOTTOM);
-      }
-    } catch (e) {
-      print('Exception trying to launch $url: $e');
-      Get.snackbar("Error", "Error opening link.", snackPosition: SnackPosition.BOTTOM);
+  Future<List<String>> fetchAllBanners({
+    required String section
+  }) async {
+    String url = Configss.getBanners;
+    final response = await http.get(
+      Uri.parse(url),
+    );
+
+    if (response.statusCode == 200) {
+      var data =  json.decode(response.body); // ALL DATA
+      return data
+          .where((item) =>
+      item['deviceType'] == 'mobile' &&
+          item['section'] == section)
+          .map<String>((item) => item['image'].toString())
+          .toList();
+    } else {
+      throw Exception('Failed to load banners');
     }
   }
 
-  void _scrollToTop() { // Renamed and updated method
-    _scrollController.animateTo(
-      0.0, // Scroll to the top of the scroll view
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
-    );
-  }
 
   void _navigateToCategoryByName(String categoryName) {
     categoriesModel? foundCategory;
@@ -447,42 +432,87 @@ class _HomeScreenViewState extends State<HomeScreenView> {
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: (){
-                          if (_lenovoSectionBrandId.isNotEmpty) {
-                            Get.to(() => NewAllProduct(id: _lenovoSectionBrandId, parentType: "brand"));
-                          } else {
-                            Get.snackbar("Info", "Lenovo brand page not available yet.");
-                          }
-                        },
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8.0),
-                          child: Image.asset('assets/images/home1.png', fit: BoxFit.cover, height: 110),
+                child: FutureBuilder<List<String>>(
+                  future: fetchAllBanners(section: "top-mobile"), // API function
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return SizedBox(
+                        height: 110,
+                      );
+                    }
+
+                    if (snapshot.hasError) {
+                      return Text("Error: ${snapshot.error}");
+                    }
+
+                    final banners = snapshot.data ?? [];
+
+                    // fallback images agar API se data nahi aaya
+                    final img1 = banners.isNotEmpty ? banners[0].toString() : 'assets/images/noimage.png';
+                    final img2 = banners.length > 1 ? banners[1].toString() : 'assets/images/noimage.png';
+
+                    final firstImage = ImageHelper.getUrl(img1);
+                    final secondImage = ImageHelper.getUrl(img2);
+
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              if (_lenovoSectionBrandId.isNotEmpty) {
+                                Get.to(() => NewAllProduct(
+                                    id: _lenovoSectionBrandId, parentType: "brand"));
+                              } else {
+                                Get.snackbar(
+                                    "Info", "Lenovo brand page not available yet.");
+                              }
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child: Image.network(
+                                firstImage,
+                                fit: BoxFit.cover,
+                                height: 110,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Image.asset('assets/images/noimage.png',
+                                      fit: BoxFit.cover, height: 110);
+                                },
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8.0),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: (){
-                          if (_msiSectionBrandId.isNotEmpty) {
-                            Get.to(() => NewAllProduct(id: _msiSectionBrandId, parentType: "brand"));
-                          } else {
-                            Get.snackbar("Info", "MSI brand page not available yet.");
-                          }
-                        },
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8.0),
-                          child: Image.asset('assets/images/home2.png', fit: BoxFit.cover, height: 110),
+                        const SizedBox(width: 8.0),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              if (_msiSectionBrandId.isNotEmpty) {
+                                Get.to(() => NewAllProduct(
+                                    id: _msiSectionBrandId, parentType: "brand"));
+                              } else {
+                                Get.snackbar(
+                                    "Info", "MSI brand page not available yet.");
+                              }
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child: Image.network(
+                                secondImage,
+                                fit: BoxFit.cover,
+                                height: 110,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Image.asset('assets/images/noimage.png',
+                                      fit: BoxFit.cover, height: 110);
+                                },
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  ],
+                      ],
+                    );
+                  },
                 ),
               ),
+
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0.0),
@@ -491,25 +521,7 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                   child: Image.asset('assets/images/tamara.png', height: 70, fit: BoxFit.fill, width: double.infinity),
                 ),
               ),
-              const SizedBox(height: 20,),
 
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                child: GestureDetector(
-                  onTap: () {
-                    Get.to(() => NewAllProduct(id: "_featured_", parentType: "featured"));
-                  },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.asset(
-                      'assets/images/feature.png',
-                      fit: BoxFit.fill,
-                      width: double.infinity,
-                      height: 140,
-                    ),
-                  ),
-                ),
-              ),
               const SizedBox(height: 10.0),
 
               // START: New Featured Products Section
@@ -538,20 +550,49 @@ class _HomeScreenViewState extends State<HomeScreenView> {
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                child: GestureDetector(
-                  onTap: () {
-                    if (_hpSectionBrandId.isNotEmpty) {
-                      Get.to(() => NewAllProduct(id: _hpSectionBrandId, parentType: "brand"));
-                    } else {
-                      Get.snackbar("Info", "HP brand page not available yet.");
+                child: FutureBuilder<List<String>>(
+                  future: fetchAllBanners(section: "hp-mobile"),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox(height: 140);
                     }
+
+                    if (snapshot.hasError) {
+                      return const SizedBox(height: 140);
+                    }
+
+                    final banners = snapshot.data ?? [];
+
+                    // 🔥 Sirf image path/url pass karo
+                    final imagePath = banners.isNotEmpty
+                        ? banners.first
+                        : 'assets/images/noimage.png';
+                    final image = ImageHelper.getUrl(imagePath);
+
+                    return GestureDetector(
+                      onTap: () {
+                        if (_hpSectionBrandId.isNotEmpty) {
+                          Get.to(() => NewAllProduct(
+                              id: _hpSectionBrandId, parentType: "brand"));
+                        } else {
+                          Get.snackbar("Info", "HP brand page not available yet.");
+                        }
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: Image.network(
+                          image,
+                          height: 140,
+                          width: double.infinity,
+                          fit: BoxFit.fill,
+                        ),
+                      ),
+                    );
                   },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.asset('assets/images/hp.png', height: 140, fit: BoxFit.fill, width: double.infinity),
-                  ),
                 ),
               ),
+
+
               const SizedBox(height: 10),
 
               Obx(() {
@@ -583,14 +624,45 @@ class _HomeScreenViewState extends State<HomeScreenView> {
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                child: GestureDetector(
-                  onTap: () {
-                     Get.to(() => NewAllProduct(id: accessoriesCategoryId, parentType: "category"));
+                child: FutureBuilder<List<String>>(
+                  future: fetchAllBanners(section: "accessories"),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox(height: 140);
+                    }
+
+                    if (snapshot.hasError) {
+                      return const SizedBox(height: 140);
+                    }
+
+                    final banners = snapshot.data ?? [];
+
+                    // 🔥 Sirf image path/url pass karo
+                    final imagePath = banners.isNotEmpty
+                        ? banners.first
+                        : 'assets/images/noimage.png';
+                    final image = ImageHelper.getUrl(imagePath);
+
+                    return GestureDetector(
+                      onTap: () {
+                        if (_hpSectionBrandId.isNotEmpty) {
+                          Get.to(() => NewAllProduct(
+                              id: _hpSectionBrandId, parentType: "brand"));
+                        } else {
+                          Get.snackbar("Info", "HP brand page not available yet.");
+                        }
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: Image.network(
+                          image,
+                          height: 140,
+                          width: double.infinity,
+                          fit: BoxFit.fill,
+                        ),
+                      ),
+                    );
                   },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.asset('assets/images/acessories.png', height: 140, fit: BoxFit.fill, width: double.infinity),
-                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -619,14 +691,45 @@ class _HomeScreenViewState extends State<HomeScreenView> {
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                child: GestureDetector(
-                  onTap: () {
-                    Get.to(() => NewAllProduct(id: _asusSectionBrandId, parentType: "brand"));
+                child: FutureBuilder<List<String>>(
+                  future: fetchAllBanners(section: "asus-mobile"),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox(height: 140);
+                    }
+
+                    if (snapshot.hasError) {
+                      return const SizedBox(height: 140);
+                    }
+
+                    final banners = snapshot.data ?? [];
+
+                    // 🔥 Sirf image path/url pass karo
+                    final imagePath = banners.isNotEmpty
+                        ? banners.first
+                        : 'assets/images/noimage.png';
+                    final image = ImageHelper.getUrl(imagePath);
+
+                    return GestureDetector(
+                      onTap: () {
+                        if (_hpSectionBrandId.isNotEmpty) {
+                          Get.to(() => NewAllProduct(
+                              id: _hpSectionBrandId, parentType: "brand"));
+                        } else {
+                          Get.snackbar("Info", "HP brand page not available yet.");
+                        }
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: Image.network(
+                          image,
+                          height: 140,
+                          width: double.infinity,
+                          fit: BoxFit.fill,
+                        ),
+                      ),
+                    );
                   },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.asset('assets/images/asus.png', height: 140, fit: BoxFit.fill, width: double.infinity),
-                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -688,21 +791,47 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                 );
               }),
               const SizedBox(height: 10),
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                child: GestureDetector(
-                  onTap: () {
-                    if (_msiSectionBrandId.isNotEmpty) {
-                       Get.to(() => NewAllProduct(id: _msiSectionBrandId, parentType: "brand"));
-                    } else {
-                       Get.snackbar("Info", "MSI brand page not available yet.");
+                child: FutureBuilder<List<String>>(
+                  future: fetchAllBanners(section: "msi-mobile"),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox(height: 140);
                     }
+
+                    if (snapshot.hasError) {
+                      return const SizedBox(height: 140);
+                    }
+
+                    final banners = snapshot.data ?? [];
+
+                    // 🔥 Sirf image path/url pass karo
+                    final imagePath = banners.isNotEmpty
+                        ? banners.first
+                        : 'assets/images/noimage.png';
+                    final image = ImageHelper.getUrl(imagePath);
+
+                    return GestureDetector(
+                      onTap: () {
+                        if (_hpSectionBrandId.isNotEmpty) {
+                          Get.to(() => NewAllProduct(
+                              id: _hpSectionBrandId, parentType: "brand"));
+                        } else {
+                          Get.snackbar("Info", "HP brand page not available yet.");
+                        }
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: Image.network(
+                          image,
+                          height: 140,
+                          width: double.infinity,
+                          fit: BoxFit.fill,
+                        ),
+                      ),
+                    );
                   },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.asset('assets/images/msi.png', height: 140, fit: BoxFit.fill, width: double.infinity),
-                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -735,18 +864,43 @@ class _HomeScreenViewState extends State<HomeScreenView> {
 
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                child: GestureDetector(
-                  onTap: () {
-                    if (_appleSectionBrandId.isNotEmpty) {
-                       Get.to(() => NewAllProduct(id: _appleSectionBrandId, parentType: "brand"));
-                    } else {
-                       Get.snackbar("Info", "Apple brand page not available yet.");
+                child: FutureBuilder<List<String>>(
+                  future: fetchAllBanners(section: "apple-mobile"),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox(height: 140);
                     }
+                    if (snapshot.hasError) {
+                      return const SizedBox(height: 140);
+                    }
+                    final banners = snapshot.data ?? [];
+
+                    // 🔥 Sirf image path/url pass karo
+                    final imagePath = banners.isNotEmpty
+                        ? banners.first
+                        : 'assets/images/noimage.png';
+                    final image = ImageHelper.getUrl(imagePath);
+
+                    return GestureDetector(
+                      onTap: () {
+                        if (_hpSectionBrandId.isNotEmpty) {
+                          Get.to(() => NewAllProduct(
+                              id: _hpSectionBrandId, parentType: "brand"));
+                        } else {
+                          Get.snackbar("Info", "HP brand page not available yet.");
+                        }
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: Image.network(
+                          image,
+                          height: 140,
+                          width: double.infinity,
+                          fit: BoxFit.fill,
+                        ),
+                      ),
+                    );
                   },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    child: Image.asset('assets/images/apple.png', height: 140, fit: BoxFit.fill, width: double.infinity),
-                  ),
                 ),
               ),
               const SizedBox(height: 10),
@@ -930,269 +1084,12 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                 );
               }),
               40.0.heightbox,
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 17.0),
-                child: Column(
-                  children: [
-                    // const Text(
-                    //   "Core Service Aspects",
-                    //   style: TextStyle(
-                    //     fontSize: 16,
-                    //     fontWeight: FontWeight.bold,
-                    //     color: kSecondaryColor,
-                    //   ),
-                    //   textAlign: TextAlign.center,
-                    // ),
-                    // const SizedBox(height: 20),
 
-                    // Row(
-                    //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    //   children: const [
-                    //     ServiceCard(
-                    //       image: "assets/images/wallet.png",
-                    //       title: "Secure Payment Method",
-                    //       subtitle: "Available Different secure Payment Methods",
-                    //     ),
-                    //     ServiceCard(
-                    //       image: "assets/images/delivery.png",
-                    //       title: "Extreme Fast Delivery",
-                    //       subtitle: "Fast and convenient From door to door delivery",
-                    //     ),
-                    //   ],
-                    // ),
-                    // SizedBox(height: 20), SizedBox(height: 20),
-                    // Row(
-                    //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    //   children: const [
-                    //     ServiceCard(
-                    //       image: "assets/images/heart.png",
-                    //       title: "Quality & Savings",
-                    //       subtitle: "Comprehensive quality control and affordable price",
-                    //     ),
-                    //     ServiceCard(
-                    //       image: "assets/images/headphone1.png",
-                    //       title: "Professional Support",
-                    //       subtitle: "Efficient customer support from passionate team",
-                    //     ),
-                    //   ],
-                    // ),
-                    // 40.0.heightbox,
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 0.0, vertical: 0.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          FooterTile(title: "Categories", children: [
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Accessories & Components", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () {
-                                  NewAllProduct(id: '', parentType: '',displayTitle: '',);
-                                }
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("All in one", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => NewAllProduct(id: "", parentType: ""),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Desktop", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => NewAllProduct(id: "", parentType: ""),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Laptops", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => NewAllProduct(id: "", parentType: ""),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Mobiles", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => NewAllProduct(id: "", parentType: ""),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Monitors", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => NewAllProduct(id: "", parentType: ""),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Networking", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => NewAllProduct(id: "", parentType: ""),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Printers & Copier", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => NewAllProduct(id: "", parentType: ""),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Projector", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => NewAllProduct(id: "", parentType: ""),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Routers & Switches", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => NewAllProduct(id: "", parentType: ""),
-                                ),
-                          ],),
-                          Divider(height: 1, color: Color(0xFFEEEEEE)),
-                          FooterTile(title: "Legal", children: [
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("About Us", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => _launchURL("https://www.grabatoz.ae/about"),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Contact Us", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => _launchURL("https://www.grabatoz.ae/contact"),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Blog", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => _launchURL("https://blog.grabatoz.ae/"),
-                            ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Shop", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: _scrollToTop, // Updated onTap to call _scrollToTop
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Login", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => Get.to(() => Login()),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Register", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => Get.to(() => SignUp()),
-                                ),
-                          ],),
-                          Divider(height: 1, color: Color(0xFFEEEEEE)),
-                          FooterTile(title: "Support", children: [
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Refund and Return", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => _launchURL("https://www.grabatoz.ae/refund-return"),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Cookies Policy", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => _launchURL("https://www.grabatoz.ae/cookies-policy"),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Terms & Conditions", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => _launchURL("https://www.grabatoz.ae/terms-conditions"),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Privacy Policy", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => _launchURL("https://www.grabatoz.ae/privacy-policy"),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Disclaimer Policy", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => _launchURL("https://www.grabatoz.ae/disclaimer-policy"),
-                                ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Track Order", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => Get.to(() => TrackOrderScreen()),
-                            ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Wishlist", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => Get.to(() => Favorite()),
-                            ),
-                            ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text("Cart", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),),
-                                onTap: () => Get.to(() => Cart()),
-                            ),
-                          ],),
-                          Divider(height: 1, color: Color(0xFFEEEEEE)),
-                          FooterTile(
-                            title: "Connect",
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: Row(
-                                    children: [
-                                      SocialIcon(assetPath: "assets/icons/facebook.png", url: "https://www.facebook.com/grabatozae/"),
-                                      SocialIcon(assetPath: "assets/icons/twitter.png", url: "https://x.com/GrabAtoz"),
-                                      SocialIcon(assetPath: "assets/icons/instagram.png", url: "https://www.instagram.com/grabatoz/"),
-                                      SocialIcon(assetPath: "assets/icons/linkedin.png", url: "https://www.linkedin.com/company/grabatozae"),
-                                      SocialIcon(assetPath: "assets/icons/pinterest.png", url: "https://www.pinterest.com/grabatoz/"),
-                                      SocialIcon(assetPath: "assets/icons/tiktok.png", url: "https://www.tiktok.com/@grabatoz"),
-                                      SocialIcon(assetPath: "assets/icons/youtube.png", url: "https://www.youtube.com/@grabAtoZ"),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ])),
       ),
+
     );
   }
 }

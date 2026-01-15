@@ -13,8 +13,13 @@ import 'package:graba2z/Widgets/secondarybutton.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:graba2z/Services/notification_permission_preloader.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 import '../../../../Controllers/addtocart.dart';
 import '../../../../Utils/packages.dart';
+import '../../../../Widgets/footertile.dart';
+import '../../../../Widgets/socialicon.dart';
+import '../../../Auth/signup.dart';
+import '../../../Product Folder/new_all_products.dart';
 
 class Settings extends StatefulWidget {
   const Settings({super.key});
@@ -32,8 +37,9 @@ class Settings extends StatefulWidget {
 }
 
 class _SettingsState extends State<Settings> {
+  final ScrollController _scrollController = ScrollController();
+
   getUserData() async {
-    
     SharedPreferences sp = await SharedPreferences.getInstance();
     name = sp.getString('userName') ?? '';
     email = sp.getString('userEmail') ?? '';
@@ -57,6 +63,37 @@ class _SettingsState extends State<Settings> {
     _notifInitialFuture = _loadInitialNotificationEffective();
   }
 
+  Future<void> _launchURL(String url) async {
+    if (url.isEmpty) {
+      print('URL is empty, cannot launch.');
+      Get.snackbar("Error", "Link is not available.",
+          snackPosition: SnackPosition.BOTTOM);
+      return;
+    }
+    try {
+      if (await canLaunchUrlString(url)) {
+        await launchUrlString(url);
+      } else {
+        print('Could not launch $url (canLaunchUrlString returned false).');
+        Get.snackbar("Error", "Could not open link.",
+            snackPosition: SnackPosition.BOTTOM);
+      }
+    } catch (e) {
+      print('Exception trying to launch $url: $e');
+      Get.snackbar("Error", "Error opening link.",
+          snackPosition: SnackPosition.BOTTOM);
+    }
+  }
+
+  void _scrollToTop() {
+    // Renamed and updated method
+    _scrollController.animateTo(
+      0.0, // Scroll to the top of the scroll view
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+    );
+  }
+
   Future<bool> _loadInitialNotificationEffective() async {
     final prefs = await SharedPreferences.getInstance();
     final userPref = prefs.getBool('notification_enabled') ?? false;
@@ -65,22 +102,23 @@ class _SettingsState extends State<Settings> {
   }
 
   AuthController _authController = Get.put(AuthController());
+
   @override
   Widget build(BuildContext context) {
-      final navigationProvider = Get.put(BottomNavigationController());
+    final navigationProvider = Get.put(BottomNavigationController());
     return Scaffold(
       appBar: CustomAppBar(
         titleText: "Settings",
         showLeading: true,
         leadingWidget: Builder(
-          builder: (context){
-            return IconButton(onPressed: (){
-                  
+          builder: (context) {
+            return IconButton(
+              onPressed: () {
                 navigationProvider.setTabIndex(0);
-
-            }, icon: const Icon(Icons.arrow_back_ios, size: 20),);
+              },
+              icon: const Icon(Icons.arrow_back_ios, size: 20),
+            );
           },
-
         ),
         actionicon: GetBuilder<CartNotifier>(
           builder: (
@@ -195,8 +233,8 @@ class _SettingsState extends State<Settings> {
                                       color: kSecondaryColor),
                                 ),
 
-                                const SizedBox(
-                                    height: 5), // Spacer between text and button
+                                const SizedBox(height: 5),
+                                // Spacer between text and button
                                 SecondaryButton(
                                   buttonColor: kPrimaryColor,
                                   textColor: kdefwhiteColor,
@@ -452,8 +490,10 @@ class _SettingsState extends State<Settings> {
 
                       // Render immediately using cached/preloaded state (no FutureBuilder)
                       NotificationTile(
-                        initialValue: NotificationPermissionPreloader.effectiveOrFalse,
-                        key: ValueKey(NotificationPermissionPreloader.effectiveOrFalse),
+                        initialValue:
+                            NotificationPermissionPreloader.effectiveOrFalse,
+                        key: ValueKey(
+                            NotificationPermissionPreloader.effectiveOrFalse),
                       ),
 
                       Divider(
@@ -757,6 +797,442 @@ class _SettingsState extends State<Settings> {
                 ),
               ),
               20.0.heightbox,
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16.0, vertical: 17.0),
+                child: Column(
+                  children: [
+                    // const Text(
+                    //   "Core Service Aspects",
+                    //   style: TextStyle(
+                    //     fontSize: 16,
+                    //     fontWeight: FontWeight.bold,
+                    //     color: kSecondaryColor,
+                    //   ),
+                    //   textAlign: TextAlign.center,
+                    // ),
+                    // const SizedBox(height: 20),
+
+                    // Row(
+                    //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    //   children: const [
+                    //     ServiceCard(
+                    //       image: "assets/images/wallet.png",
+                    //       title: "Secure Payment Method",
+                    //       subtitle: "Available Different secure Payment Methods",
+                    //     ),
+                    //     ServiceCard(
+                    //       image: "assets/images/delivery.png",
+                    //       title: "Extreme Fast Delivery",
+                    //       subtitle: "Fast and convenient From door to door delivery",
+                    //     ),
+                    //   ],
+                    // ),
+                    // SizedBox(height: 20), SizedBox(height: 20),
+                    // Row(
+                    //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    //   children: const [
+                    //     ServiceCard(
+                    //       image: "assets/images/heart.png",
+                    //       title: "Quality & Savings",
+                    //       subtitle: "Comprehensive quality control and affordable price",
+                    //     ),
+                    //     ServiceCard(
+                    //       image: "assets/images/headphone1.png",
+                    //       title: "Professional Support",
+                    //       subtitle: "Efficient customer support from passionate team",
+                    //     ),
+                    //   ],
+                    // ),
+                    // 40.0.heightbox,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 0.0, vertical: 0.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FooterTile(
+                            title: "Categories",
+                            children: [
+                              ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity(vertical: -4),
+                                  title: Text(
+                                    "Accessories & Components",
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  onTap: () {
+                                    NewAllProduct(
+                                      id: '',
+                                      parentType: '',
+                                      displayTitle: '',
+                                    );
+                                  }),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "All in one",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () =>
+                                    NewAllProduct(id: "", parentType: ""),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Desktop",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () =>
+                                    NewAllProduct(id: "", parentType: ""),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Laptops",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () =>
+                                    NewAllProduct(id: "", parentType: ""),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Mobiles",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () =>
+                                    NewAllProduct(id: "", parentType: ""),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Monitors",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () =>
+                                    NewAllProduct(id: "", parentType: ""),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Networking",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () =>
+                                    NewAllProduct(id: "", parentType: ""),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Printers & Copier",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () =>
+                                    NewAllProduct(id: "", parentType: ""),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Projector",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () =>
+                                    NewAllProduct(id: "", parentType: ""),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Routers & Switches",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () =>
+                                    NewAllProduct(id: "", parentType: ""),
+                              ),
+                            ],
+                          ),
+                          Divider(height: 1, color: Color(0xFFEEEEEE)),
+                          FooterTile(
+                            title: "Legal",
+                            children: [
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "About Us",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () =>
+                                    _launchURL("https://www.grabatoz.ae/about"),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Contact Us",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () => _launchURL(
+                                    "https://www.grabatoz.ae/contact"),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Blog",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () =>
+                                    _launchURL("https://blog.grabatoz.ae/"),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Shop",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap:
+                                    _scrollToTop, // Updated onTap to call _scrollToTop
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Login",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () => Get.to(() => Login()),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Register",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () => Get.to(() => SignUp()),
+                              ),
+                            ],
+                          ),
+                          Divider(height: 1, color: Color(0xFFEEEEEE)),
+                          FooterTile(
+                            title: "Support",
+                            children: [
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Refund and Return",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () => _launchURL(
+                                    "https://www.grabatoz.ae/refund-return"),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Cookies Policy",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () => _launchURL(
+                                    "https://www.grabatoz.ae/cookies-policy"),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Terms & Conditions",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () => _launchURL(
+                                    "https://www.grabatoz.ae/terms-conditions"),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Privacy Policy",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () => _launchURL(
+                                    "https://www.grabatoz.ae/privacy-policy"),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Disclaimer Policy",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () => _launchURL(
+                                    "https://www.grabatoz.ae/disclaimer-policy"),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Track Order",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () => Get.to(() => TrackOrderScreen()),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Wishlist",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () => Get.to(() => Favorite()),
+                              ),
+                              ListTile(
+                                dense: true,
+                                contentPadding: EdgeInsets.zero,
+                                visualDensity: VisualDensity(vertical: -4),
+                                title: Text(
+                                  "Cart",
+                                  style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                onTap: () => Get.to(() => Cart()),
+                              ),
+                            ],
+                          ),
+                          Divider(height: 1, color: Color(0xFFEEEEEE)),
+                          FooterTile(
+                            title: "Connect",
+                            children: [
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8.0),
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: [
+                                      SocialIcon(
+                                          assetPath:
+                                              "assets/icons/facebook.png",
+                                          url:
+                                              "https://www.facebook.com/grabatozae/"),
+                                      SocialIcon(
+                                          assetPath: "assets/icons/twitter.png",
+                                          url: "https://x.com/GrabAtoz"),
+                                      SocialIcon(
+                                          assetPath:
+                                              "assets/icons/instagram.png",
+                                          url:
+                                              "https://www.instagram.com/grabatoz/"),
+                                      SocialIcon(
+                                          assetPath:
+                                              "assets/icons/linkedin.png",
+                                          url:
+                                              "https://www.linkedin.com/company/grabatozae"),
+                                      SocialIcon(
+                                          assetPath:
+                                              "assets/icons/pinterest.png",
+                                          url:
+                                              "https://www.pinterest.com/grabatoz/"),
+                                      SocialIcon(
+                                          assetPath: "assets/icons/tiktok.png",
+                                          url:
+                                              "https://www.tiktok.com/@grabatoz"),
+                                      SocialIcon(
+                                          assetPath: "assets/icons/youtube.png",
+                                          url:
+                                              "https://www.youtube.com/@grabAtoZ"),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
