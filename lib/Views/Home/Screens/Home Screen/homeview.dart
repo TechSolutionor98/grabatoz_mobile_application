@@ -43,28 +43,43 @@ class _HomeScreenViewState extends State<HomeScreenView> {
 
   static const int homeScreenSectionFetchLimit = 20;
   static const int homeScreenSectionDisplayLimit = 5;
- 
 
   final ScrollController _brandsScrollController = ScrollController();
   bool _brandsAutoLoopStarted = false;
   double _brandStepExtent = 0.0; // one-slot step
-  double _brandLoopSpan = 0.0;   // full cycle width
-  bool _brandsCentered = false;  // center only once
+  double _brandLoopSpan = 0.0; // full cycle width
+  bool _brandsCentered = false; // center only once
 
   @override
   void initState() {
     super.initState();
-    _homeController.fetchFeaturedProducts(fetchLimit: homeScreenSectionFetchLimit);
-    _brandController.fetchProductsForBrand(_hpSectionBrandId, brandNameForLog: 'HP Home Section', fetchLimit: homeScreenSectionFetchLimit);
-    _brandController.fetchProductsForBrand(_asusSectionBrandId, brandNameForLog: 'Asus Home Section', fetchLimit: homeScreenSectionFetchLimit);
-    _brandController.fetchProductsForBrand(_msiSectionBrandId, brandNameForLog: 'MSI Home Section', fetchLimit: homeScreenSectionFetchLimit);
-    _brandController.fetchProductsForBrand(_appleSectionBrandId, brandNameForLog: 'Apple Home Section', fetchLimit: homeScreenSectionFetchLimit);
-    _brandController.fetchProductsForBrand(_lenovoSectionBrandId, brandNameForLog: 'Lenovo Home Section', fetchLimit: homeScreenSectionFetchLimit);
+    _homeController.fetchFeaturedProducts(
+        fetchLimit: homeScreenSectionFetchLimit);
+    _brandController.fetchProductsForBrand(_hpSectionBrandId,
+        brandNameForLog: 'HP Home Section',
+        fetchLimit: homeScreenSectionFetchLimit);
+    _brandController.fetchProductsForBrand(_asusSectionBrandId,
+        brandNameForLog: 'Asus Home Section',
+        fetchLimit: homeScreenSectionFetchLimit);
+    _brandController.fetchProductsForBrand(_msiSectionBrandId,
+        brandNameForLog: 'MSI Home Section',
+        fetchLimit: homeScreenSectionFetchLimit);
+    _brandController.fetchProductsForBrand(_appleSectionBrandId,
+        brandNameForLog: 'Apple Home Section',
+        fetchLimit: homeScreenSectionFetchLimit);
+    _brandController.fetchProductsForBrand(_lenovoSectionBrandId,
+        brandNameForLog: 'Lenovo Home Section',
+        fetchLimit: homeScreenSectionFetchLimit);
 
-    _homeController.fetchProductsForCategory(accessoriesCategoryId, categoryNameForLog: 'Accessories Home Section', fetchLimit: homeScreenSectionFetchLimit);
-    _homeController.fetchProductsForCategory(networkingCategoryId, categoryNameForLog: 'Networking Home Section', fetchLimit: homeScreenSectionFetchLimit);
+    _homeController.fetchProductsForCategory(accessoriesCategoryId,
+        categoryNameForLog: 'Accessories Home Section',
+        fetchLimit: homeScreenSectionFetchLimit);
+    _homeController.fetchProductsForCategory(networkingCategoryId,
+        categoryNameForLog: 'Networking Home Section',
+        fetchLimit: homeScreenSectionFetchLimit);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) => _startBrandsAutoScroll());
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _startBrandsAutoScroll());
   }
 
   @override
@@ -74,27 +89,23 @@ class _HomeScreenViewState extends State<HomeScreenView> {
     super.dispose();
   }
 
-  Future<List<String>> fetchAllBanners({
-    required String section
-  }) async {
+  Future<List<String>> fetchAllBanners({required String section}) async {
     String url = Configss.getBanners;
     final response = await http.get(
       Uri.parse(url),
     );
 
     if (response.statusCode == 200) {
-      var data =  json.decode(response.body); // ALL DATA
+      var data = json.decode(response.body);
       return data
           .where((item) =>
-      item['deviceType'] == 'mobile' &&
-          item['section'] == section)
+              item['deviceType'] == 'mobile' && item['section'] == section)
           .map<String>((item) => item['image'].toString())
           .toList();
     } else {
       throw Exception('Failed to load banners');
     }
   }
-
 
   void _navigateToCategoryByName(String categoryName) {
     categoriesModel? foundCategory;
@@ -105,10 +116,16 @@ class _HomeScreenViewState extends State<HomeScreenView> {
       }
     }
 
-    if (foundCategory != null && foundCategory.sId != null && foundCategory.sId!.isNotEmpty) {
-      Get.to(() => NewAllProduct(id: foundCategory!.sId!, parentType: "parentCategory", displayTitle: foundCategory.name ?? categoryName));
+    if (foundCategory != null &&
+        foundCategory.sId != null &&
+        foundCategory.sId!.isNotEmpty) {
+      Get.to(() => NewAllProduct(
+          id: foundCategory!.sId!,
+          parentType: "parentCategory",
+          displayTitle: foundCategory.name ?? categoryName));
     } else {
-      print("Footer Navigation: Category '$categoryName' not found or has no ID.");
+      print(
+          "Footer Navigation: Category '$categoryName' not found or has no ID.");
       Get.snackbar(
         "Info",
         "Could not navigate to '$categoryName'. Category details not found.",
@@ -149,7 +166,8 @@ class _HomeScreenViewState extends State<HomeScreenView> {
           preorderItems.add(product);
         } else if (status == 'out of stock') {
           outOfStockItems.add(product);
-        } else { // Treat others/unknown as available
+        } else {
+          // Treat others/unknown as available
           availableItems.add(product);
         }
       } else {
@@ -220,7 +238,8 @@ class _HomeScreenViewState extends State<HomeScreenView> {
       double current = _brandsScrollController.offset;
 
       // If near the end of the middle copy, jump back by one full span (seamless wrap)
-      final double wrapThreshold = _brandLoopSpan * 2 - (_brandStepExtent * 1.5);
+      final double wrapThreshold =
+          _brandLoopSpan * 2 - (_brandStepExtent * 1.5);
       if (current >= wrapThreshold) {
         try {
           _brandsScrollController.jumpTo(current - _brandLoopSpan);
@@ -247,849 +266,1031 @@ class _HomeScreenViewState extends State<HomeScreenView> {
     return Scaffold(
       drawer: buildCategoryDrawer(),
       appBar: CustomAppBar(
-        // Show Drawer Menu
-        showLeading: true,
+          // Show Drawer Menu
+          showLeading: true,
           leadingWidget: Builder(
-    builder: (context) {
-      return IconButton(
-        icon: const Icon(Icons.menu, color: kdefwhiteColor),
-        onPressed: () {
-          Scaffold.of(context).openDrawer();
-        },
-      );
-    },
-  ),
-  
-        
-        // Change: always show logo on Home
-        titleWidget: Image.asset(
-          AppImages.logoicon,
-          width: 100,
-          height: 100,
-          color: kdefwhiteColor,
-        ),
-        actionicon:Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(onPressed: (){ 
-              Navigator.push(context
-                , MaterialPageRoute(builder: (context) => SearchScreen()));
-            }, icon: const Icon(Icons.search, color: kdefwhiteColor, size: 28)),
-             GetBuilder<CartNotifier>(
-          builder: (cartNotifier) {
-            return Stack(
-              alignment: Alignment.topRight,
-              children: [
-                GestureDetector(
-                  onTap: () {
-                    context.route(const Cart());
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 5.0),
-                    child: Image.asset(
-                      "assets/icons/addcart.png",
-                      color: kdefwhiteColor,
-                      width: 28,
-                      height: 28,
-                    ),
-                  ),
-                ),
-                if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      width: 18,
-                      height: 18,
-                      decoration: const BoxDecoration(
-                        color: kredColor,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        cartNotifier.cartOtherInfoList.length.toString(),
-                        style: const TextStyle(
-                          color: kdefwhiteColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-        
-          ],
-      
-      
-        )
-        
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-            controller: _scrollController,
-            child: Column(children: [
-          const ImageCarouselSlider(),
-          10.0.heightbox,
-          Column(
+            builder: (context) {
+              return IconButton(
+                icon: const Icon(Icons.menu, color: kdefwhiteColor),
+                onPressed: () {
+                  Scaffold.of(context).openDrawer();
+                },
+              );
+            },
+          ),
+
+          // Change: always show logo on Home
+          titleWidget: Image.asset(
+            AppImages.logoicon,
+            width: 100,
+            height: 100,
+            color: kdefwhiteColor,
+          ),
+          actionicon: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              GestureDetector(
-                key: _categoriesSectionKey,
-                onTap: () {
-                  context.route(const AllCategoriesScreen());
-                },
-                child: Padding(
-                  padding: defaultPadding(),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => SearchScreen()));
+                  },
+                  icon: const Icon(Icons.search,
+                      color: kdefwhiteColor, size: 28)),
+              GetBuilder<CartNotifier>(
+                builder: (cartNotifier) {
+                  return Stack(
+                    alignment: Alignment.topRight,
                     children: [
-                      Text("Categories", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: kSecondaryColor)),
-                      Row(
-                        children: [
-                          Text("Show All", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: kSecondaryColor)),
-                          Icon(Icons.arrow_forward_ios, size: 12, color: kSecondaryColor),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              GetBuilder<HomeController>(
-                builder: (homeCtrl) {
-                  if (homeCtrl.isCateloading.value) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (homeCtrl.category.isEmpty) {
-                    return const Center(child: Text('No categories available'));
-                  }
-                  return SizedBox(
-                    height: 120,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: defaultPadding(horizontal: 8, vertical: 5),
-                      itemCount: homeCtrl.category.length >= 6 ? 6 : homeCtrl.category.length,
-                      itemBuilder: (ctx, index) {
-                        final category = homeCtrl.category[index];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: Column(
-                            children: [
-                              GestureDetector(
-                                onTap: () {
-                                  // Change: do NOT set Home title; pass displayTitle to the next screen
-                                  Get.to(() => NewAllProduct(
-                                        id: category.sId ?? '',
-                                        parentType: "parentCategory",
-                                        displayTitle: category.name ?? '',
-                                      ));
-                                },
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: kdefgreyColor,
-                                    borderRadius: BorderRadius.circular(6),
-                                    boxShadow: [
-                                      BoxShadow(color: Colors.black.withOpacity(0.1), offset: const Offset(0, 2), blurRadius: 3, spreadRadius: 1),
-                                    ],
-                                  ),
-                                  child: CachedNetworkImage(
-                                 imageUrl: Configss.baseUrl + category.image!,
-                                    imageBuilder: (context, imageProvider) => Container(
-                                      height: 65, width: 60,
-                                      decoration: BoxDecoration(image: DecorationImage(image: imageProvider, fit: BoxFit.cover)),
-                                    ),
-                                    placeholder: (context, url) => SizedBox(
-                                      height: 65, width: 60,
-                                      child: Shimmer.fromColors(
-                                        baseColor: Colors.grey.shade300, highlightColor: Colors.grey.shade100,
-                                        child: Container(decoration: BoxDecoration(color: Colors.grey, borderRadius: BorderRadius.circular(6))),
-                                      ),
-                                    ),
-                                    errorWidget: (context, url, error) => Container(
-                                      height: 65, width: 60,
-                                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(6), image: const DecorationImage(image: AssetImage('assets/images/noimage.png'), fit: BoxFit.contain)),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              8.0.heightbox,
-                              Text(
-                                (category.name?.characters.take(12).toString() ?? '') + ((category.name?.length ?? 0) > 12 ? '...' : ''),
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: kSecondaryColor),
-                                textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.clip,
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                child: FutureBuilder<List<String>>(
-                  future: fetchAllBanners(section: "top-mobile"), // API function
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return SizedBox(
-                        height: 110,
-                      );
-                    }
-
-                    if (snapshot.hasError) {
-                      return Text("Error: ${snapshot.error}");
-                    }
-
-                    final banners = snapshot.data ?? [];
-
-                    // fallback images agar API se data nahi aaya
-                    final img1 = banners.isNotEmpty ? banners[0].toString() : 'assets/images/noimage.png';
-                    final img2 = banners.length > 1 ? banners[1].toString() : 'assets/images/noimage.png';
-
-                    final firstImage = ImageHelper.getUrl(img1);
-                    final secondImage = ImageHelper.getUrl(img2);
-
-                    return Row(
-                      children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              if (_lenovoSectionBrandId.isNotEmpty) {
-                                Get.to(() => NewAllProduct(
-                                    id: _lenovoSectionBrandId, parentType: "brand"));
-                              } else {
-                                Get.snackbar(
-                                    "Info", "Lenovo brand page not available yet.");
-                              }
-                            },
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: Image.network(
-                                firstImage,
-                                fit: BoxFit.cover,
-                                height: 110,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Image.asset('assets/images/noimage.png',
-                                      fit: BoxFit.cover, height: 110);
-                                },
-                              ),
-                            ),
+                      GestureDetector(
+                        onTap: () {
+                          context.route(const Cart());
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 5.0),
+                          child: Image.asset(
+                            "assets/icons/addcart.png",
+                            color: kdefwhiteColor,
+                            width: 28,
+                            height: 28,
                           ),
                         ),
-                        const SizedBox(width: 8.0),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () {
-                              if (_msiSectionBrandId.isNotEmpty) {
-                                Get.to(() => NewAllProduct(
-                                    id: _msiSectionBrandId, parentType: "brand"));
-                              } else {
-                                Get.snackbar(
-                                    "Info", "MSI brand page not available yet.");
-                              }
-                            },
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: Image.network(
-                                secondImage,
-                                fit: BoxFit.cover,
-                                height: 110,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Image.asset('assets/images/noimage.png',
-                                      fit: BoxFit.cover, height: 110);
-                                },
+                      ),
+                      if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: const BoxDecoration(
+                              color: kredColor,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              cartNotifier.cartOtherInfoList.length.toString(),
+                              style: const TextStyle(
+                                color: kdefwhiteColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
                         ),
                       ],
-                    );
-                  },
-                ),
-              ),
-
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0.0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8.0),
-                  child: Image.asset('assets/images/tamara.png', height: 70, fit: BoxFit.fill, width: double.infinity),
-                ),
-              ),
-
-              const SizedBox(height: 10.0),
-
-              // START: New Featured Products Section
-              Obx(() {
-                final isLoadingFeatured = _homeController.isLoadingFeaturedProducts?.value ?? true;
-                final featuredProductList = _homeController.featuredProducts ?? <dynamic>[].obs;
-                final sortedFeaturedProducts = _getSortedDisplayProducts(featuredProductList);
-                final displayFeaturedProducts = sortedFeaturedProducts.take(homeScreenSectionDisplayLimit).toList();
-
-                if (displayFeaturedProducts.isEmpty && !isLoadingFeatured) {
-                  return const SizedBox.shrink(); // Don't show if empty and not loading
-                }
-
-                return HorizontalProducts(
-                  onTap: () {
-                    Get.to(() => NewAllProduct(id: "_featured_", parentType: "featured"));
-                  },
-                  name: "Featured Products",
-                  loading: isLoadingFeatured,
-                  productList: displayFeaturedProducts,
-                  onAddedToCart: _showAddedToCartPopup, // ADD
-                );
-              }),
-              const SizedBox(height: 10), // Spacing after Featured Products section
-              // END: New Featured Products Section
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                child: FutureBuilder<List<String>>(
-                  future: fetchAllBanners(section: "hp-mobile"),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const SizedBox(height: 140);
-                    }
-
-                    if (snapshot.hasError) {
-                      return const SizedBox(height: 140);
-                    }
-
-                    final banners = snapshot.data ?? [];
-
-                    // 🔥 Sirf image path/url pass karo
-                    final imagePath = banners.isNotEmpty
-                        ? banners.first
-                        : 'assets/images/noimage.png';
-                    final image = ImageHelper.getUrl(imagePath);
-
-                    return GestureDetector(
-                      onTap: () {
-                        if (_hpSectionBrandId.isNotEmpty) {
-                          Get.to(() => NewAllProduct(
-                              id: _hpSectionBrandId, parentType: "brand"));
-                        } else {
-                          Get.snackbar("Info", "HP brand page not available yet.");
-                        }
-                      },
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.network(
-                          image,
-                          height: 140,
-                          width: double.infinity,
-                          fit: BoxFit.fill,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-
-              const SizedBox(height: 10),
-
-              Obx(() {
-                final isLoadingHp = _brandController.isLoadingProductsByBrandIdMap[_hpSectionBrandId]?.value ?? true;
-                final hpProductList = _brandController.productsByBrandIdMap[_hpSectionBrandId] ?? <dynamic>[].obs;
-                final sortedHpProducts = _getSortedDisplayProducts(hpProductList);
-                final displayHpProducts = sortedHpProducts.take(homeScreenSectionDisplayLimit).toList();
-
-                if (displayHpProducts.isEmpty && !isLoadingHp) {
-                  return const SizedBox.shrink();
-                }
-
-                return HorizontalProducts(
-                  onTap: () {
-                    if (_hpSectionBrandId.isNotEmpty) {
-                      Get.to(() => NewAllProduct(id: _hpSectionBrandId, parentType: "brand"));
-                    } else {
-                       Get.snackbar("Developer Info", "HP Brand ID needs to be configured by the developer.");
-                    }
-                  },
-                  name: "HP Products",
-                  loading: isLoadingHp,
-                  productList: displayHpProducts,
-                  onAddedToCart: _showAddedToCartPopup, // ADD
-                );
-              }),
-
-              const SizedBox(height: 10),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                child: FutureBuilder<List<String>>(
-                  future: fetchAllBanners(section: "accessories"),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const SizedBox(height: 140);
-                    }
-
-                    if (snapshot.hasError) {
-                      return const SizedBox(height: 140);
-                    }
-
-                    final banners = snapshot.data ?? [];
-
-                    // 🔥 Sirf image path/url pass karo
-                    final imagePath = banners.isNotEmpty
-                        ? banners.first
-                        : 'assets/images/noimage.png';
-                    final image = ImageHelper.getUrl(imagePath);
-
-                    return GestureDetector(
-                      onTap: () {
-                        if (_hpSectionBrandId.isNotEmpty) {
-                          Get.to(() => NewAllProduct(
-                              id: _hpSectionBrandId, parentType: "brand"));
-                        } else {
-                          Get.snackbar("Info", "HP brand page not available yet.");
-                        }
-                      },
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.network(
-                          image,
-                          height: 140,
-                          width: double.infinity,
-                          fit: BoxFit.fill,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              Obx(() {
-                final isLoadingAccessories = _homeController.isLoadingProductsByCategoryIdMap[accessoriesCategoryId]?.value ?? true;
-                final accessoriesProductList = _homeController.productsByCategoryIdMap[accessoriesCategoryId] ?? <dynamic>[].obs;
-                final sortedAccessoriesProducts = _getSortedDisplayProducts(accessoriesProductList);
-                final displayAccessoriesProducts = sortedAccessoriesProducts.take(homeScreenSectionDisplayLimit).toList();
-
-                if (displayAccessoriesProducts.isEmpty && !isLoadingAccessories) {
-                  return const SizedBox.shrink();
-                }
-
-                return HorizontalProducts(
-                  onTap: () {
-                     Get.to(() => NewAllProduct(id: accessoriesCategoryId, parentType: "category"));
-                  },
-                  name: "Accessories",
-                  loading: isLoadingAccessories,
-                  productList: displayAccessoriesProducts,
-                  onAddedToCart: _showAddedToCartPopup, // ADD
-                );
-              }),
-              const SizedBox(height: 10),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                child: FutureBuilder<List<String>>(
-                  future: fetchAllBanners(section: "asus-mobile"),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const SizedBox(height: 140);
-                    }
-
-                    if (snapshot.hasError) {
-                      return const SizedBox(height: 140);
-                    }
-
-                    final banners = snapshot.data ?? [];
-
-                    // 🔥 Sirf image path/url pass karo
-                    final imagePath = banners.isNotEmpty
-                        ? banners.first
-                        : 'assets/images/noimage.png';
-                    final image = ImageHelper.getUrl(imagePath);
-
-                    return GestureDetector(
-                      onTap: () {
-                        if (_hpSectionBrandId.isNotEmpty) {
-                          Get.to(() => NewAllProduct(
-                              id: _hpSectionBrandId, parentType: "brand"));
-                        } else {
-                          Get.snackbar("Info", "HP brand page not available yet.");
-                        }
-                      },
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.network(
-                          image,
-                          height: 140,
-                          width: double.infinity,
-                          fit: BoxFit.fill,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              Obx(() {
-                final isLoadingAsus = _brandController.isLoadingProductsByBrandIdMap[_asusSectionBrandId]?.value ?? true;
-                final asusProductList = _brandController.productsByBrandIdMap[_asusSectionBrandId] ?? <dynamic>[].obs;
-                final sortedAsusProducts = _getSortedDisplayProducts(asusProductList);
-                final displayAsusProducts = sortedAsusProducts.take(homeScreenSectionDisplayLimit).toList();
-
-                if (displayAsusProducts.isEmpty && !isLoadingAsus) {
-                  return const SizedBox.shrink();
-                }
-
-                return HorizontalProducts(
-                  onTap: () {
-                    Get.to(() => NewAllProduct(id: _asusSectionBrandId, parentType: "brand"));
-                  },
-                  name: "Shop Asus",
-                  loading: isLoadingAsus,
-                  productList: displayAsusProducts,
-                  onAddedToCart: _showAddedToCartPopup, // ADD
-                );
-              }),
-              const SizedBox(height: 10),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                child: GestureDetector(
-                  onTap: () {
-                    Get.to(() => NewAllProduct(id: networkingCategoryId, parentType: "subcategory"));
-                  },
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8.0),
-                    // child: Image.asset('assets/images/networking.png', height: 140, fit: BoxFit.fill, width: double.infinity),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              Obx(() {
-                final isLoadingNetworking = _homeController.isLoadingProductsByCategoryIdMap[networkingCategoryId]?.value ?? true;
-                final networkingProductList = _homeController.productsByCategoryIdMap[networkingCategoryId] ?? <dynamic>[].obs;
-                final sortedNetworkingProducts = _getSortedDisplayProducts(networkingProductList);
-                final displayNetworkingProducts = sortedNetworkingProducts.take(homeScreenSectionDisplayLimit).toList();
-
-                if (displayNetworkingProducts.isEmpty && !isLoadingNetworking) {
-                  return const SizedBox.shrink();
-                }
-
-                return HorizontalProducts(
-                  onTap: () {
-                     Get.to(() => NewAllProduct(id: networkingCategoryId, parentType: "subcategory"));
-                  },
-                  name: "Networking",
-                  loading: isLoadingNetworking,
-                  productList: displayNetworkingProducts,
-                  onAddedToCart: _showAddedToCartPopup, // ADD
-                );
-              }),
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                child: FutureBuilder<List<String>>(
-                  future: fetchAllBanners(section: "msi-mobile"),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const SizedBox(height: 140);
-                    }
-
-                    if (snapshot.hasError) {
-                      return const SizedBox(height: 140);
-                    }
-
-                    final banners = snapshot.data ?? [];
-
-                    // 🔥 Sirf image path/url pass karo
-                    final imagePath = banners.isNotEmpty
-                        ? banners.first
-                        : 'assets/images/noimage.png';
-                    final image = ImageHelper.getUrl(imagePath);
-
-                    return GestureDetector(
-                      onTap: () {
-                        if (_hpSectionBrandId.isNotEmpty) {
-                          Get.to(() => NewAllProduct(
-                              id: _hpSectionBrandId, parentType: "brand"));
-                        } else {
-                          Get.snackbar("Info", "HP brand page not available yet.");
-                        }
-                      },
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.network(
-                          image,
-                          height: 140,
-                          width: double.infinity,
-                          fit: BoxFit.fill,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              Obx(() {
-                final isLoadingMsi = _brandController.isLoadingProductsByBrandIdMap[_msiSectionBrandId]?.value ?? true;
-                final msiProductList = _brandController.productsByBrandIdMap[_msiSectionBrandId] ?? <dynamic>[].obs;
-                final sortedMsiProducts = _getSortedDisplayProducts(msiProductList);
-                final displayMsiProducts = sortedMsiProducts.take(homeScreenSectionDisplayLimit).toList();
-
-                if (displayMsiProducts.isEmpty && !isLoadingMsi) {
-                  return const SizedBox.shrink();
-                }
-
-                return HorizontalProducts(
-                  onTap: () {
-                    if (_msiSectionBrandId.isNotEmpty) {
-                       Get.to(() => NewAllProduct(id: _msiSectionBrandId, parentType: "brand"));
-                    } else {
-                       Get.snackbar("Info", "MSI brand page not available yet.");
-                    }
-                  },
-                  name: "Shop MSI",
-                  loading: isLoadingMsi,
-                  productList: displayMsiProducts,
-                  onAddedToCart: _showAddedToCartPopup, // ADD
-                );
-              }),
-              const SizedBox(height: 10),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 10.0),
-                child: FutureBuilder<List<String>>(
-                  future: fetchAllBanners(section: "apple-mobile"),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const SizedBox(height: 140);
-                    }
-                    if (snapshot.hasError) {
-                      return const SizedBox(height: 140);
-                    }
-                    final banners = snapshot.data ?? [];
-
-                    // 🔥 Sirf image path/url pass karo
-                    final imagePath = banners.isNotEmpty
-                        ? banners.first
-                        : 'assets/images/noimage.png';
-                    final image = ImageHelper.getUrl(imagePath);
-
-                    return GestureDetector(
-                      onTap: () {
-                        if (_hpSectionBrandId.isNotEmpty) {
-                          Get.to(() => NewAllProduct(
-                              id: _hpSectionBrandId, parentType: "brand"));
-                        } else {
-                          Get.snackbar("Info", "HP brand page not available yet.");
-                        }
-                      },
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: Image.network(
-                          image,
-                          height: 140,
-                          width: double.infinity,
-                          fit: BoxFit.fill,
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              Obx(() {
-                final isLoadingApple = _brandController.isLoadingProductsByBrandIdMap[_appleSectionBrandId]?.value ?? true;
-                final appleProductList = _brandController.productsByBrandIdMap[_appleSectionBrandId] ?? <dynamic>[].obs;
-                final sortedAppleProducts = _getSortedDisplayProducts(appleProductList);
-                final displayAppleProducts = sortedAppleProducts.take(homeScreenSectionDisplayLimit).toList();
-
-                if (displayAppleProducts.isEmpty && !isLoadingApple) {
-                  return const SizedBox.shrink();
-                }
-
-                return HorizontalProducts(
-                  onTap: () {
-                    if (_appleSectionBrandId.isNotEmpty) {
-                       Get.to(() => NewAllProduct(id: _appleSectionBrandId, parentType: "brand"));
-                    } else {
-                       Get.snackbar("Info", "Apple brand page not available yet.");
-                    }
-                  },
-                  name: "Show Apple",
-                  loading: isLoadingApple,
-                  productList: displayAppleProducts,
-                  onAddedToCart: _showAddedToCartPopup, // ADD
-                );
-              }),
-              const SizedBox(height: 10),
-
-              GestureDetector(
-                onTap: () {
-                  context.route(AllBrandScreen(brandList: _brandController.brandList));
+                    ],
+                  );
                 },
-                child: Padding(
-                  padding: defaultPadding(),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("Featured Brands", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: kSecondaryColor)),
-                      Row(
+              ),
+            ],
+          )),
+      body: SafeArea(
+        child: SingleChildScrollView(
+            controller: _scrollController,
+            child: Column(children: [
+              const ImageCarouselSlider(),
+              10.0.heightbox,
+              Column(
+                children: [
+                  GestureDetector(
+                    key: _categoriesSectionKey,
+                    onTap: () {
+                      context.route(const AllCategoriesScreen());
+                    },
+                    child: Padding(
+                      padding: defaultPadding(),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text("Show All", style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: kSecondaryColor)),
-                          Icon(Icons.arrow_forward_ios, size: 12, color: kSecondaryColor),
+                          Text("Categories",
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: kSecondaryColor)),
+                          Row(
+                            children: [
+                              Text("Show All",
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: kSecondaryColor)),
+                              Icon(Icons.arrow_forward_ios,
+                                  size: 12, color: kSecondaryColor),
+                            ],
+                          ),
                         ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-              ),
-              Obx(() {
-                // Touch Rx at top-level of Obx to avoid improper use warning
-                final bool isLoadingBrands = _brandController.isbrandLoaded.value;
-                final List<dynamic> brands = _brandController.brandList;
-
-                // Reduced outer horizontal padding
-                final basePad = defaultPadding();
-                final sectionPad = EdgeInsets.fromLTRB(4.0, basePad.top, 4.0, basePad.bottom);
-
-                return Padding(
-                  padding: sectionPad,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      // Width inside section padding
-                      final double contentWidth = constraints.maxWidth;
-
-                      // Slightly reduced gap between cards
-                      final double gap = contentWidth >= 360 ? 10.0 : 6.0;
-                      // Smaller equal left/right edge padding inside the scroll
-                      final double edgePad = 3.0;
-
-                      // Snap helper to avoid fractional pixel overflow/clipping
-                      final double dpr = MediaQuery.of(context).devicePixelRatio;
-                      double snap(double v) => (v * dpr).floor() / dpr;
-
-                      // Fit two items exactly with equal edges:
-                      // contentWidth = edgePad + itemW + gap + itemW + edgePad
-                      final double available = contentWidth - (2 * edgePad) - gap - 0.5;
-                      final double itemWidth = snap(available / 2).clamp(80.0, contentWidth);
-
-                      // Slightly reduce shrink so the card is a bit larger (~9%)
-                      final double shrink = (itemWidth * 0.09).clamp(6.0, 18.0);
-                      final double cardWidth = (itemWidth - shrink).clamp(90.0, itemWidth);
-
-                      // one-slot step and full cycle span
-                      final double stepExtent = itemWidth + gap;
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) _brandStepExtent = stepExtent;
-                      });
-
-                      if (!isLoadingBrands && brands.isNotEmpty) {
-                        final double span = stepExtent * brands.length;
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          if (!mounted) return;
-                          _brandLoopSpan = span;
-                          if (!_brandsCentered && _brandsScrollController.hasClients && span > 0) {
-                            try {
-                              // center on the middle copy
-                              _brandsScrollController.jumpTo(span);
-                              _brandsCentered = true;
-                            } catch (_) {}
-                          }
-                        });
+                  const SizedBox(height: 10),
+                  GetBuilder<HomeController>(
+                    builder: (homeCtrl) {
+                      if (homeCtrl.isCateloading.value) {
+                        return const Center(child: CircularProgressIndicator());
                       }
-
-                      if (isLoadingBrands) {
-                        return SingleChildScrollView(
-                          controller: _brandsScrollController,
+                      if (homeCtrl.category.isEmpty) {
+                        return const Center(
+                            child: Text('No categories available'));
+                      }
+                      return SizedBox(
+                        height: 120,
+                        child: ListView.builder(
                           scrollDirection: Axis.horizontal,
-                          padding: EdgeInsets.symmetric(horizontal: edgePad),
-                          child: Row(
-                            children: [
-                              ...List.generate(6, (index) {
-                                return Container(
-                                  width: itemWidth, // fixed slot
-                                  margin: EdgeInsets.only(right: index == 5 ? 0 : gap),
-                                  child: Center(
+                          padding: defaultPadding(horizontal: 8, vertical: 5),
+                          itemCount: homeCtrl.category.length >= 6
+                              ? 6
+                              : homeCtrl.category.length,
+                          itemBuilder: (ctx, index) {
+                            final category = homeCtrl.category[index];
+                            return Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 10),
+                              child: Column(
+                                children: [
+                                  GestureDetector(
+                                    onTap: () {
+                                      // Change: do NOT set Home title; pass displayTitle to the next screen
+                                      Get.to(() => NewAllProduct(
+                                            id: category.sId ?? '',
+                                            parentType: "parentCategory",
+                                            displayTitle: category.name ?? '',
+                                          ));
+                                    },
                                     child: Container(
-                                      width: cardWidth,
-                                      height: cardWidth,
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(12.0),
+                                        color: kdefgreyColor,
+                                        borderRadius: BorderRadius.circular(6),
+                                        boxShadow: [
+                                          BoxShadow(
+                                              color:
+                                                  Colors.black.withOpacity(0.1),
+                                              offset: const Offset(0, 2),
+                                              blurRadius: 3,
+                                              spreadRadius: 1),
+                                        ],
                                       ),
-                                      child: Shimmer.fromColors(
-                                        baseColor: Colors.grey.shade300,
-                                        highlightColor: Colors.grey.shade100,
-                                        child: const SizedBox.expand(),
+                                      child: CachedNetworkImage(
+                                        imageUrl:
+                                            Configss.baseUrl + category.image!,
+                                        imageBuilder:
+                                            (context, imageProvider) =>
+                                                Container(
+                                          height: 65,
+                                          width: 60,
+                                          decoration: BoxDecoration(
+                                              image: DecorationImage(
+                                                  image: imageProvider,
+                                                  fit: BoxFit.cover)),
+                                        ),
+                                        placeholder: (context, url) => SizedBox(
+                                          height: 65,
+                                          width: 60,
+                                          child: Shimmer.fromColors(
+                                            baseColor: Colors.grey.shade300,
+                                            highlightColor:
+                                                Colors.grey.shade100,
+                                            child: Container(
+                                                decoration: BoxDecoration(
+                                                    color: Colors.grey,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            6))),
+                                          ),
+                                        ),
+                                        errorWidget: (context, url, error) =>
+                                            Container(
+                                          height: 65,
+                                          width: 60,
+                                          decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              image: const DecorationImage(
+                                                  image: AssetImage(
+                                                      'assets/images/noimage.png'),
+                                                  fit: BoxFit.contain)),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                );
-                              }),
-                              SizedBox(width: edgePad),
-                            ],
-                          ),
+                                  8.0.heightbox,
+                                  Text(
+                                    (category.name?.characters
+                                                .take(12)
+                                                .toString() ??
+                                            '') +
+                                        ((category.name?.length ?? 0) > 12
+                                            ? '...'
+                                            : ''),
+                                    style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                        color: kSecondaryColor),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.clip,
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0, vertical: 8.0),
+                    child: FutureBuilder<List<String>>(
+                      future: fetchAllBanners(section: "top-mobile"),
+                      // API function
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return SizedBox(
+                            height: 110,
+                          );
+                        }
+
+                        if (snapshot.hasError) {
+                          return Text("Error: ${snapshot.error}");
+                        }
+
+                        final banners = snapshot.data ?? [];
+
+                        // fallback images agar API se data nahi aaya
+                        final img1 = banners.isNotEmpty
+                            ? banners[0].toString()
+                            : 'assets/images/noimage.png';
+                        final img2 = banners.length > 1
+                            ? banners[1].toString()
+                            : 'assets/images/noimage.png';
+
+                        final firstImage = ImageHelper.getUrl(img1);
+                        final secondImage = ImageHelper.getUrl(img2);
+
+                        return Row(
+                          children: [
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  if (_lenovoSectionBrandId.isNotEmpty) {
+                                    Get.to(() => NewAllProduct(
+                                        id: _lenovoSectionBrandId,
+                                        parentType: "brand"));
+                                  } else {
+                                    Get.snackbar("Info",
+                                        "Lenovo brand page not available yet.");
+                                  }
+                                },
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  child: Image.network(
+                                    firstImage,
+                                    fit: BoxFit.cover,
+                                    height: 110,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Image.asset(
+                                          'assets/images/noimage.png',
+                                          fit: BoxFit.cover,
+                                          height: 110);
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8.0),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  if (_msiSectionBrandId.isNotEmpty) {
+                                    Get.to(() => NewAllProduct(
+                                        id: _msiSectionBrandId,
+                                        parentType: "brand"));
+                                  } else {
+                                    Get.snackbar("Info",
+                                        "MSI brand page not available yet.");
+                                  }
+                                },
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  child: Image.network(
+                                    secondImage,
+                                    fit: BoxFit.cover,
+                                    height: 110,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Image.asset(
+                                          'assets/images/noimage.png',
+                                          fit: BoxFit.cover,
+                                          height: 110);
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         );
-                      } else if (brands.isEmpty) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Text(
-                              'No Brands available.',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                      },
+                    ),
+                  ),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0, vertical: 0.0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
+                      child: Image.asset('assets/images/tamara.png',
+                          height: 70, fit: BoxFit.fill, width: double.infinity),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10.0),
+
+                  // START: New Featured Products Section
+                  Obx(() {
+                    final isLoadingFeatured =
+                        _homeController.isLoadingFeaturedProducts?.value ??
+                            true;
+                    final featuredProductList =
+                        _homeController.featuredProducts ?? <dynamic>[].obs;
+                    final sortedFeaturedProducts =
+                        _getSortedDisplayProducts(featuredProductList);
+                    final displayFeaturedProducts = sortedFeaturedProducts
+                        .take(homeScreenSectionDisplayLimit)
+                        .toList();
+
+                    if (displayFeaturedProducts.isEmpty && !isLoadingFeatured) {
+                      return const SizedBox
+                          .shrink(); // Don't show if empty and not loading
+                    }
+
+                    return HorizontalProducts(
+                      onTap: () {
+                        Get.to(() => NewAllProduct(
+                            id: "_featured_", parentType: "featured"));
+                      },
+                      name: "Featured Products",
+                      loading: isLoadingFeatured,
+                      productList: displayFeaturedProducts,
+                      onAddedToCart: _showAddedToCartPopup, // ADD
+                    );
+                  }),
+                  const SizedBox(height: 10),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0, vertical: 10.0),
+                    child: FutureBuilder<List<String>>(
+                      future: fetchAllBanners(section: "hp-mobile"),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const SizedBox(height: 140);
+                        }
+
+                        if (snapshot.hasError) {
+                          return const SizedBox(height: 140);
+                        }
+
+                        final banners = snapshot.data ?? [];
+
+                        // 🔥 Sirf image path/url pass karo
+                        final imagePath = banners.isNotEmpty
+                            ? banners.first
+                            : 'assets/images/noimage.png';
+                        final image = ImageHelper.getUrl(imagePath);
+
+                        return GestureDetector(
+                          onTap: () {
+                            if (_hpSectionBrandId.isNotEmpty) {
+                              Get.to(() => NewAllProduct(
+                                  id: _hpSectionBrandId, parentType: "brand"));
+                            } else {
+                              Get.snackbar(
+                                  "Info", "HP brand page not available yet.");
+                            }
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: Image.network(
+                              image,
+                              height: 140,
+                              width: double.infinity,
+                              fit: BoxFit.fill,
                             ),
                           ),
                         );
-                      } else {
-                        // Repeat brands 3x to simulate infinite list visually
-                        final int total = brands.length * 3;
-                        return SingleChildScrollView(
-                          controller: _brandsScrollController,
-                          scrollDirection: Axis.horizontal,
-                          padding: EdgeInsets.symmetric(horizontal: edgePad),
-                          child: Row(
-                            children: [
-                              ...List.generate(total, (index) {
-                                final realIndex = index % brands.length;
-                                final brand = brands[realIndex];
-                                final bool isLast = index == total - 1;
-                                return Container(
-                                  width: itemWidth, // fixed slot to keep 2-per-view
-                                  margin: EdgeInsets.only(right: isLast ? 0 : gap),
-                                  child: Center(
-                                    child: BrandCard(
-                                      id: (brand['_id'] ?? '').toString(),
-                                      imageUrl: (ImageHelper.getUrl(brand['logo']) ?? 'https://i.postimg.cc/SsWYSvq6/noimage.png').toString(),
-                                      name: (brand['name'] ?? 'No Name').toString(),
-                                      width: cardWidth, // visual size inside the slot
-                                    ),
-                                  ),
-                                );
-                              }),
-                              SizedBox(width: edgePad),
-                            ],
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  Obx(() {
+                    final isLoadingHp = _brandController
+                            .isLoadingProductsByBrandIdMap[_hpSectionBrandId]
+                            ?.value ??
+                        true;
+                    final hpProductList = _brandController
+                            .productsByBrandIdMap[_hpSectionBrandId] ??
+                        <dynamic>[].obs;
+                    final sortedHpProducts =
+                        _getSortedDisplayProducts(hpProductList);
+                    final displayHpProducts = sortedHpProducts
+                        .take(homeScreenSectionDisplayLimit)
+                        .toList();
+
+                    if (displayHpProducts.isEmpty && !isLoadingHp) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return HorizontalProducts(
+                      onTap: () {
+                        if (_hpSectionBrandId.isNotEmpty) {
+                          Get.to(() => NewAllProduct(
+                              id: _hpSectionBrandId, parentType: "brand"));
+                        } else {
+                          Get.snackbar("Developer Info",
+                              "HP Brand ID needs to be configured by the developer.");
+                        }
+                      },
+                      name: "HP Products",
+                      loading: isLoadingHp,
+                      productList: displayHpProducts,
+                      onAddedToCart: _showAddedToCartPopup, // ADD
+                    );
+                  }),
+
+                  const SizedBox(height: 10),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0, vertical: 10.0),
+                    child: FutureBuilder<List<String>>(
+                      future: fetchAllBanners(section: "accessories"),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const SizedBox(height: 140);
+                        }
+
+                        if (snapshot.hasError) {
+                          return const SizedBox(height: 140);
+                        }
+
+                        final banners = snapshot.data ?? [];
+
+                        // 🔥 Sirf image path/url pass karo
+                        final imagePath = banners.isNotEmpty
+                            ? banners.first
+                            : 'assets/images/noimage.png';
+                        final image = ImageHelper.getUrl(imagePath);
+
+                        return GestureDetector(
+                          onTap: () {
+                            if (_hpSectionBrandId.isNotEmpty) {
+                              Get.to(() => NewAllProduct(
+                                  id: _hpSectionBrandId, parentType: "brand"));
+                            } else {
+                              Get.snackbar(
+                                  "Info", "HP brand page not available yet.");
+                            }
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: Image.network(
+                              image,
+                              height: 140,
+                              width: double.infinity,
+                              fit: BoxFit.fill,
+                            ),
                           ),
                         );
-                      }
-                    },
+                      },
+                    ),
                   ),
-                );
-              }),
-              40.0.heightbox,
+                  const SizedBox(height: 10),
 
-            ],
-          ),
-        ])),
+                  Obx(() {
+                    final isLoadingAccessories = _homeController
+                            .isLoadingProductsByCategoryIdMap[
+                                accessoriesCategoryId]
+                            ?.value ??
+                        true;
+                    final accessoriesProductList = _homeController
+                            .productsByCategoryIdMap[accessoriesCategoryId] ??
+                        <dynamic>[].obs;
+                    final sortedAccessoriesProducts =
+                        _getSortedDisplayProducts(accessoriesProductList);
+                    final displayAccessoriesProducts = sortedAccessoriesProducts
+                        .take(homeScreenSectionDisplayLimit)
+                        .toList();
+
+                    if (displayAccessoriesProducts.isEmpty &&
+                        !isLoadingAccessories) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return HorizontalProducts(
+                      onTap: () {
+                        Get.to(() => NewAllProduct(
+                            id: accessoriesCategoryId, parentType: "category"));
+                      },
+                      name: "Accessories",
+                      loading: isLoadingAccessories,
+                      productList: displayAccessoriesProducts,
+                      onAddedToCart: _showAddedToCartPopup, // ADD
+                    );
+                  }),
+                  const SizedBox(height: 10),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0, vertical: 10.0),
+                    child: FutureBuilder<List<String>>(
+                      future: fetchAllBanners(section: "asus-mobile"),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const SizedBox(height: 140);
+                        }
+
+                        if (snapshot.hasError) {
+                          return const SizedBox(height: 140);
+                        }
+
+                        final banners = snapshot.data ?? [];
+
+                        // 🔥 Sirf image path/url pass karo
+                        final imagePath = banners.isNotEmpty
+                            ? banners.first
+                            : 'assets/images/noimage.png';
+                        final image = ImageHelper.getUrl(imagePath);
+
+                        return GestureDetector(
+                          onTap: () {
+                            if (_hpSectionBrandId.isNotEmpty) {
+                              Get.to(() => NewAllProduct(
+                                  id: _hpSectionBrandId, parentType: "brand"));
+                            } else {
+                              Get.snackbar(
+                                  "Info", "HP brand page not available yet.");
+                            }
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: Image.network(
+                              image,
+                              height: 140,
+                              width: double.infinity,
+                              fit: BoxFit.fill,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  Obx(() {
+                    final isLoadingAsus = _brandController
+                            .isLoadingProductsByBrandIdMap[_asusSectionBrandId]
+                            ?.value ??
+                        true;
+                    final asusProductList = _brandController
+                            .productsByBrandIdMap[_asusSectionBrandId] ??
+                        <dynamic>[].obs;
+                    final sortedAsusProducts =
+                        _getSortedDisplayProducts(asusProductList);
+                    final displayAsusProducts = sortedAsusProducts
+                        .take(homeScreenSectionDisplayLimit)
+                        .toList();
+
+                    if (displayAsusProducts.isEmpty && !isLoadingAsus) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return HorizontalProducts(
+                      onTap: () {
+                        Get.to(() => NewAllProduct(
+                            id: _asusSectionBrandId, parentType: "brand"));
+                      },
+                      name: "Shop Asus",
+                      loading: isLoadingAsus,
+                      productList: displayAsusProducts,
+                      onAddedToCart: _showAddedToCartPopup, // ADD
+                    );
+                  }),
+                  const SizedBox(height: 10),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0, vertical: 10.0),
+                    child: GestureDetector(
+                      onTap: () {
+                        Get.to(() => NewAllProduct(
+                            id: networkingCategoryId,
+                            parentType: "subcategory"));
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        // child: Image.asset('assets/images/networking.png', height: 140, fit: BoxFit.fill, width: double.infinity),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  Obx(() {
+                    final isLoadingNetworking = _homeController
+                            .isLoadingProductsByCategoryIdMap[
+                                networkingCategoryId]
+                            ?.value ??
+                        true;
+                    final networkingProductList = _homeController
+                            .productsByCategoryIdMap[networkingCategoryId] ??
+                        <dynamic>[].obs;
+                    final sortedNetworkingProducts =
+                        _getSortedDisplayProducts(networkingProductList);
+                    final displayNetworkingProducts = sortedNetworkingProducts
+                        .take(homeScreenSectionDisplayLimit)
+                        .toList();
+
+                    if (displayNetworkingProducts.isEmpty &&
+                        !isLoadingNetworking) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return HorizontalProducts(
+                      onTap: () {
+                        Get.to(() => NewAllProduct(
+                            id: networkingCategoryId,
+                            parentType: "subcategory"));
+                      },
+                      name: "Networking",
+                      loading: isLoadingNetworking,
+                      productList: displayNetworkingProducts,
+                      onAddedToCart: _showAddedToCartPopup, // ADD
+                    );
+                  }),
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0, vertical: 10.0),
+                    child: FutureBuilder<List<String>>(
+                      future: fetchAllBanners(section: "msi-mobile"),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const SizedBox(height: 140);
+                        }
+
+                        if (snapshot.hasError) {
+                          return const SizedBox(height: 140);
+                        }
+
+                        final banners = snapshot.data ?? [];
+
+                        // 🔥 Sirf image path/url pass karo
+                        final imagePath = banners.isNotEmpty
+                            ? banners.first
+                            : 'assets/images/noimage.png';
+                        final image = ImageHelper.getUrl(imagePath);
+
+                        return GestureDetector(
+                          onTap: () {
+                            if (_hpSectionBrandId.isNotEmpty) {
+                              Get.to(() => NewAllProduct(
+                                  id: _hpSectionBrandId, parentType: "brand"));
+                            } else {
+                              Get.snackbar(
+                                  "Info", "HP brand page not available yet.");
+                            }
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: Image.network(
+                              image,
+                              height: 140,
+                              width: double.infinity,
+                              fit: BoxFit.fill,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  Obx(() {
+                    final isLoadingMsi = _brandController
+                            .isLoadingProductsByBrandIdMap[_msiSectionBrandId]
+                            ?.value ??
+                        true;
+                    final msiProductList = _brandController
+                            .productsByBrandIdMap[_msiSectionBrandId] ??
+                        <dynamic>[].obs;
+                    final sortedMsiProducts =
+                        _getSortedDisplayProducts(msiProductList);
+                    final displayMsiProducts = sortedMsiProducts
+                        .take(homeScreenSectionDisplayLimit)
+                        .toList();
+
+                    if (displayMsiProducts.isEmpty && !isLoadingMsi) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return HorizontalProducts(
+                      onTap: () {
+                        if (_msiSectionBrandId.isNotEmpty) {
+                          Get.to(() => NewAllProduct(
+                              id: _msiSectionBrandId, parentType: "brand"));
+                        } else {
+                          Get.snackbar(
+                              "Info", "MSI brand page not available yet.");
+                        }
+                      },
+                      name: "Shop MSI",
+                      loading: isLoadingMsi,
+                      productList: displayMsiProducts,
+                      onAddedToCart: _showAddedToCartPopup, // ADD
+                    );
+                  }),
+                  const SizedBox(height: 10),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0, vertical: 10.0),
+                    child: FutureBuilder<List<String>>(
+                      future: fetchAllBanners(section: "apple-mobile"),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const SizedBox(height: 140);
+                        }
+                        if (snapshot.hasError) {
+                          return const SizedBox(height: 140);
+                        }
+                        final banners = snapshot.data ?? [];
+
+                        // 🔥 Sirf image path/url pass karo
+                        final imagePath = banners.isNotEmpty
+                            ? banners.first
+                            : 'assets/images/noimage.png';
+                        final image = ImageHelper.getUrl(imagePath);
+
+                        return GestureDetector(
+                          onTap: () {
+                            if (_hpSectionBrandId.isNotEmpty) {
+                              Get.to(() => NewAllProduct(
+                                  id: _hpSectionBrandId, parentType: "brand"));
+                            } else {
+                              Get.snackbar(
+                                  "Info", "HP brand page not available yet.");
+                            }
+                          },
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: Image.network(
+                              image,
+                              height: 140,
+                              width: double.infinity,
+                              fit: BoxFit.fill,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  Obx(() {
+                    final isLoadingApple = _brandController
+                            .isLoadingProductsByBrandIdMap[_appleSectionBrandId]
+                            ?.value ??
+                        true;
+                    final appleProductList = _brandController
+                            .productsByBrandIdMap[_appleSectionBrandId] ??
+                        <dynamic>[].obs;
+                    final sortedAppleProducts =
+                        _getSortedDisplayProducts(appleProductList);
+                    final displayAppleProducts = sortedAppleProducts
+                        .take(homeScreenSectionDisplayLimit)
+                        .toList();
+
+                    if (displayAppleProducts.isEmpty && !isLoadingApple) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return HorizontalProducts(
+                      onTap: () {
+                        if (_appleSectionBrandId.isNotEmpty) {
+                          Get.to(() => NewAllProduct(
+                              id: _appleSectionBrandId, parentType: "brand"));
+                        } else {
+                          Get.snackbar(
+                              "Info", "Apple brand page not available yet.");
+                        }
+                      },
+                      name: "Show Apple",
+                      loading: isLoadingApple,
+                      productList: displayAppleProducts,
+                      onAddedToCart: _showAddedToCartPopup, // ADD
+                    );
+                  }),
+                  const SizedBox(height: 10),
+
+                  GestureDetector(
+                    onTap: () {
+                      context.route(AllBrandScreen(
+                          brandList: _brandController.brandList));
+                    },
+                    child: Padding(
+                      padding: defaultPadding(),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("Featured Brands",
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: kSecondaryColor)),
+                          Row(
+                            children: [
+                              Text("Show All",
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: kSecondaryColor)),
+                              Icon(Icons.arrow_forward_ios,
+                                  size: 12, color: kSecondaryColor),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Obx(() {
+                    // Touch Rx at top-level of Obx to avoid improper use warning
+                    final bool isLoadingBrands =
+                        _brandController.isbrandLoaded.value;
+                    final List<dynamic> brands = _brandController.brandList;
+
+                    // Reduced outer horizontal padding
+                    final basePad = defaultPadding();
+                    final sectionPad = EdgeInsets.fromLTRB(
+                        4.0, basePad.top, 4.0, basePad.bottom);
+
+                    return Padding(
+                      padding: sectionPad,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Width inside section padding
+                          final double contentWidth = constraints.maxWidth;
+
+                          // Slightly reduced gap between cards
+                          final double gap = contentWidth >= 360 ? 10.0 : 6.0;
+                          // Smaller equal left/right edge padding inside the scroll
+                          final double edgePad = 3.0;
+
+                          // Snap helper to avoid fractional pixel overflow/clipping
+                          final double dpr =
+                              MediaQuery.of(context).devicePixelRatio;
+                          double snap(double v) => (v * dpr).floor() / dpr;
+
+                          // Fit two items exactly with equal edges:
+                          // contentWidth = edgePad + itemW + gap + itemW + edgePad
+                          final double available =
+                              contentWidth - (2 * edgePad) - gap - 0.5;
+                          final double itemWidth =
+                              snap(available / 2).clamp(80.0, contentWidth);
+
+                          // Slightly reduce shrink so the card is a bit larger (~9%)
+                          final double shrink =
+                              (itemWidth * 0.09).clamp(6.0, 18.0);
+                          final double cardWidth =
+                              (itemWidth - shrink).clamp(90.0, itemWidth);
+
+                          // one-slot step and full cycle span
+                          final double stepExtent = itemWidth + gap;
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) _brandStepExtent = stepExtent;
+                          });
+
+                          if (!isLoadingBrands && brands.isNotEmpty) {
+                            final double span = stepExtent * brands.length;
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (!mounted) return;
+                              _brandLoopSpan = span;
+                              if (!_brandsCentered &&
+                                  _brandsScrollController.hasClients &&
+                                  span > 0) {
+                                try {
+                                  // center on the middle copy
+                                  _brandsScrollController.jumpTo(span);
+                                  _brandsCentered = true;
+                                } catch (_) {}
+                              }
+                            });
+                          }
+
+                          if (isLoadingBrands) {
+                            return SingleChildScrollView(
+                              controller: _brandsScrollController,
+                              scrollDirection: Axis.horizontal,
+                              padding:
+                                  EdgeInsets.symmetric(horizontal: edgePad),
+                              child: Row(
+                                children: [
+                                  ...List.generate(6, (index) {
+                                    return Container(
+                                      width: itemWidth, // fixed slot
+                                      margin: EdgeInsets.only(
+                                          right: index == 5 ? 0 : gap),
+                                      child: Center(
+                                        child: Container(
+                                          width: cardWidth,
+                                          height: cardWidth,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white,
+                                            borderRadius:
+                                                BorderRadius.circular(12.0),
+                                          ),
+                                          child: Shimmer.fromColors(
+                                            baseColor: Colors.grey.shade300,
+                                            highlightColor:
+                                                Colors.grey.shade100,
+                                            child: const SizedBox.expand(),
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                  SizedBox(width: edgePad),
+                                ],
+                              ),
+                            );
+                          } else if (brands.isEmpty) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(16.0),
+                                child: Text(
+                                  'No Brands available.',
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            );
+                          } else {
+                            // Repeat brands 3x to simulate infinite list visually
+                            final int total = brands.length * 3;
+                            return SingleChildScrollView(
+                              controller: _brandsScrollController,
+                              scrollDirection: Axis.horizontal,
+                              padding:
+                                  EdgeInsets.symmetric(horizontal: edgePad),
+                              child: Row(
+                                children: [
+                                  ...List.generate(total, (index) {
+                                    final realIndex = index % brands.length;
+                                    final brand = brands[realIndex];
+                                    final bool isLast = index == total - 1;
+                                    return Container(
+                                      width: itemWidth,
+                                      // fixed slot to keep 2-per-view
+                                      margin: EdgeInsets.only(
+                                          right: isLast ? 0 : gap),
+                                      child: Center(
+                                        child: BrandCard(
+                                          id: (brand['_id'] ?? '').toString(),
+                                          imageUrl: (ImageHelper.getUrl(
+                                                      brand['logo']) ??
+                                                  'https://i.postimg.cc/SsWYSvq6/noimage.png')
+                                              .toString(),
+                                          name: (brand['name'] ?? 'No Name')
+                                              .toString(),
+                                          width:
+                                              cardWidth, // visual size inside the slot
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                  SizedBox(width: edgePad),
+                                ],
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    );
+                  }),
+                  40.0.heightbox,
+                ],
+              ),
+            ])),
       ),
-
     );
   }
 }
