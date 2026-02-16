@@ -316,6 +316,7 @@ class AuthController extends GetxController {
         await prefs.setString('userId', userId);
         await prefs.setString('userEmail', userEmail);
         await prefs.setString('userName', userName);
+        await prefs.setString('user_name', userName);
         await prefs.setString('token', token);
         print('Login successful: User details saved');
         print('User ID: $userId');

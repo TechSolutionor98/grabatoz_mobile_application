@@ -8,6 +8,7 @@ import 'package:graba2z/Views/Home/Screens/Cart/cart.dart';
 import 'package:graba2z/Views/Home/Screens/Favorite%20Product/favproduct_screen.dart';
 import 'package:graba2z/Views/Home/Screens/Settings/Modules/Notification%20Toggle/notificationtoggle.dart';
 import 'package:graba2z/Views/Home/Screens/Settings/Modules/Order%20History/track_order_view.dart';
+import 'package:graba2z/Views/Home/Screens/banner%20redirect/bannerredirect.dart';
 import 'package:graba2z/Views/Home/home.dart';
 import 'package:graba2z/Widgets/secondarybutton.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -865,129 +866,191 @@ class _SettingsState extends State<Settings> {
                                         fontWeight: FontWeight.w500),
                                   ),
                                   onTap: () {
-                                    NewAllProduct(
-                                      id: '',
-                                      parentType: '',
-                                      displayTitle: '',
-                                    );
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) => bannerProduct(
+                                                  brandname:
+                                                      "Accessories",
+                                                  displayTitle:
+                                                      "Accessories & Components",
+                                                )));
                                   }),
                               ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text(
-                                  "All in one",
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                onTap: () =>
-                                    NewAllProduct(id: "", parentType: ""),
-                              ),
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity(vertical: -4),
+                                  title: Text(
+                                    "All in one",
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) => bannerProduct(
+                                                  brandname: "All in one",
+                                                  displayTitle: "All in one",
+                                                )));
+                                  }),
                               ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text(
-                                  "Desktop",
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                onTap: () =>
-                                    NewAllProduct(id: "", parentType: ""),
-                              ),
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity(vertical: -4),
+                                  title: Text(
+                                    "Desktop",
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) => bannerProduct(
+                                                  brandname: "Desktop",
+                                                  displayTitle: "Desktop",
+                                                )));
+                                  }),
                               ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text(
-                                  "Laptops",
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                onTap: () =>
-                                    NewAllProduct(id: "", parentType: ""),
-                              ),
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity(vertical: -4),
+                                  title: Text(
+                                    "Laptops",
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) => bannerProduct(
+                                                  brandname: "Laptops",
+                                                  displayTitle: "Laptops",
+                                                )));
+                                  }),
                               ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text(
-                                  "Mobiles",
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                onTap: () =>
-                                    NewAllProduct(id: "", parentType: ""),
-                              ),
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity(vertical: -4),
+                                  title: Text(
+                                    "Mobiles",
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) => bannerProduct(
+                                                  brandname: "Mobiles",
+                                                  displayTitle: "Mobiles",
+                                                )));
+                                  }),
                               ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text(
-                                  "Monitors",
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                onTap: () =>
-                                    NewAllProduct(id: "", parentType: ""),
-                              ),
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity(vertical: -4),
+                                  title: Text(
+                                    "Monitors",
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) => bannerProduct(
+                                                  brandname: "Monitors",
+                                                  displayTitle: "Monitors",
+                                                )));
+                                  }),
                               ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text(
-                                  "Networking",
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                onTap: () =>
-                                    NewAllProduct(id: "", parentType: ""),
-                              ),
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity(vertical: -4),
+                                  title: Text(
+                                    "Networking",
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) => bannerProduct(
+                                                  brandname: "Networking",
+                                                  displayTitle: "Networking",
+                                                )));
+                                  }),
                               ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text(
-                                  "Printers & Copier",
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                onTap: () =>
-                                    NewAllProduct(id: "", parentType: ""),
-                              ),
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity(vertical: -4),
+                                  title: Text(
+                                    "Printers & Copier",
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) => bannerProduct(
+                                                  brandname:
+                                                      "Print",
+                                                  displayTitle:
+                                                      "Printers & Copier",
+                                                )));
+                                  }),
                               ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text(
-                                  "Projector",
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                onTap: () =>
-                                    NewAllProduct(id: "", parentType: ""),
-                              ),
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity(vertical: -4),
+                                  title: Text(
+                                    "Projector",
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) => bannerProduct(
+                                                  brandname: "Projector",
+                                                  displayTitle: "Projector",
+                                                )));
+                                  }),
                               ListTile(
-                                dense: true,
-                                contentPadding: EdgeInsets.zero,
-                                visualDensity: VisualDensity(vertical: -4),
-                                title: Text(
-                                  "Routers & Switches",
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500),
-                                ),
-                                onTap: () =>
-                                    NewAllProduct(id: "", parentType: ""),
-                              ),
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  visualDensity: VisualDensity(vertical: -4),
+                                  title: Text(
+                                    "Routers & Switches",
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (context) => bannerProduct(
+                                                  displayTitle:
+                                                      "Routers & Switches",
+                                                  brandname:
+                                                      "Routers & Switches",
+                                                )));
+                                  }),
                             ],
                           ),
                           Divider(height: 1, color: Color(0xFFEEEEEE)),

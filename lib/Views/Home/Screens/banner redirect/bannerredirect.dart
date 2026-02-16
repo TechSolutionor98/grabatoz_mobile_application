@@ -1,0 +1,466 @@
+import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:graba2z/Utils/appextensions.dart';
+import '../../../../Controllers/addtocart.dart';
+import '../../../../Controllers/bannerProductController.dart';
+import '../../../../Controllers/bottomController.dart';
+import '../../../../Controllers/productcontroller.dart';
+import '../../../../Utils/appcolors.dart';
+import '../../../../Widgets/customappbar.dart';
+import '../../../Product Folder/newProduct_card.dart';
+import '../../home.dart';
+import '../Cart/cart.dart';
+
+const String _homeSvg = '''
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M4 12L12 4L20 12" />
+  <path d="M5 12V20H10V15H14V20H19V12" />
+</svg>
+''';
+
+class bannerProduct extends StatefulWidget {
+  final String? brandname;
+  final String? displayTitle;
+
+  const bannerProduct({
+    Key? key,
+    this.brandname,
+    this.displayTitle,
+  }) : super(key: key);
+
+  @override
+  State<bannerProduct> createState() => _bannerProductState();
+}
+
+class _bannerProductState extends State<bannerProduct> {
+
+  final bannerProductController controller = Get.put(bannerProductController());
+
+
+  static const int pageSize = 12;
+  int visibleCount = pageSize;
+
+  double _calcSortMaxWidth(BoxConstraints c) =>
+      math.min(220.0, c.maxWidth * 0.38);
+  List<dynamic> _sortedLocalProducts = const [];
+
+  void _showAddedToCartPopup() {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    if (overlay == null) return;
+    final entry = OverlayEntry(
+      builder: (_) => Positioned.fill(
+        child: IgnorePointer(
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(40),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: const [
+                  Icon(Icons.shopping_cart, color: Colors.white, size: 24),
+                  SizedBox(width: 8),
+                  Text(
+                    'Added to cart',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(entry);
+    Future.delayed(const Duration(milliseconds: 900), () {
+      if (entry.mounted) entry.remove();
+    });
+  }
+
+  String _sortLabel = 'Newest First';
+  bool _sortMenuOpen = false;
+
+  Widget _sortMenuButton() {
+    return PopupMenuButton<String>(
+      onOpened: () => setState(() => _sortMenuOpen = true),
+      onCanceled: () => setState(() => _sortMenuOpen = false),
+      onSelected: (val) => setState(() {
+        _sortLabel = val;
+        _sortMenuOpen = false;
+      }),
+      itemBuilder: (_) => const [
+        PopupMenuItem(value: 'Newest First', child: Text('Newest First')),
+        PopupMenuItem(
+            value: 'Price: Low to High', child: Text('Price: Low to High')),
+        PopupMenuItem(
+            value: 'Price: High to Low', child: Text('Price: High to Low')),
+        PopupMenuItem(value: 'Name: A to Z', child: Text('Name: A to Z')),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Expanded(
+              child: Text(
+                _sortLabel,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.black),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Transform.rotate(
+              angle: _sortMenuOpen ? 3.14159 : 0,
+              child:
+                  const Icon(Icons.expand_more, size: 16, color: Colors.black),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  ButtonStyle _webLikeLoadMoreStyle() {
+    const Color green600 = Color(0xFF16A34A); // Tailwind green-600
+    const Color green700 = Color(0xFF15803D); // Tailwind green-700
+    return ButtonStyle(
+      padding: MaterialStateProperty.all(
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 4)),
+      // smaller px-3 py-1
+      minimumSize: MaterialStateProperty.all(const Size(0, 32)),
+      // compact height
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      // FIX: was MaterialStateProperty.shrinkWrap
+      visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
+      backgroundColor: MaterialStateProperty.resolveWith<Color>(
+        (states) => states.contains(MaterialState.pressed)
+            ? green700
+            : green600, // hover/pressed -> green-700
+      ),
+      foregroundColor: MaterialStateProperty.all(Colors.white),
+      // text-white
+      elevation: MaterialStateProperty.all(4),
+      // shadow
+      shadowColor: MaterialStateProperty.all(Colors.black.withOpacity(0.25)),
+      shape: MaterialStateProperty.all(
+        RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6)), // rounded-md
+      ),
+      textStyle: MaterialStateProperty.all(
+          const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+      // text-sm
+      overlayColor: MaterialStateProperty.all(
+          green700.withOpacity(0.12)), // transition-colors feedback
+    );
+  }
+
+  // Extractors for sorting
+  num _priceOf(dynamic e) {
+    if (e is Map) {
+      final keys = [
+        'finalPrice',
+        'discountedPrice',
+        'salePrice',
+        'sellingPrice',
+        'price'
+      ];
+      for (final k in keys) {
+        final v = e[k];
+        if (v is num) return v;
+        if (v is String) {
+          final n = num.tryParse(v);
+          if (n != null) return n;
+        }
+      }
+    }
+    return 0;
+  }
+
+  String _nameOf(dynamic e) {
+    if (e is Map) {
+      final keys = ['name', 'productName', 'title'];
+      for (final k in keys) {
+        final v = e[k];
+        if (v is String && v.trim().isNotEmpty) return v.trim();
+      }
+    }
+    return '';
+  }
+
+  // Apply the selected sorting inside stock groups, then combine (Available -> PreOrder -> Out of Stock)
+  List<dynamic> _applySortOption(List<dynamic> base) {
+    if (base.isEmpty) return base;
+
+    final available = <dynamic>[];
+    final preorder = <dynamic>[];
+    final outOfStock = <dynamic>[];
+
+    for (final e in base) {
+      if (e is Map) {
+        final s = (e['stockStatus'] ?? '').toString().toLowerCase();
+        if (s == 'preorder' || s == 'pre order') {
+          preorder.add(e);
+        } else if (s == 'out of stock') {
+          outOfStock.add(e);
+        } else {
+          available.add(e);
+        }
+      } else {
+        available.add(e);
+      }
+    }
+
+    int Function(dynamic, dynamic)? cmp;
+    switch (_sortLabel) {
+      case 'Price: Low to High':
+        cmp = (a, b) => _priceOf(a).compareTo(_priceOf(b));
+        break;
+      case 'Price: High to Low':
+        cmp = (a, b) => _priceOf(b).compareTo(_priceOf(a));
+        break;
+      case 'Name: A to Z':
+        cmp = (a, b) =>
+            _nameOf(a).toLowerCase().compareTo(_nameOf(b).toLowerCase());
+        break;
+      case 'Newest First':
+      default:
+        // Preserve incoming order (already grouped)
+        return base;
+    }
+
+    available.sort(cmp);
+    preorder.sort(cmp);
+    outOfStock.sort(cmp);
+
+    return [...available, ...preorder, ...outOfStock];
+  }
+
+  List<dynamic> _getSortedDisplayProducts(List<dynamic> productList) {
+    if (productList.isEmpty) return [];
+
+    List<dynamic> preorderItems = [];
+    List<dynamic> availableItems = [];
+    List<dynamic> outOfStockItems = [];
+
+    for (var productElement in productList) {
+      if (productElement is! Map<String, dynamic>) {
+        continue;
+      }
+      final product = productElement as Map<String, dynamic>;
+      final s = (product['stockStatus'] ?? '').toString().toLowerCase();
+      if (s == 'preorder' || s == 'pre order') {
+        preorderItems.add(product);
+      } else if (s == 'out of stock') {
+        outOfStockItems.add(product);
+      } else {
+        // Treat all other/unknown as available
+        availableItems.add(product);
+      }
+    }
+    // CHANGE: Available -> PreOrder -> Out of Stock
+    return [...availableItems, ...preorderItems, ...outOfStockItems];
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    controller.fetchProductsByName(
+      name: widget.brandname ,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final navigationProvider = Get.put(BottomNavigationController());
+    return Scaffold(
+      appBar: CustomAppBar(
+        showLeading: true,
+        leadingWidget: Builder(
+          builder: (context) {
+            return IconButton(
+              onPressed: () {
+                  Navigator.of(context).pop();
+              },
+              icon: const Icon(Icons.arrow_back_ios, size: 20),
+            );
+          },
+        ),
+        titleText: widget.displayTitle,
+        actionicon: GetBuilder<CartNotifier>(
+          builder: (cartNotifier) {
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  onTap: () async {
+                    Get.put(BottomNavigationController()).setTabIndex(0);
+                    Get.offAll(() => Home());
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 10.0),
+                    child: SvgPicture.string(
+                      _homeSvg,
+                      width: 28,
+                      height: 28,
+                      fit: BoxFit.contain,
+                      semanticsLabel: 'Home',
+                    ),
+                  ),
+                ),
+                Stack(
+                  alignment: Alignment.topRight,
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        context.route(Cart());
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 5.0),
+                        child: Image.asset(
+                          "assets/icons/addcart.png",
+                          color: kdefwhiteColor,
+                          width: 28,
+                          height: 28,
+                        ),
+                      ),
+                    ),
+                    if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: Container(
+                          width: 18,
+                          height: 18,
+                          decoration: const BoxDecoration(
+                            color: kredColor,
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            cartNotifier.cartOtherInfoList.length.toString(),
+                            style: const TextStyle(
+                              color: kdefwhiteColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+      body: Obx(() {
+        if (controller.isLoading.value) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (controller.bannerProductList.isEmpty) {
+          return const Center(child: Text("No products found"));
+        }
+
+        final base = _sortedLocalProducts.isNotEmpty
+            ? _sortedLocalProducts
+            : _getSortedDisplayProducts(controller.bannerProductList);
+
+        // Apply UI sort
+        final displayable = _applySortOption(base);
+        final products = displayable.take(visibleCount).toList();
+
+        return CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final maxW = _calcSortMaxWidth(constraints);
+                    return Row(
+                      children: [
+                        const Icon(Icons.inventory_2,
+                            size: 18, color: kPrimaryColor),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '${controller.bannerProductList.length} products found',
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w700),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          width: maxW,
+                          child: _sortMenuButton(),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+
+            SliverPadding(
+              padding: const EdgeInsets.all(8),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  childAspectRatio: 0.65,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final product = products[index];
+                    return NewProductCard(
+                      prdouctList: product,
+                      onAddedToCart: _showAddedToCartPopup,
+                    );
+                  },
+                  childCount: products.length,
+                ),
+              ),
+            ),
+            // Load More reveals locally (server paging disabled when fetching 2.5k)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: Center(
+                  child: (visibleCount < controller.bannerProductList.length)
+                      ? ElevatedButton(
+                          style: _webLikeLoadMoreStyle(),
+                          onPressed: () {
+                            final total = controller.bannerProductList.length;
+                            final next = visibleCount + pageSize;
+                            setState(() {
+                              visibleCount = next > total ? total : next;
+                            });
+                          },
+                          child: const Text('Load More'),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ),
+            ),
+            const SliverToBoxAdapter(child: SizedBox(height: 60)),
+          ],
+        );
+      }),
+    );
+  }
+}

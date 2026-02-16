@@ -9,6 +9,7 @@ import 'package:graba2z/Controllers/searchController.dart';
 import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Views/Filter%20Screen/filter.dart';
 import 'package:graba2z/Views/Product%20Folder/newProduct_card.dart';
+import 'package:http/http.dart';
 import '../../../../Utils/packages.dart';
 import 'package:graba2z/Controllers/brand_controller.dart';
 import 'package:graba2z/Controllers/home_controller.dart';
@@ -39,8 +40,10 @@ class _SearchScreenState extends State<SearchScreen> {
   String sortybyselection = '';
   String lastQuery = ''; // added: to prevent duplicate API calls for same query
 
-  final BrandController _brandController = Get.put(BrandController(), permanent: true);
-  final HomeController _homeController = Get.put(HomeController(), permanent: true);
+  final BrandController _brandController =
+      Get.put(BrandController(), permanent: true);
+  final HomeController _homeController =
+      Get.put(HomeController(), permanent: true);
 
   // Client-side pagination for search results
   static const int _pageSize = 10;
@@ -56,12 +59,16 @@ class _SearchScreenState extends State<SearchScreen> {
     const Color green600 = Color(0xFF16A34A);
     const Color green700 = Color(0xFF15803D);
     return ButtonStyle(
-      padding: MaterialStateProperty.all(const EdgeInsets.symmetric(horizontal: 12, vertical: 4)), // px-3 py-1
+      padding: MaterialStateProperty.all(
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 4)),
+      // px-3 py-1
       minimumSize: MaterialStateProperty.all(const Size(0, 32)),
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap, // fixed
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      // fixed
       visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
       backgroundColor: MaterialStateProperty.resolveWith<Color>(
-        (states) => states.contains(MaterialState.pressed) ? green700 : green600,
+        (states) =>
+            states.contains(MaterialState.pressed) ? green700 : green600,
       ),
       foregroundColor: MaterialStateProperty.all(Colors.white),
       elevation: MaterialStateProperty.all(4),
@@ -69,7 +76,8 @@ class _SearchScreenState extends State<SearchScreen> {
       shape: MaterialStateProperty.all(
         RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
-      textStyle: MaterialStateProperty.all(const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+      textStyle: MaterialStateProperty.all(
+          const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
       overlayColor: MaterialStateProperty.all(green700.withOpacity(0.12)),
     );
   }
@@ -82,7 +90,8 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _sortMenuOpen = false;
 
   // Helper to cap sort button width responsively
-  double _calcSortMaxWidth(BoxConstraints c) => math.min(220.0, c.maxWidth * 0.38);
+  double _calcSortMaxWidth(BoxConstraints c) =>
+      math.min(220.0, c.maxWidth * 0.38);
 
   // Reusable sort menu button
   Widget _sortMenuButton() {
@@ -95,8 +104,10 @@ class _SearchScreenState extends State<SearchScreen> {
       }),
       itemBuilder: (_) => const [
         PopupMenuItem(value: 'Newest First', child: Text('Newest First')),
-        PopupMenuItem(value: 'Price: Low to High', child: Text('Price: Low to High')),
-        PopupMenuItem(value: 'Price: High to Low', child: Text('Price: High to Low')),
+        PopupMenuItem(
+            value: 'Price: Low to High', child: Text('Price: Low to High')),
+        PopupMenuItem(
+            value: 'Price: High to Low', child: Text('Price: High to Low')),
         PopupMenuItem(value: 'Name: A to Z', child: Text('Name: A to Z')),
       ],
       child: Container(
@@ -119,7 +130,8 @@ class _SearchScreenState extends State<SearchScreen> {
             const SizedBox(width: 6),
             Transform.rotate(
               angle: _sortMenuOpen ? 3.14159 : 0,
-              child: const Icon(Icons.expand_more, size: 16, color: Colors.black),
+              child:
+                  const Icon(Icons.expand_more, size: 16, color: Colors.black),
             ),
           ],
         ),
@@ -130,7 +142,13 @@ class _SearchScreenState extends State<SearchScreen> {
   // Extractors for sorting
   num _priceOf(dynamic e) {
     if (e is Map) {
-      final keys = ['finalPrice', 'discountedPrice', 'salePrice', 'sellingPrice', 'price'];
+      final keys = [
+        'finalPrice',
+        'discountedPrice',
+        'salePrice',
+        'sellingPrice',
+        'price'
+      ];
       for (final k in keys) {
         final v = e[k];
         if (v is num) return v;
@@ -186,7 +204,8 @@ class _SearchScreenState extends State<SearchScreen> {
         cmp = (a, b) => _priceOf(b).compareTo(_priceOf(a));
         break;
       case 'Name: A to Z':
-        cmp = (a, b) => _nameOf(a).toLowerCase().compareTo(_nameOf(b).toLowerCase());
+        cmp = (a, b) =>
+            _nameOf(a).toLowerCase().compareTo(_nameOf(b).toLowerCase());
         break;
       case 'Newest First':
       default:
@@ -207,7 +226,8 @@ class _SearchScreenState extends State<SearchScreen> {
     _visibleCount = _pageSize; // show first 10 by default
 
     // Reset to first page only when filters are applied (val == true)
-    _resetOnFilterWorker = ever<bool>(_searchScController.hasFilterApplied, (val) {
+    _resetOnFilterWorker =
+        ever<bool>(_searchScController.hasFilterApplied, (val) {
       if (val == true) {
         searchController.clear();
         lastQuery = '';
@@ -248,7 +268,8 @@ class _SearchScreenState extends State<SearchScreen> {
     return double.tryParse(v.toString()) ?? 0;
   }
 
-  bool _isSameQuery(String a, String b) => a.toLowerCase() == b.toLowerCase(); // added
+  bool _isSameQuery(String a, String b) =>
+      a.toLowerCase() == b.toLowerCase(); // added
 
   // Stock order: Available -> PreOrder -> Out of Stock
   List<dynamic> _getSortedDisplayProducts(List<dynamic> productList) {
@@ -257,7 +278,10 @@ class _SearchScreenState extends State<SearchScreen> {
     final available = <dynamic>[];
     final outOfStock = <dynamic>[];
     for (final e in productList) {
-      if (e is! Map<String, dynamic>) { available.add(e); continue; }
+      if (e is! Map<String, dynamic>) {
+        available.add(e);
+        continue;
+      }
       final s = (e['stockStatus'] ?? '').toString().toLowerCase();
       if (s == 'preorder' || s == 'pre order') {
         preorder.add(e);
@@ -273,20 +297,28 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Future<void> _ensureBrandsLoaded() async {
     if (_brandController.brandList.isNotEmpty) return;
-    try { await _brandController.fetchBrands(); } catch (_) {}
+    try {
+      await _brandController.fetchBrands();
+    } catch (_) {}
   }
 
   // Ensure categories and subcategories are loaded before matching IDs
   Future<void> _ensureCategoriesLoaded() async {
     if (_homeController.filterCategory.isEmpty) {
-      try { await _homeController.getCategory(); } catch (_) {}
+      try {
+        await _homeController.getCategory();
+      } catch (_) {}
     }
     if (_homeController.filterSubcategory.isEmpty) {
-      try { await _homeController.getSubcategory(); } catch (_) {}
+      try {
+        await _homeController.getSubcategory();
+      } catch (_) {}
     }
     // Small wait loop to allow GetX to populate lists
     int tries = 0;
-    while ((_homeController.filterCategory.isEmpty || _homeController.filterSubcategory.isEmpty) && tries < 10) {
+    while ((_homeController.filterCategory.isEmpty ||
+            _homeController.filterSubcategory.isEmpty) &&
+        tries < 10) {
       await Future.delayed(const Duration(milliseconds: 150));
       tries++;
     }
@@ -306,42 +338,73 @@ class _SearchScreenState extends State<SearchScreen> {
       }
     }
     // 2) contains (longest)
-    String? bestId; String? bestName; int bestLen = 0;
+    String? bestId;
+    String? bestName;
+    int bestLen = 0;
     for (final b in _brandController.brandList) {
       final name = (b?['name'] ?? '').toString();
       final n = name.toLowerCase();
       if (n.isNotEmpty && qq.contains(n) && n.length > bestLen) {
-        bestLen = n.length; bestId = (b?['_id'] ?? '').toString(); bestName = name;
+        bestLen = n.length;
+        bestId = (b?['_id'] ?? '').toString();
+        bestName = name;
       }
     }
-    if (bestId != null && bestId.isNotEmpty) return {'id': bestId, 'name': bestName ?? ''};
+    if (bestId != null && bestId.isNotEmpty)
+      return {'id': bestId, 'name': bestName ?? ''};
     return null;
   }
 
   String _norm(String s) {
-    s.toLowerCase().trim();
+    s = s.toLowerCase().trim();
     if (s.endsWith('ies')) return s.substring(0, s.length - 3) + 'y';
     if (s.endsWith('es')) return s.substring(0, s.length - 2);
     if (s.endsWith('s')) return s.substring(0, s.length - 1);
     return s;
   }
 
-  List<String> _tokenize(String s) =>
-      s.toLowerCase().trim().split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+  List<String> _tokenize(String s) => s
+      .toLowerCase()
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((t) => t.isNotEmpty)
+      .toList();
 
   final Map<String, List<String>> _categorySynonyms = {
-    'mobiles': ['mobile','mobiles','phone','phones','smartphone','smartphones'],
-    'laptops': ['laptop','laptops','notebook','notebooks'],
-    'printers': ['printer','printers','copier','copiers'],
-    'desktops': ['desktop','desktops','pc','pcs','computer','computers','workstation','workstations','all in one','aio'],
+    'mobiles': [
+      'mobile',
+      'mobiles',
+      'phone',
+      'phones',
+      'smartphone',
+      'smartphones'
+    ],
+    'laptops': ['laptop', 'laptops', 'notebook', 'notebooks'],
+    'printers': ['printer', 'printers', 'copier', 'copiers'],
+    'desktops': [
+      'desktop',
+      'desktops',
+      'pc',
+      'pcs',
+      'computer',
+      'computers',
+      'workstation',
+      'workstations',
+      'all in one',
+      'aio'
+    ],
   };
+
   bool _tokenMatches(String token, String name) {
-    final t = _norm(token); final n = name.toLowerCase();
-    if (n == t || n.startsWith(t) || t.startsWith(n) || n.contains(t)) return true;
+    final t = _norm(token);
+    final n = name.toLowerCase();
+    if (n == t || n.startsWith(t) || t.startsWith(n) || n.contains(t))
+      return true;
     for (final e in _categorySynonyms.entries) {
       final base = e.key;
       final aliases = e.value;
-      if ((aliases.contains(token.toLowerCase()) || _norm(base) == t) && (n == base || n.contains(base))) return true;
+      if ((aliases.contains(token.toLowerCase()) || _norm(base) == t) &&
+          (n == base || n.contains(base))) return true;
     }
     return false;
   }
@@ -349,13 +412,15 @@ class _SearchScreenState extends State<SearchScreen> {
   // Matchers from provided tokens (brand tokens can be removed before calling)
   String? _matchCategoryIdFromTokens(Iterable<String> tokens) {
     if (_homeController.filterCategory.isEmpty) return null;
-    String? best; int bestLen = 0;
+    String? best;
+    int bestLen = 0;
     for (final cat in _homeController.filterCategory) {
       final name = (cat.name ?? '');
       if (name.isEmpty) continue;
       for (final t in tokens) {
         if (_tokenMatches(t, name) && name.length > bestLen) {
-          bestLen = name.length; best = (cat.sId ?? '');
+          bestLen = name.length;
+          best = (cat.sId ?? '');
         }
       }
     }
@@ -364,13 +429,15 @@ class _SearchScreenState extends State<SearchScreen> {
 
   String? _matchSubCategoryIdFromTokens(Iterable<String> tokens) {
     if (_homeController.filterSubcategory.isEmpty) return null;
-    String? best; int bestLen = 0;
+    String? best;
+    int bestLen = 0;
     for (final sub in _homeController.filterSubcategory) {
       final name = (sub.name ?? '');
       if (name.isEmpty) continue;
       for (final t in tokens) {
         if (_tokenMatches(t, name) && name.length > bestLen) {
-          bestLen = name.length; best = (sub.sId ?? '');
+          bestLen = name.length;
+          best = (sub.sId ?? '');
         }
       }
     }
@@ -415,94 +482,172 @@ class _SearchScreenState extends State<SearchScreen> {
     final brandIdResolved = brandInfo?['id'] ?? '';
     final brandNameResolved = (brandInfo?['name'] ?? '').toLowerCase();
     final allTokens = _tokenize(q);
-    final brandTokens = brandNameResolved.isNotEmpty ? _tokenize(brandNameResolved) : const <String>[];
-    final remainingTokens = allTokens.where((t) => !brandTokens.contains(t)).toList();
+    final brandTokens = brandNameResolved.isNotEmpty
+        ? _tokenize(brandNameResolved)
+        : const <String>[];
+    final remainingTokens =
+        allTokens.where((t) => !brandTokens.contains(t)).toList();
     final matchedSubCategoryId = _matchSubCategoryIdFromTokens(remainingTokens);
     final matchedCategoryId = _matchCategoryIdFromTokens(remainingTokens);
 
     // 1) Brand + Subcategory
-    if (brandIdResolved.isNotEmpty && (matchedSubCategoryId?.isNotEmpty ?? false)) {
+    if (brandIdResolved.isNotEmpty &&
+        (matchedSubCategoryId?.isNotEmpty ?? false)) {
       await _searchScController.fetchAdsbysearchWithFilters(
-        sortybyselection, 'subcategory', matchedSubCategoryId!, 'brand', brandIdResolved, '', '', 0, 0,
+        sortybyselection,
+        'subcategory',
+        matchedSubCategoryId!,
+        'brand',
+        brandIdResolved,
+        '',
+        '',
+        0,
+        0,
       );
       _searchScController.setSearchQuery(q);
-      firstName = 'brand'; firstValue = brandIdResolved;
-      secondName = 'subcategory'; secondValue = matchedSubCategoryId!;
-      thirdName = ''; thirdValue = '';
+      firstName = 'brand';
+      firstValue = brandIdResolved;
+      secondName = 'subcategory';
+      secondValue = matchedSubCategoryId!;
+      thirdName = '';
+      thirdValue = '';
       lastQuery = q;
       _searchScController.isrequesting.value = 0;
-      _searchScController.isMoreDataAvailableForShop.value = false; // stop further paging
+      _searchScController.isMoreDataAvailableForShop.value =
+          false; // stop further paging
       _visibleCount = _pageSize;
-      setState(() {}); return;
+      setState(() {});
+      return;
     }
 
     // 2) Brand + Category
-    if (brandIdResolved.isNotEmpty && (matchedCategoryId?.isNotEmpty ?? false)) {
+    if (brandIdResolved.isNotEmpty &&
+        (matchedCategoryId?.isNotEmpty ?? false)) {
       await _searchScController.fetchAdsbysearchWithFilters(
-        sortybyselection, 'parentCategory', matchedCategoryId!, '', '', 'brand', brandIdResolved, 0, 0,
+        sortybyselection,
+        'parentCategory',
+        matchedCategoryId!,
+        '',
+        '',
+        'brand',
+        brandIdResolved,
+        0,
+        0,
       );
       _searchScController.setSearchQuery(q);
-      firstName = 'parentCategory'; firstValue = matchedCategoryId!;
-      secondName = 'brand'; secondValue = brandIdResolved;
-      thirdName = ''; thirdValue = '';
+      firstName = 'parentCategory';
+      firstValue = matchedCategoryId!;
+      secondName = 'brand';
+      secondValue = brandIdResolved;
+      thirdName = '';
+      thirdValue = '';
       lastQuery = q;
       _searchScController.isrequesting.value = 0;
-      _searchScController.isMoreDataAvailableForShop.value = false; // stop further paging
+      _searchScController.isMoreDataAvailableForShop.value =
+          false; // stop further paging
       _visibleCount = _pageSize;
-      setState(() {}); return;
+      setState(() {});
+      return;
     }
 
     // 3) Brand only
     if (brandIdResolved.isNotEmpty) {
       await _searchScController.fetchAdsbysearchWithFilters(
-        sortybyselection, 'brand', brandIdResolved, '', '', '', '', 0, 0,
+        sortybyselection,
+        'brand',
+        brandIdResolved,
+        '',
+        '',
+        '',
+        '',
+        0,
+        0,
       );
       _searchScController.setSearchQuery(q);
-      firstName = 'brand'; firstValue = brandIdResolved;
-      secondName = ''; secondValue = '';
-      thirdName = ''; thirdValue = '';
+      firstName = 'brand';
+      firstValue = brandIdResolved;
+      secondName = '';
+      secondValue = '';
+      thirdName = '';
+      thirdValue = '';
       lastQuery = q;
       _searchScController.isrequesting.value = 0;
-      _searchScController.isMoreDataAvailableForShop.value = false; // stop further paging
+      _searchScController.isMoreDataAvailableForShop.value =
+          false; // stop further paging
       _visibleCount = _pageSize;
-      setState(() {}); return;
+      setState(() {});
+      return;
     }
 
     // 4) Category only
     if (matchedCategoryId?.isNotEmpty ?? false) {
       await _searchScController.fetchAdsbysearchWithFilters(
-        sortybyselection, 'parentCategory', matchedCategoryId!, '', '', '', '', 0, 0,
+        sortybyselection,
+        'parentCategory',
+        matchedCategoryId!,
+        '',
+        '',
+        '',
+        '',
+        0,
+        0,
       );
       _searchScController.setSearchQuery(q);
-      firstName = 'parentCategory'; firstValue = matchedCategoryId!;
-      secondName = ''; secondValue = '';
-      thirdName = ''; thirdValue = '';
+      firstName = 'parentCategory';
+      firstValue = matchedCategoryId!;
+      secondName = '';
+      secondValue = '';
+      thirdName = '';
+      thirdValue = '';
       lastQuery = q;
       _searchScController.isrequesting.value = 0;
-      _searchScController.isMoreDataAvailableForShop.value = false; // stop further paging
+      _searchScController.isMoreDataAvailableForShop.value =
+          false; // stop further paging
       _visibleCount = _pageSize;
-      setState(() {}); return;
+      setState(() {});
+      return;
     }
 
     // 5) Subcategory only
     if (matchedSubCategoryId?.isNotEmpty ?? false) {
       await _searchScController.fetchAdsbysearchWithFilters(
-        sortybyselection, 'subcategory', matchedSubCategoryId!, '', '', '', '', 0, 0,
+        sortybyselection,
+        'subcategory',
+        matchedSubCategoryId!,
+        '',
+        '',
+        '',
+        '',
+        0,
+        0,
       );
       _searchScController.setSearchQuery(q);
-      firstName = 'subcategory'; firstValue = matchedSubCategoryId!;
-      secondName = ''; secondValue = '';
-      thirdName = ''; thirdValue = '';
+      firstName = 'subcategory';
+      firstValue = matchedSubCategoryId!;
+      secondName = '';
+      secondValue = '';
+      thirdName = '';
+      thirdValue = '';
       lastQuery = q;
       _searchScController.isrequesting.value = 0;
-      _searchScController.isMoreDataAvailableForShop.value = false; // stop further paging
+      _searchScController.isMoreDataAvailableForShop.value =
+          false; // stop further paging
       _visibleCount = _pageSize;
-      setState(() {}); return;
+      setState(() {});
+      return;
     }
 
     // Primary: full query
     await _searchScController.fetchAdsbysearchWithFilters(
-      sortybyselection, 'search', q, '', '', '', '', 0, 0,
+      sortybyselection,
+      'search',
+      q,
+      '',
+      '',
+      '',
+      '',
+      0,
+      0,
     );
     _searchScController.setSearchQuery(q);
 
@@ -515,7 +660,8 @@ class _SearchScreenState extends State<SearchScreen> {
     lastQuery = q;
 
     _searchScController.isrequesting.value = 0;
-    _searchScController.isMoreDataAvailableForShop.value = false; // stop further paging
+    _searchScController.isMoreDataAvailableForShop.value =
+        false; // stop further paging
     _visibleCount = _pageSize;
     setState(() {});
   }
@@ -541,7 +687,8 @@ class _SearchScreenState extends State<SearchScreen> {
                   SizedBox(width: 8),
                   Text(
                     'Added to cart',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -557,6 +704,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   final controller = ScrollController();
+
   void _onScroll() {
     // Skip pagination if we've fetched all
     if (!_searchScController.isMoreDataAvailableForShop.value) return;
@@ -576,6 +724,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Timer? _debounce;
+
   // Ensure a controller exists even if none was globally registered
   late final SearchScController _searchScController =
       Get.isRegistered<SearchScController>()
@@ -585,20 +734,26 @@ class _SearchScreenState extends State<SearchScreen> {
   // Helper to drain pagination until all pages are fetched
   Future<void> _fetchAllWithSameParams(
     String sort,
-    String p1n, String p1v,
-    String p2n, String p2v,
-    String p3n, String p3v,
-    double minP, double maxP,
+    String p1n,
+    String p1v,
+    String p2n,
+    String p2v,
+    String p3n,
+    String p3v,
+    double minP,
+    double maxP,
   ) async {
     // ...existing code...
   }
 
   // Apply filters using the same priority/params as _performSearch (brand/subcategory/category mapping)
-  Future<void> _applyFiltersUsingUnifiedLogic(Map<String, dynamic> filters) async {
+  Future<void> _applyFiltersUsingUnifiedLogic(
+      Map<String, dynamic> filters) async {
     // Reset/prepare for fetch and show immediate loading feedback
     _visibleCount = _pageSize;
     searchController.clear();
-    _searchScController.setSearchQuery(''); // do not use clearSearchQuery() here
+    _searchScController
+        .setSearchQuery(''); // do not use clearSearchQuery() here
     _searchScController.limit.value = 2500; // fetch up to 2.5k
     _searchScController.searhProducts.clear();
     _searchScController.fetchedIds.clear();
@@ -608,7 +763,8 @@ class _SearchScreenState extends State<SearchScreen> {
     if (_searchScController.itemCountsd.value <= 0) {
       _searchScController.itemCountsd.value = 12;
     }
-    _searchScController.hasFilterApplied.value = true; // keep true so screen doesn't show empty-state
+    _searchScController.hasFilterApplied.value =
+        true; // keep true so screen doesn't show empty-state
     _searchScController.isrequesting.value = 1;
     lastQuery = '';
     if (mounted) setState(() {});
@@ -626,74 +782,107 @@ class _SearchScreenState extends State<SearchScreen> {
     String sanitize(dynamic v) {
       final s = (v ?? '').toString().trim();
       final low = s.toLowerCase();
-      if (s.isEmpty || low == 'all' || low == 'null' || low == 'none') return '';
+      if (s.isEmpty || low == 'all' || low == 'null' || low == 'none')
+        return '';
       return s;
     }
 
     final String catId = sanitize(filters['parentCategoryId']);
     final String subId = sanitize(filters['subcategoryId']);
-    final String brId  = sanitize(filters['brandId']);
+    final String brId = sanitize(filters['brandId']);
 
     // Helper: single fetch then stop pagination flags
     Future<void> _fetchOnce({
-      required String p1n, required String p1v,
-      String p2n = '', String p2v = '',
-      String p3n = '', String p3v = '',
+      required String p1n,
+      required String p1v,
+      String p2n = '',
+      String p2v = '',
+      String p3n = '',
+      String p3v = '',
     }) async {
       await _searchScController.fetchAdsbysearchWithFilters(
-        sortybyselection, p1n, p1v, p2n, p2v, p3n, p3v, apiMin, apiMax,
+        sortybyselection,
+        p1n,
+        p1v,
+        p2n,
+        p2v,
+        p3n,
+        p3v,
+        apiMin,
+        apiMax,
       );
       _searchScController.isrequesting.value = 0;
-      _searchScController.isMoreDataAvailableForShop.value = false; // stop further paging
+      _searchScController.isMoreDataAvailableForShop.value =
+          false; // stop further paging
       _visibleCount = _pageSize;
       if (mounted) setState(() {});
     }
 
     try {
       if (brId.isNotEmpty && subId.isNotEmpty) {
-        firstName = 'brand'; firstValue = brId;
-        secondName = 'subcategory'; secondValue = subId;
-        thirdName = ''; thirdValue = '';
-        await _fetchOnce(p1n: 'subcategory', p1v: subId, p2n: 'brand', p2v: brId);
+        firstName = 'brand';
+        firstValue = brId;
+        secondName = 'subcategory';
+        secondValue = subId;
+        thirdName = '';
+        thirdValue = '';
+        await _fetchOnce(
+            p1n: 'subcategory', p1v: subId, p2n: 'brand', p2v: brId);
         return;
       }
 
       if (brId.isNotEmpty && catId.isNotEmpty) {
-        firstName = 'parentCategory'; firstValue = catId;
-        secondName = 'brand';          secondValue = brId;
-        thirdName = ''; thirdValue = '';
-        await _fetchOnce(p1n: 'parentCategory', p1v: catId, p3n: 'brand', p3v: brId);
+        firstName = 'parentCategory';
+        firstValue = catId;
+        secondName = 'brand';
+        secondValue = brId;
+        thirdName = '';
+        thirdValue = '';
+        await _fetchOnce(
+            p1n: 'parentCategory', p1v: catId, p3n: 'brand', p3v: brId);
         return;
       }
 
       if (brId.isNotEmpty) {
-        firstName = 'brand'; firstValue = brId;
-        secondName = ''; secondValue = '';
-        thirdName = ''; thirdValue = '';
+        firstName = 'brand';
+        firstValue = brId;
+        secondName = '';
+        secondValue = '';
+        thirdName = '';
+        thirdValue = '';
         await _fetchOnce(p1n: 'brand', p1v: brId);
         return;
       }
 
       if (catId.isNotEmpty) {
-        firstName = 'parentCategory'; firstValue = catId;
-        secondName = ''; secondValue = '';
-        thirdName = ''; thirdValue = '';
+        firstName = 'parentCategory';
+        firstValue = catId;
+        secondName = '';
+        secondValue = '';
+        thirdName = '';
+        thirdValue = '';
         await _fetchOnce(p1n: 'parentCategory', p1v: catId);
         return;
       }
 
       if (subId.isNotEmpty) {
-        firstName = 'subcategory'; firstValue = subId;
-        secondName = ''; secondValue = '';
-        thirdName = ''; thirdValue = '';
+        firstName = 'subcategory';
+        firstValue = subId;
+        secondName = '';
+        secondValue = '';
+        thirdName = '';
+        thirdValue = '';
         await _fetchOnce(p1n: 'subcategory', p1v: subId);
         return;
       }
 
       // No brand/category/subcategory: fetch by price/sort only
-      firstName = ''; firstValue = '';
-      secondName = ''; secondValue = '';
-      thirdName = ''; thirdValue = '';
+      firstName = '';
+      firstValue = '';
+      secondName = '';
+      secondValue = '';
+      thirdName = '';
+      thirdValue = '';
       await _fetchOnce(p1n: '', p1v: '');
     } catch (_) {
       _searchScController.isrequesting.value = 0;
@@ -773,7 +962,17 @@ class _SearchScreenState extends State<SearchScreen> {
             children: [
               Row(
                 children: [
-                  // Search Bar
+                  Padding(
+                    padding: const EdgeInsets.only(left: 15),
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                      child: Icon(
+                        Icons.arrow_back_ios,
+                      ),
+                    ),
+                  ),
                   Expanded(
                     child: Container(
                         height: 45,
@@ -813,7 +1012,8 @@ class _SearchScreenState extends State<SearchScreen> {
                               _searchScController.fetchedIds.clear();
                               Get.find<SearchScController>().clearSearchQuery();
                               lastQuery = '';
-                              _visibleCount = _pageSize; // reset page size on clear
+                              _visibleCount =
+                                  _pageSize; // reset page size on clear
                             } else {
                               log('Text is NOT empty');
 
@@ -825,7 +1025,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
                               _debounce = Timer(
                                 const Duration(milliseconds: 550),
-                                () => _performSearch(trimmedValue), // pass trimmed
+                                () => _performSearch(
+                                    trimmedValue), // pass trimmed
                               );
                             }
 
@@ -917,8 +1118,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color:
-                              context.colorScheme.primary.withOpacity(.3),
+                          color: context.colorScheme.primary.withOpacity(.3),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
@@ -1047,22 +1247,30 @@ class _SearchScreenState extends State<SearchScreen> {
                         final maxW = _calcSortMaxWidth(constraints);
                         return Row(
                           children: [
-                            const Icon(Icons.inventory_2, size: 18, color: kPrimaryColor),
+                            const Icon(Icons.inventory_2,
+                                size: 18, color: kPrimaryColor),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Row(
                                 children: [
                                   Text(
                                     '${sortedForView.length} products',
-                                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                                    style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700),
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  if (controller1.searchQuery.trim().isNotEmpty) ...[
+                                  if (controller1.searchQuery
+                                      .trim()
+                                      .isNotEmpty) ...[
                                     const SizedBox(width: 6),
                                     Flexible(
                                       child: Text(
                                         'for "${controller1.searchQuery.trim()}"',
-                                        style: const TextStyle(fontSize: 14, color: kSecondaryColor, fontWeight: FontWeight.w600),
+                                        style: const TextStyle(
+                                            fontSize: 14,
+                                            color: kSecondaryColor,
+                                            fontWeight: FontWeight.w600),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -1084,7 +1292,8 @@ class _SearchScreenState extends State<SearchScreen> {
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 5),
                   sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       childAspectRatio: 0.64,
                     ),
@@ -1108,23 +1317,31 @@ class _SearchScreenState extends State<SearchScreen> {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                     child: Center(
-                      child: (controller1.isMoreDataAvailableForShop.value || _visibleCount < sortedForView.length)
+                      child: (controller1.isMoreDataAvailableForShop.value ||
+                              _visibleCount < sortedForView.length)
                           ? ElevatedButton(
                               style: _webLikeLoadMoreStyle(),
                               onPressed: () async {
-                                if (controller1.isMoreDataAvailableForShop.value) {
+                                if (controller1
+                                    .isMoreDataAvailableForShop.value) {
                                   if (_loadingMore) return;
                                   setState(() => _loadingMore = true);
                                   try {
-                                    await _searchScController.fetchAdsbysearchWithFilters(
+                                    await _searchScController
+                                        .fetchAdsbysearchWithFilters(
                                       sortybyselection,
-                                      firstName, firstValue,
-                                      secondName, secondValue,
-                                      thirdName, thirdValue,
-                                      minPrice, maxPrice,
+                                      firstName,
+                                      firstValue,
+                                      secondName,
+                                      secondValue,
+                                      thirdName,
+                                      thirdValue,
+                                      minPrice,
+                                      maxPrice,
                                     );
                                   } finally {
-                                    if (mounted) setState(() => _loadingMore = false);
+                                    if (mounted)
+                                      setState(() => _loadingMore = false);
                                   }
                                 } else {
                                   final total = sortedForView.length;
@@ -1138,7 +1355,12 @@ class _SearchScreenState extends State<SearchScreen> {
                                   ? Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: const [
-                                        SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)),
+                                        SizedBox(
+                                            width: 14,
+                                            height: 14,
+                                            child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white)),
                                         SizedBox(width: 8),
                                         Text('Loading...'),
                                       ],

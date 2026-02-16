@@ -1,5 +1,4 @@
 
-
 import 'dart:convert';
 
 List<Menumodel> welcomeFromJson(String str) => List<Menumodel>.from(json.decode(str).map((x) => Menumodel.fromJson(x)));
@@ -10,12 +9,14 @@ class Menumodel {
   Id id;
   String name;
   String slug;
+  bool isActive;
   List<Child> children;
 
   Menumodel({
     required this.id,
     required this.name,
     required this.slug,
+    required this.isActive,
     required this.children,
   });
 
@@ -23,13 +24,15 @@ class Menumodel {
     id: idValues.map[json["_id"]]!,
     name: json["name"],
     slug: json["slug"],
-    children: List<Child>.from(json["children"].map((x) => Child.fromJson(x))),
+    isActive: json["isActive"],
+    children: List<Child>.from(json["children"].map((x) => Child.fromJson(x))).where((child) => child.isActive).toList(),
   );
 
   Map<String, dynamic> toJson() => {
     "_id": idValues.reverse[id],
     "name": name,
     "slug": slug,
+    "isActive": isActive,
     "children": List<dynamic>.from(children.map((x) => x.toJson())),
   };
 }
@@ -40,6 +43,7 @@ class Child {
   String slug;
   int level;
   Id category;
+  bool isActive;
   String? parentSubCategory;
   List<Child> children;
 
@@ -49,6 +53,7 @@ class Child {
     required this.slug,
     required this.level,
     required this.category,
+    required this.isActive,
     required this.parentSubCategory,
     required this.children,
   });
@@ -59,8 +64,9 @@ class Child {
     slug: json["slug"],
     level: json["level"],
     category: idValues.map[json["category"]]!,
+    isActive: json["isActive"],
     parentSubCategory: json["parentSubCategory"],
-    children: List<Child>.from(json["children"].map((x) => Child.fromJson(x))),
+    children: List<Child>.from(json["children"].map((x) => Child.fromJson(x))).where((child) => child.isActive).toList(),
   );
 
   Map<String, dynamic> toJson() => {
@@ -69,6 +75,7 @@ class Child {
     "slug": slug,
     "level": level,
     "category": idValues.reverse[category],
+    "isActive": isActive,
     "parentSubCategory": parentSubCategory,
     "children": List<dynamic>.from(children.map((x) => x.toJson())),
   };

@@ -221,39 +221,56 @@ class FilterDrawerContentState extends State<FilterDrawerContent> {
                   ),
                 ),
               ),
-
               SizedBox(height: 20),
-              Text("SubCategory",
-                  style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: kSecondaryColor)),
+
+              Text(
+                "SubCategory",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: kSecondaryColor,
+                ),
+              ),
+
+              SizedBox(height: 8),
+
               Card(
                 elevation: 3,
-                child: DropdownButtonFormField<String>(
-                  padding: EdgeInsets.only(left: 8),
-                  style: TextStyle(fontSize: 13, color: Colors.black),
-                  decoration: InputDecoration(
-                      hintStyle: TextStyle(fontSize: 13),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0), // internal padding
+                  child: DropdownButtonFormField<String>(
+                    isExpanded: true, // ✅ prevents overflow
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
                       hintText: "Select SubCategory",
-                      border: InputBorder.none),
-                  value: filteredSubcategories.any((sub) =>
-                          sub.sId ==
-                          filterController.selectedSubCategoryId.value)
-                      ? filterController.selectedSubCategoryId.value
-                      : null,
-                  items: filteredSubcategories.map((sub) {
-                    return DropdownMenuItem(
-                      value: sub.sId,
-                      child: Text(sub.name ?? ''),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() {
-                      filterController.selectedSubCategoryId.value = value;
-                      log('the selected subcategory is ${filterController.selectedSubCategoryId.value}');
-                    });
-                  },
+                      hintStyle: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      contentPadding: EdgeInsets.symmetric(vertical: 12), // vertical spacing
+                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.black),
+                    value: filteredSubcategories.any((sub) =>
+                    sub.sId == filterController.selectedSubCategoryId.value)
+                        ? filterController.selectedSubCategoryId.value
+                        : null,
+                    items: filteredSubcategories.map((sub) {
+                      return DropdownMenuItem(
+                        value: sub.sId,
+                        child: Text(
+                          sub.name ?? '',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        filterController.selectedSubCategoryId.value = value;
+                        log(
+                            'The selected subcategory is ${filterController.selectedSubCategoryId.value}');
+                      });
+                    },
+                  ),
                 ),
               ),
 

@@ -8,6 +8,8 @@ import 'package:graba2z/Controllers/menuController.dart';
 import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Utils/image_helper.dart';
 import 'package:graba2z/Views/Home/Screens/Search%20Screen/searchscreen.dart';
+import 'package:graba2z/Views/Home/Screens/Search%20Screen/searchscreensecond.dart';
+import 'package:graba2z/Views/Home/Screens/banner%20redirect/bannerredirect.dart';
 import 'package:graba2z/Widgets/buildCategoryDrawer.dart';
 import 'package:http/http.dart' as http;
 import 'package:graba2z/Views/Categories%20Folder/allcategoriesscreen.dart';
@@ -26,6 +28,8 @@ class HomeScreenView extends StatefulWidget {
   @override
   State<HomeScreenView> createState() => _HomeScreenViewState();
 }
+
+enum RedirectType { brand, category, none }
 
 class _HomeScreenViewState extends State<HomeScreenView> {
   final HomeController _homeController = Get.put(HomeController());
@@ -89,50 +93,92 @@ class _HomeScreenViewState extends State<HomeScreenView> {
     super.dispose();
   }
 
-  Future<List<String>> fetchAllBanners({required String section}) async {
-    String url = Configss.getBanners;
+  Map<String, String> detectRedirectType(String? redirectUrl) {
+    if (redirectUrl == null || redirectUrl.isEmpty) {
+      return {"type": "none"};
+    }
+
+    final uri = Uri.tryParse(redirectUrl);
+    if (uri == null) {
+      return {"type": "none"};
+    }
+
+    // 🔹 BRAND CASE
+    // /product-category?brand=ASUS
+    final brand = uri.queryParameters['brand'];
+    if (brand != null && brand.isNotEmpty) {
+      return {
+        "type": "brand",
+        "value": brand, // ASUS
+      };
+    }
+
+    // 🔹 CATEGORY CASE
+    // /product-category/computers/networking
+    final segments = uri.pathSegments;
+
+    if (segments.length >= 2 && segments[0] == 'product-category') {
+      return {
+        "type": "category",
+        "value": segments.sublist(1).join('/'),
+        // computers/networking
+      };
+    }
+
+    return {"type": "none"};
+  }
+
+  Future<List<Map<String, dynamic>>> fetchAllBanners({
+    required String section,
+  }) async {
     final response = await http.get(
-      Uri.parse(url),
+      Uri.parse(Configss.getBanners),
     );
 
     if (response.statusCode == 200) {
-      var data = json.decode(response.body);
+      final data = json.decode(response.body);
+
       return data
           .where((item) =>
-              item['deviceType'] == 'mobile' && item['section'] == section)
-          .map<String>((item) => item['image'].toString())
+              item['deviceType'] == 'mobile' &&
+              item['section'] == section &&
+              item['isActive'] == true)
+          .map<Map<String, dynamic>>((item) => {
+                "image": item['image'],
+                "redirect_url": item['link'],
+              })
           .toList();
     } else {
-      throw Exception('Failed to load banners');
+      return [];
     }
   }
 
-  void _navigateToCategoryByName(String categoryName) {
-    categoriesModel? foundCategory;
-    for (var cat in _homeController.category) {
-      if (cat.name?.toLowerCase() == categoryName.toLowerCase()) {
-        foundCategory = cat;
-        break;
+  String extractLastWord(String link) {
+    // Remove query parameters (? ke baad sab)
+    final cleanLink = link.split('?').first;
+
+    // If brand link
+    if (link.contains("?brand=")) {
+      return link.split("?brand=").last;
+    }
+
+    // If search query
+    if (link.contains("?search=")) {
+      return link.split("?search=").last;
+    }
+
+    // If category link
+    if (cleanLink.contains("/product-category/")) {
+      final parts = cleanLink.split("/product-category/");
+      if (parts.length > 1) {
+        final subParts = parts[1].split("/");
+        return subParts.isNotEmpty ? subParts.last : "";
       }
     }
 
-    if (foundCategory != null &&
-        foundCategory.sId != null &&
-        foundCategory.sId!.isNotEmpty) {
-      Get.to(() => NewAllProduct(
-          id: foundCategory!.sId!,
-          parentType: "parentCategory",
-          displayTitle: foundCategory.name ?? categoryName));
-    } else {
-      print(
-          "Footer Navigation: Category '$categoryName' not found or has no ID.");
-      Get.snackbar(
-        "Info",
-        "Could not navigate to '$categoryName'. Category details not found.",
-        snackPosition: SnackPosition.BOTTOM,
-      );
-    }
+    return "";
   }
+
 
   double getResponsiveProductCardHeight(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -294,7 +340,7 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                     Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => SearchScreen()));
+                            builder: (context) => SearchScreenSecond()));
                   },
                   icon: const Icon(Icons.search,
                       color: kdefwhiteColor, size: 28)),
@@ -390,111 +436,120 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                       if (homeCtrl.isCateloading.value) {
                         return const Center(child: CircularProgressIndicator());
                       }
+
                       if (homeCtrl.category.isEmpty) {
-                        return const Center(
-                            child: Text('No categories available'));
+                        return const SizedBox.shrink();
                       }
+
+                      final itemCount = homeCtrl.category.length >= 6
+                          ? 6
+                          : homeCtrl.category.length;
+
                       return SizedBox(
                         height: 120,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          padding: defaultPadding(horizontal: 8, vertical: 5),
-                          itemCount: homeCtrl.category.length >= 6
-                              ? 6
-                              : homeCtrl.category.length,
-                          itemBuilder: (ctx, index) {
-                            final category = homeCtrl.category[index];
-                            return Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 10),
-                              child: Column(
-                                children: [
-                                  GestureDetector(
-                                    onTap: () {
-                                      // Change: do NOT set Home title; pass displayTitle to the next screen
-                                      Get.to(() => NewAllProduct(
-                                            id: category.sId ?? '',
-                                            parentType: "parentCategory",
-                                            displayTitle: category.name ?? '',
-                                          ));
-                                    },
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: kdefgreyColor,
-                                        borderRadius: BorderRadius.circular(6),
-                                        boxShadow: [
-                                          BoxShadow(
-                                              color:
-                                                  Colors.black.withOpacity(0.1),
+                        child: Align(
+                          alignment: homeCtrl.category.length <= 3
+                              ? Alignment.center
+                              : Alignment.centerLeft,
+                          child: ListView.builder(
+                            shrinkWrap: homeCtrl.category.length <= 3,
+                            physics: homeCtrl.category.length <= 3
+                                ? const NeverScrollableScrollPhysics()
+                                : const BouncingScrollPhysics(),
+                            scrollDirection: Axis.horizontal,
+                            padding: defaultPadding(horizontal: 8, vertical: 5),
+                            itemCount: itemCount,
+                            itemBuilder: (ctx, index) {
+                              final category = homeCtrl.category[index];
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 10),
+                                child: Column(
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () {
+                                        Get.to(() => NewAllProduct(
+                                          id: category.sId ?? '',
+                                          parentType: "parentCategory",
+                                          displayTitle: category.name ?? '',
+                                        ));
+                                      },
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: kdefgreyColor,
+                                          borderRadius: BorderRadius.circular(6),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withOpacity(0.1),
                                               offset: const Offset(0, 2),
                                               blurRadius: 3,
-                                              spreadRadius: 1),
-                                        ],
-                                      ),
-                                      child: CachedNetworkImage(
-                                        imageUrl:
-                                            Configss.baseUrl + category.image!,
-                                        imageBuilder:
-                                            (context, imageProvider) =>
-                                                Container(
-                                          height: 65,
-                                          width: 60,
-                                          decoration: BoxDecoration(
+                                              spreadRadius: 1,
+                                            ),
+                                          ],
+                                        ),
+                                        child: CachedNetworkImage(
+                                          imageUrl:
+                                          Configss.baseUrl + (category.image ?? ''),
+                                          imageBuilder: (context, imageProvider) => Container(
+                                            height: 65,
+                                            width: 60,
+                                            decoration: BoxDecoration(
                                               image: DecorationImage(
-                                                  image: imageProvider,
-                                                  fit: BoxFit.cover)),
-                                        ),
-                                        placeholder: (context, url) => SizedBox(
-                                          height: 65,
-                                          width: 60,
-                                          child: Shimmer.fromColors(
-                                            baseColor: Colors.grey.shade300,
-                                            highlightColor:
-                                                Colors.grey.shade100,
-                                            child: Container(
-                                                decoration: BoxDecoration(
-                                                    color: Colors.grey,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            6))),
+                                                image: imageProvider,
+                                                fit: BoxFit.cover,
+                                              ),
+                                            ),
                                           ),
-                                        ),
-                                        errorWidget: (context, url, error) =>
-                                            Container(
-                                          height: 65,
-                                          width: 60,
-                                          decoration: BoxDecoration(
-                                              borderRadius:
-                                                  BorderRadius.circular(6),
+                                          placeholder: (context, url) => SizedBox(
+                                            height: 65,
+                                            width: 60,
+                                            child: Shimmer.fromColors(
+                                              baseColor: Colors.grey.shade300,
+                                              highlightColor: Colors.grey.shade100,
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  color: Colors.grey,
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          errorWidget: (context, url, error) => Container(
+                                            height: 65,
+                                            width: 60,
+                                            decoration: BoxDecoration(
+                                              borderRadius: BorderRadius.circular(6),
                                               image: const DecorationImage(
-                                                  image: AssetImage(
-                                                      'assets/images/noimage.png'),
-                                                  fit: BoxFit.contain)),
+                                                image: AssetImage(
+                                                    'assets/images/noimage.png'),
+                                                fit: BoxFit.contain,
+                                              ),
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  8.0.heightbox,
-                                  Text(
-                                    (category.name?.characters
-                                                .take(12)
-                                                .toString() ??
-                                            '') +
-                                        ((category.name?.length ?? 0) > 12
-                                            ? '...'
-                                            : ''),
-                                    style: const TextStyle(
+                                    8.0.heightbox,
+                                    Text(
+                                      (category.name?.characters
+                                          .take(12)
+                                          .toString() ??
+                                          '') +
+                                          ((category.name?.length ?? 0) > 12
+                                              ? '...'
+                                              : ''),
+                                      style: const TextStyle(
                                         fontSize: 10,
                                         fontWeight: FontWeight.w600,
-                                        color: kSecondaryColor),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.clip,
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
+                                        color: kSecondaryColor,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 1,
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
                         ),
                       );
                     },
@@ -503,15 +558,12 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8.0, vertical: 8.0),
-                    child: FutureBuilder<List<String>>(
+                    child: FutureBuilder<List<Map<String, dynamic>>>(
                       future: fetchAllBanners(section: "top-mobile"),
-                      // API function
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
-                          return SizedBox(
-                            height: 110,
-                          );
+                          return SizedBox(height: 110);
                         }
 
                         if (snapshot.hasError) {
@@ -520,30 +572,43 @@ class _HomeScreenViewState extends State<HomeScreenView> {
 
                         final banners = snapshot.data ?? [];
 
-                        // fallback images agar API se data nahi aaya
-                        final img1 = banners.isNotEmpty
-                            ? banners[0].toString()
-                            : 'assets/images/noimage.png';
-                        final img2 = banners.length > 1
-                            ? banners[1].toString()
-                            : 'assets/images/noimage.png';
+                        // fallback agar API se data nahi aaya
+                        final firstBanner = banners.isNotEmpty
+                            ? banners[0]
+                            : {
+                                "image": "assets/images/noimage.png",
+                                "redirect_url": ""
+                              };
 
-                        final firstImage = ImageHelper.getUrl(img1);
-                        final secondImage = ImageHelper.getUrl(img2);
+                        final secondBanner = banners.length > 1
+                            ? banners[1]
+                            : {
+                                "image": "assets/images/noimage.png",
+                                "redirect_url": ""
+                              };
+
+                        final firstImage =
+                            ImageHelper.getUrl(firstBanner["image"]);
+                        final secondImage =
+                            ImageHelper.getUrl(secondBanner["image"]);
+
+                        final firstLink = firstBanner["redirect_url"];
+                        final secondLink = secondBanner["redirect_url"];
 
                         return Row(
                           children: [
                             Expanded(
                               child: GestureDetector(
                                 onTap: () {
-                                  if (_lenovoSectionBrandId.isNotEmpty) {
-                                    Get.to(() => NewAllProduct(
-                                        id: _lenovoSectionBrandId,
-                                        parentType: "brand"));
-                                  } else {
-                                    Get.snackbar("Info",
-                                        "Lenovo brand page not available yet.");
-                                  }
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) => bannerProduct(
+                                                brandname:
+                                                    extractLastWord(firstLink),
+                                                displayTitle:
+                                                    extractLastWord(firstLink),
+                                              )));
                                 },
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8.0),
@@ -553,9 +618,10 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                                     height: 110,
                                     errorBuilder: (context, error, stackTrace) {
                                       return Image.asset(
-                                          'assets/images/noimage.png',
-                                          fit: BoxFit.cover,
-                                          height: 110);
+                                        'assets/images/noimage.png',
+                                        fit: BoxFit.cover,
+                                        height: 110,
+                                      );
                                     },
                                   ),
                                 ),
@@ -565,14 +631,15 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                             Expanded(
                               child: GestureDetector(
                                 onTap: () {
-                                  if (_msiSectionBrandId.isNotEmpty) {
-                                    Get.to(() => NewAllProduct(
-                                        id: _msiSectionBrandId,
-                                        parentType: "brand"));
-                                  } else {
-                                    Get.snackbar("Info",
-                                        "MSI brand page not available yet.");
-                                  }
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) => bannerProduct(
+                                                brandname:
+                                                    extractLastWord(secondLink),
+                                                displayTitle:
+                                                    extractLastWord(secondLink),
+                                              )));
                                 },
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(8.0),
@@ -582,9 +649,10 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                                     height: 110,
                                     errorBuilder: (context, error, stackTrace) {
                                       return Image.asset(
-                                          'assets/images/noimage.png',
-                                          fit: BoxFit.cover,
-                                          height: 110);
+                                        'assets/images/noimage.png',
+                                        fit: BoxFit.cover,
+                                        height: 110,
+                                      );
                                     },
                                   ),
                                 ),
@@ -642,35 +710,40 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8.0, vertical: 10.0),
-                    child: FutureBuilder<List<String>>(
+                    child: FutureBuilder<List<Map<String, dynamic>>>(
                       future: fetchAllBanners(section: "hp-mobile"),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
                           return const SizedBox(height: 140);
                         }
-
                         if (snapshot.hasError) {
                           return const SizedBox(height: 140);
                         }
 
                         final banners = snapshot.data ?? [];
 
-                        // 🔥 Sirf image path/url pass karo
-                        final imagePath = banners.isNotEmpty
+                        final banner = banners.isNotEmpty
                             ? banners.first
-                            : 'assets/images/noimage.png';
-                        final image = ImageHelper.getUrl(imagePath);
+                            : {
+                                "image": "assets/images/noimage.png",
+                                "redirect_url": ""
+                              };
+
+                        final image = ImageHelper.getUrl(banner["image"]);
+                        final redirectLink = banner["redirect_url"];
 
                         return GestureDetector(
                           onTap: () {
-                            if (_hpSectionBrandId.isNotEmpty) {
-                              Get.to(() => NewAllProduct(
-                                  id: _hpSectionBrandId, parentType: "brand"));
-                            } else {
-                              Get.snackbar(
-                                  "Info", "HP brand page not available yet.");
-                            }
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => bannerProduct(
+                                          brandname:
+                                              extractLastWord(redirectLink),
+                                          displayTitle:
+                                              extractLastWord(redirectLink),
+                                        )));
                           },
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8.0),
@@ -679,6 +752,14 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                               height: 140,
                               width: double.infinity,
                               fit: BoxFit.fill,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset(
+                                  'assets/images/noimage.png',
+                                  height: 140,
+                                  width: double.infinity,
+                                  fit: BoxFit.fill,
+                                );
+                              },
                             ),
                           ),
                         );
@@ -728,35 +809,40 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8.0, vertical: 10.0),
-                    child: FutureBuilder<List<String>>(
+                    child: FutureBuilder<List<Map<String, dynamic>>>(
                       future: fetchAllBanners(section: "accessories"),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
                           return const SizedBox(height: 140);
                         }
-
                         if (snapshot.hasError) {
                           return const SizedBox(height: 140);
                         }
 
                         final banners = snapshot.data ?? [];
 
-                        // 🔥 Sirf image path/url pass karo
-                        final imagePath = banners.isNotEmpty
+                        final banner = banners.isNotEmpty
                             ? banners.first
-                            : 'assets/images/noimage.png';
-                        final image = ImageHelper.getUrl(imagePath);
+                            : {
+                                "image": "assets/images/noimage.png",
+                                "redirect_url": ""
+                              };
+
+                        final image = ImageHelper.getUrl(banner["image"]);
+                        final redirectLink = banner["redirect_url"];
 
                         return GestureDetector(
                           onTap: () {
-                            if (_hpSectionBrandId.isNotEmpty) {
-                              Get.to(() => NewAllProduct(
-                                  id: _hpSectionBrandId, parentType: "brand"));
-                            } else {
-                              Get.snackbar(
-                                  "Info", "HP brand page not available yet.");
-                            }
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => bannerProduct(
+                                          brandname:
+                                              extractLastWord(redirectLink),
+                                          displayTitle:
+                                              extractLastWord(redirectLink),
+                                        )));
                           },
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8.0),
@@ -765,6 +851,14 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                               height: 140,
                               width: double.infinity,
                               fit: BoxFit.fill,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset(
+                                  'assets/images/noimage.png',
+                                  height: 140,
+                                  width: double.infinity,
+                                  fit: BoxFit.fill,
+                                );
+                              },
                             ),
                           ),
                         );
@@ -809,35 +903,40 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8.0, vertical: 10.0),
-                    child: FutureBuilder<List<String>>(
+                    child: FutureBuilder<List<Map<String, dynamic>>>(
                       future: fetchAllBanners(section: "asus-mobile"),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
                           return const SizedBox(height: 140);
                         }
-
                         if (snapshot.hasError) {
                           return const SizedBox(height: 140);
                         }
 
                         final banners = snapshot.data ?? [];
 
-                        // 🔥 Sirf image path/url pass karo
-                        final imagePath = banners.isNotEmpty
+                        final banner = banners.isNotEmpty
                             ? banners.first
-                            : 'assets/images/noimage.png';
-                        final image = ImageHelper.getUrl(imagePath);
+                            : {
+                                "image": "assets/images/noimage.png",
+                                "redirect_url": ""
+                              };
+
+                        final image = ImageHelper.getUrl(banner["image"]);
+                        final redirectLink = banner["redirect_url"];
 
                         return GestureDetector(
                           onTap: () {
-                            if (_hpSectionBrandId.isNotEmpty) {
-                              Get.to(() => NewAllProduct(
-                                  id: _hpSectionBrandId, parentType: "brand"));
-                            } else {
-                              Get.snackbar(
-                                  "Info", "HP brand page not available yet.");
-                            }
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => bannerProduct(
+                                          brandname:
+                                              extractLastWord(redirectLink),
+                                          displayTitle:
+                                              extractLastWord(redirectLink),
+                                        )));
                           },
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8.0),
@@ -846,6 +945,14 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                               height: 140,
                               width: double.infinity,
                               fit: BoxFit.fill,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset(
+                                  'assets/images/noimage.png',
+                                  height: 140,
+                                  width: double.infinity,
+                                  fit: BoxFit.fill,
+                                );
+                              },
                             ),
                           ),
                         );
@@ -938,35 +1045,40 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8.0, vertical: 10.0),
-                    child: FutureBuilder<List<String>>(
+                    child: FutureBuilder<List<Map<String, dynamic>>>(
                       future: fetchAllBanners(section: "msi-mobile"),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
                           return const SizedBox(height: 140);
                         }
-
                         if (snapshot.hasError) {
                           return const SizedBox(height: 140);
                         }
 
                         final banners = snapshot.data ?? [];
 
-                        // 🔥 Sirf image path/url pass karo
-                        final imagePath = banners.isNotEmpty
+                        final banner = banners.isNotEmpty
                             ? banners.first
-                            : 'assets/images/noimage.png';
-                        final image = ImageHelper.getUrl(imagePath);
+                            : {
+                                "image": "assets/images/noimage.png",
+                                "redirect_url": ""
+                              };
+
+                        final image = ImageHelper.getUrl(banner["image"]);
+                        final redirectLink = banner["redirect_url"];
 
                         return GestureDetector(
                           onTap: () {
-                            if (_hpSectionBrandId.isNotEmpty) {
-                              Get.to(() => NewAllProduct(
-                                  id: _hpSectionBrandId, parentType: "brand"));
-                            } else {
-                              Get.snackbar(
-                                  "Info", "HP brand page not available yet.");
-                            }
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => bannerProduct(
+                                          brandname:
+                                              extractLastWord(redirectLink),
+                                          displayTitle:
+                                              extractLastWord(redirectLink),
+                                        )));
                           },
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8.0),
@@ -975,6 +1087,14 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                               height: 140,
                               width: double.infinity,
                               fit: BoxFit.fill,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset(
+                                  'assets/images/noimage.png',
+                                  height: 140,
+                                  width: double.infinity,
+                                  fit: BoxFit.fill,
+                                );
+                              },
                             ),
                           ),
                         );
@@ -1018,11 +1138,10 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                     );
                   }),
                   const SizedBox(height: 10),
-
                   Padding(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8.0, vertical: 10.0),
-                    child: FutureBuilder<List<String>>(
+                    child: FutureBuilder<List<Map<String, dynamic>>>(
                       future: fetchAllBanners(section: "apple-mobile"),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
@@ -1032,23 +1151,30 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                         if (snapshot.hasError) {
                           return const SizedBox(height: 140);
                         }
+
                         final banners = snapshot.data ?? [];
 
-                        // 🔥 Sirf image path/url pass karo
-                        final imagePath = banners.isNotEmpty
+                        final banner = banners.isNotEmpty
                             ? banners.first
-                            : 'assets/images/noimage.png';
-                        final image = ImageHelper.getUrl(imagePath);
+                            : {
+                                "image": "assets/images/noimage.png",
+                                "redirect_url": ""
+                              };
+
+                        final image = ImageHelper.getUrl(banner["image"]);
+                        final redirectLink = banner["redirect_url"];
 
                         return GestureDetector(
                           onTap: () {
-                            if (_hpSectionBrandId.isNotEmpty) {
-                              Get.to(() => NewAllProduct(
-                                  id: _hpSectionBrandId, parentType: "brand"));
-                            } else {
-                              Get.snackbar(
-                                  "Info", "HP brand page not available yet.");
-                            }
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => bannerProduct(
+                                          brandname:
+                                              extractLastWord(redirectLink),
+                                          displayTitle:
+                                              extractLastWord(redirectLink),
+                                        )));
                           },
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(8.0),
@@ -1057,6 +1183,14 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                               height: 140,
                               width: double.infinity,
                               fit: BoxFit.fill,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset(
+                                  'assets/images/noimage.png',
+                                  height: 140,
+                                  width: double.infinity,
+                                  fit: BoxFit.fill,
+                                );
+                              },
                             ),
                           ),
                         );

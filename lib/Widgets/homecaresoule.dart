@@ -1,11 +1,11 @@
 import 'dart:convert';
-
 import 'package:graba2z/Configs/config.dart';
 import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Utils/image_helper.dart';
-
 import '../Utils/packages.dart';
 import 'package:http/http.dart' as http;
+
+import '../Views/Home/Screens/banner redirect/bannerredirect.dart';
 
 class ImageCarouselSlider extends StatefulWidget {
   const ImageCarouselSlider({super.key});
@@ -18,6 +18,7 @@ class ImageCarouselSliderState extends State<ImageCarouselSlider> {
   int _currentIndex = 0;
   final CarouselSliderController _carouselController =
       CarouselSliderController();
+
   // double getResponsivecaresoulHeight(BuildContext context) {
   //   final screenWidth = MediaQuery.of(context).size.width;
 
@@ -34,34 +35,75 @@ class ImageCarouselSliderState extends State<ImageCarouselSlider> {
   // }
 
   List bannerList = [];
-  Future<void> fetchBanners() async {
+
+  Future<List<Map<String, dynamic>>> fetchBanners() async {
     String url = Configss.getBanners;
+    List<Map<String, dynamic>> banners = [];
 
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {
-        var data = jsonDecode(response.body);
-        // Map JSON to a list of ProductApiModel
-        for (var i = 0; i < data.length; i++) {
-          if ( data[i]['deviceType'] == 'mobile' && data[i]['position'] == 'hero' ) {
-            bannerList.add(data[i]['image']);
-          }
-        }
-        setState(() {});
+        final data = jsonDecode(response.body);
+
+        // Filter and map banners
+        banners = (data as List)
+            .where((item) =>
+                item['deviceType'] == 'mobile' &&
+                item['position'] == 'hero' &&
+                item['isActive'] == true)
+            .map<Map<String, dynamic>>((item) => {
+                  "image": item['image'] ?? "",
+                  "redirect_url": item['buttonLink'] ?? "",
+                })
+            .toList();
       } else {
-        print("Failed to fetch products. Status code: ${response.statusCode}");
-        throw Exception('Failed to load products');
+        print("Failed to fetch banners. Status code: ${response.statusCode}");
+        throw Exception('Failed to load banners');
       }
     } catch (error) {
-      print("Error fetching products: $error");
-    } finally {}
+      print("Error fetching banners: $error");
+    }
+
+    return banners;
+  }
+
+  String extractLastWord(String link) {
+    // Remove query parameters (? ke baad sab)
+    final cleanLink = link.split('?').first;
+
+    // If brand link
+    if (link.contains("?brand=")) {
+      return link.split("?brand=").last;
+    }
+
+    // If search query
+    if (link.contains("?search=")) {
+      return link.split("?search=").last;
+    }
+
+    // If category link
+    if (cleanLink.contains("/product-category/")) {
+      final parts = cleanLink.split("/product-category/");
+      if (parts.length > 1) {
+        final subParts = parts[1].split("/");
+        return subParts.isNotEmpty ? subParts.last : "";
+      }
+    }
+
+    return "";
+  }
+
+
+  Future<void> loadBanners() async {
+    bannerList = await fetchBanners(); // fetch list of maps
+    setState(() {}); // update UI
   }
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-    fetchBanners();
+    loadBanners();
   }
 
   @override
@@ -69,53 +111,54 @@ class ImageCarouselSliderState extends State<ImageCarouselSlider> {
     return Column(
       children: [
         CarouselSlider(
-          items: bannerList.map((imageUrl) {
-            return Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: CachedNetworkImage(
-                // fit: BoxFit.fill,
-                width: double.infinity,
-                  imageUrl: ImageHelper.getUrl(imageUrl ?? ""),
-                // fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  decoration: BoxDecoration(
-                    // borderRadius: BorderRadius.circular(12),
-                    color: Colors.grey,
-                  ),
-                  child: Shimmer.fromColors(
+          items: bannerList.map((banner) {
+            final imageUrl = banner['image'] ?? "";
+
+            return GestureDetector(
+              onTap: () {
+                final link = banner['redirect_url'] ?? "";
+                final name = extractLastWord(link);
+
+                Navigator.push(context, MaterialPageRoute(builder: (context) {
+                  return bannerProduct(
+                    brandname: name,
+                    displayTitle: name,
+                  );
+                }));
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: CachedNetworkImage(
+                  width: double.infinity,
+                  imageUrl: ImageHelper.getUrl(imageUrl),
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Shimmer.fromColors(
                     baseColor: Colors.grey.shade300,
                     highlightColor: Colors.grey.shade100,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        // borderRadius: BorderRadius.circular(12),
-                        color: Colors.grey,
-                      ),
-                    ),
+                    child: Container(color: Colors.grey),
                   ),
-                ),
-                errorWidget: (context, url, error) => Column(
-                  children: [
-                    const Text(
-                      "No image",
-                      style: TextStyle(fontSize: 12, color: Colors.red),
-                    ),
-                    10.0.heightbox,
-                    const Icon(Icons.error, color: Colors.red),
-                  ],
+                  errorWidget: (context, url, error) => Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Text("No image", style: TextStyle(color: Colors.red)),
+                      SizedBox(height: 10),
+                      Icon(Icons.error, color: Colors.red),
+                    ],
+                  ),
                 ),
               ),
             );
           }).toList(),
           carouselController: _carouselController,
           options: CarouselOptions(
-            autoPlayInterval: Duration(seconds: 6),
-            enlargeCenterPage: true,
-            viewportFraction: 1.0,
             height: 160,
+            viewportFraction: 1.0,
+            enlargeCenterPage: true,
             autoPlay: true,
+            autoPlayInterval: const Duration(seconds: 6),
             onPageChanged: (index, reason) {
               setState(() {
                 _currentIndex = index;
@@ -123,7 +166,8 @@ class ImageCarouselSliderState extends State<ImageCarouselSlider> {
             },
           ),
         ),
-        // 10.0.heightbox,
+
+        10.0.heightbox,
         bannerList.isNotEmpty
             ? AnimatedSmoothIndicator(
                 activeIndex: _currentIndex,

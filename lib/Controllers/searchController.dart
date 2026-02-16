@@ -39,16 +39,16 @@ class SearchScController extends GetxController {
   final fetchedIds = <String>{}.obs;
   // ========================= Fetch All ADS by Search with Filters ==============================
   fetchAdsbysearchWithFilters(
-    String sortby,
-    String brandName,
-    String brandId,
-    String firstName,
-    String firstValue,
-    String secondName,
-    String secondValue,
-    double minPrice,
-    double maxPrice,
-  ) async {
+      String sortby,
+      String brandName,
+      String brandId,
+      String firstName,
+      String firstValue,
+      String secondName,
+      String secondValue,
+      double minPrice,
+      double maxPrice,
+      ) async {
     // ✅ Debugging print statements
     isrequesting.value = 1;
     isFetchingMore = true;
@@ -81,10 +81,10 @@ class SearchScController extends GetxController {
 
     // print("🔍 API Response Body: ${response.body}");
     if (response.statusCode == 200) {
-          // print("the url of search is : ${uri}");
-    final jsonResponse = jsonDecode(response.body);
-    // final data = jsonResponse;
-    final data = jsonResponse['data'];
+      // print("the url of search is : ${uri}");
+      final jsonResponse = jsonDecode(response.body);
+      // final data = jsonResponse;
+      final data = jsonResponse['data'];
       // var body = jsonDecode(response.body);
       // searhProducts.value = body;
 

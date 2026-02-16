@@ -281,7 +281,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       case 'COD':
         return 'cod';
       case 'Card':
-        return 'ngenius'; // align with backend alias if needed
+        return 'card'; // align with backend alias if needed
       case 'Tabby':
         return 'tabby';
       case 'Tamara':

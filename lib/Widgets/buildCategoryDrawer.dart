@@ -1,6 +1,5 @@
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
-
 import '../Api/Models/menumodel.dart';
 import '../Controllers/menuController.dart';
 import '../Utils/packages.dart';
@@ -37,10 +36,10 @@ Drawer buildCategoryDrawer() {
               padding: EdgeInsets.zero,
               children: controller.categories.map((category) {
                 return CategoryTile(
-                  title: category.name ?? '',
-                  slug: category.slug ?? '',
+                  title: category.name,
+                  slug: category.slug,
                   id: idValues.reverse[category.id] ?? '',
-                  children: category.children ?? [],
+                  children: category.children.where((c) => c.level == 1).toList(),
                 );
               }).toList(),
             ),

@@ -41,6 +41,20 @@ class _LoginState extends State<Login> {
       });
     });
   }
+  Future<void> clearGuestFlag() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    await prefs.remove('Guest');
+
+    // Optional but recommended
+    await prefs.remove('guest_name');
+    await prefs.remove('guest_email');
+    await prefs.remove('guest_phone');
+    await prefs.remove('guest_address');
+    await prefs.remove('guest_city');
+    await prefs.remove('guest_state');
+    await prefs.remove('guest_zip');
+  }
 
   @override
   void dispose() {
@@ -52,6 +66,7 @@ class _LoginState extends State<Login> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
+
 
     return Scaffold(
       appBar: CustomAppBar(
@@ -204,6 +219,7 @@ class _LoginState extends State<Login> {
                       builder: (authProvider) {
                         final apiservice = Get.find<ApiServiceController>();
 
+
                         return PrimaryButton(
                           buttonColor: kdefwhiteColor,
                           textColor: kSecondaryColor,
@@ -211,6 +227,7 @@ class _LoginState extends State<Login> {
                           onPressFunction: () async {
                             final email = emailController.text.trim();
                             final password = passwordController.text.trim();
+                            await clearGuestFlag();
 
                             authProvider.validateLoginPassword(password);
                             authProvider.validateLoginEmail(email);

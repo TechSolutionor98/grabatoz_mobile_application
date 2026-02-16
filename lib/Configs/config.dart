@@ -37,7 +37,9 @@ class Configss {
 
   static String menu = "$baseUrl/api/categories/tree";
   static String product = "$baseUrl/api/products";
-  
+
+  static String newHomeCategory = "$baseUrl/api/custom-slider-items/active";
+
   // Account deletion endpoints
   static String requestAccountDeletion = "$baseUrl/api/users/request-account-deletion";
   static String verifyAccountDeletion = "$baseUrl/api/users/verify-account-deletion";

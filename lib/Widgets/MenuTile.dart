@@ -34,13 +34,18 @@ class _CategoryTileState extends State<CategoryTile> {
     final parentType =
     widget.level == 0 ? 'parentCategory' : 'subcategory';
 
+    // ---------------- Calculate padding ----------------
+    double leftPadding = 16 + widget.level * 16;
+    if (leftPadding > 48) leftPadding = 48; // cap at 48 for deep levels
+
     // ---------------- LEAF ----------------
     if (widget.children.isEmpty) {
       return ListTile(
-        contentPadding:
-        EdgeInsets.only(left: 16 + widget.level * 16, right: 20),
-        title: Text(widget.title,
-            style: TextStyle(color: textColor)),
+        contentPadding: EdgeInsets.only(left: leftPadding, right: 20),
+        title: Text(
+          widget.title,
+          style: TextStyle(color: textColor),
+        ),
         onTap: () {
           debugPrint(
               "TAP → level=${widget.level}, id=${widget.id}, type=$parentType");
@@ -70,15 +75,19 @@ class _CategoryTileState extends State<CategoryTile> {
           },
           child: Container(
             height: 50,
-            padding:
-            EdgeInsets.only(left: 16 + widget.level * 16, right: 20),
+            padding: EdgeInsets.only(left: leftPadding, right: 20),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(widget.title,
+                // ---------------- Text with proper overflow ----------------
+                Expanded(
+                  child: Text(
+                    widget.title,
                     style: TextStyle(
-                        color: textColor,
-                        fontWeight: FontWeight.w600)),
+                        color: textColor, fontWeight: FontWeight.w600),
+                    overflow: TextOverflow.ellipsis, // prevents overflow
+                  ),
+                ),
                 GestureDetector(
                   onTap: () {
                     setState(() {
@@ -111,7 +120,7 @@ class _CategoryTileState extends State<CategoryTile> {
               return CategoryTile(
                 title: child.name ?? '',
                 slug: child.slug ?? '',
-                id: child.id.toString(), // ✅ FIX HERE
+                id: child.id.toString(),
                 children: child.children ?? [],
                 level: widget.level + 1,
               );

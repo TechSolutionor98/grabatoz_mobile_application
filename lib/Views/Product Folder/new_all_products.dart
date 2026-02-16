@@ -370,6 +370,7 @@ class _NewAllProductState extends State<NewAllProduct> {
         _p1n = 'brand'; _p1v = brId; _p2n = _p2v = _p3n = _p3v = '';
       } else if (catId.isNotEmpty) {
         _p1n = 'parentCategory'; _p1v = catId; _p2n = _p2v = _p3n = _p3v = '';
+        _p1n = 'parentCategory'; _p1v = catId; _p2n = _p2v = _p3n = _p3v = '';
       } else if (subId.isNotEmpty) {
         _p1n = 'subcategory'; _p1v = subId; _p2n = _p2v = _p3n = _p3v = '';
       } else {

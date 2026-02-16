@@ -345,7 +345,7 @@ class _NewSummaryViewState extends State<NewSummaryView> {
                     15.0.heightbox,
                     _buildSummaryRow(
                       "VAT Included",
-                      "✔️",
+                      "AED ${(widget.subtotal*5/100).toStringAsFixed(2)}",
                     ),
                     15.0.heightbox,
                     _buildSummaryRow(
@@ -358,7 +358,11 @@ class _NewSummaryViewState extends State<NewSummaryView> {
                     15.0.heightbox,
                     _buildSummaryRow(
                       "Total Amount",
-                      "AED ${_cartNotifier.totalAmount.value}",
+                      widget.shippingType == 'Home Delivery' &&
+                          _cartNotifier.totalAmount.value <= 500
+                          ? "AED ${_cartNotifier.totalAmount.value}"
+                          : 'AED ${_cartNotifier.totalAmount.value-20}',
+                      // "AED ${_cartNotifier.totalAmount.value}",
                       isBold: true,
                     )
                   ],

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:graba2z/Utils/image_helper.dart';
 import 'package:graba2z/Utils/packages.dart';
 import 'package:intl/intl.dart';
 
@@ -90,7 +91,7 @@ class OrderDetailScreen extends StatelessWidget {
                       leading: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Image.network(
-                          product['image'],
+                          ImageHelper.getUrl(product['image']),
                           width: 60,
                           height: 60,
                           fit: BoxFit.cover,

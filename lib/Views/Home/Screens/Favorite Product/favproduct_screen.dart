@@ -3,6 +3,7 @@ import 'package:graba2z/Api/Models/newProductModel.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Controllers/favController.dart';
 import 'package:graba2z/Utils/appextensions.dart';
+import 'package:graba2z/Utils/image_helper.dart';
 import 'package:graba2z/Views/Home/Screens/Cart/cart.dart';
 import 'package:graba2z/Views/Product%20Folder/newProduct_card.dart';
 
@@ -84,13 +85,14 @@ class _FavoriteState extends State<Favorite> {
 
   // Map model to the structure NewProductCard expects
   Map<String, dynamic> _modelToMap(Newproductmodel m) {
-    final String mainImage = (m.galleryImages != null && m.galleryImages!.isNotEmpty)
-        ? (m.galleryImages!.first ?? '')
-        : '';
+    String mainImage = m.image ?? '';
+    if (m.galleryImages != null && m.galleryImages!.isNotEmpty) {
+      mainImage = m.galleryImages!.first ?? '';
+    }
     return {
       '_id': m.id ?? '',
       'name': m.name ?? '',
-      'image': mainImage,
+      'image': ImageHelper.getUrl(mainImage),
       'galleryImages': m.galleryImages ?? const <String>[],
       'offerPrice': m.offerPrice ?? 0,
       'price': m.price ?? 0,
@@ -121,7 +123,6 @@ class _FavoriteState extends State<Favorite> {
         leadingWidget: Builder(builder:(context){
          return IconButton(onPressed: () {
             navigationProvider.setTabIndex(0);
-
           }, icon: const Icon(Icons.arrow_back_ios, size: 20),);
         }),
         titleText: "Favorites",
@@ -147,7 +148,6 @@ class _FavoriteState extends State<Favorite> {
                     ),
                   ),
                 ),
-
                 // The dynamic badge showing cart count
                 if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
                   Positioned(
@@ -342,11 +342,13 @@ class _FavoriteState extends State<Favorite> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   CachedNetworkImage(
-                    imageUrl: (favoriteItem.galleryImages != null &&
-                            favoriteItem.galleryImages!.isNotEmpty)
-                        ? favoriteItem.galleryImages![0] ??
-                            'https://via.placeholder.com/150?text=No+Image+Available&fg=FFFFFF' // Fallback if src is null
-                        : 'https://via.placeholder.com/150?text=No+Image+Available&fg=FFFFFF',
+                    imageUrl: (favoriteItem.image != null &&
+                            favoriteItem.image!.isNotEmpty)
+                        ? ImageHelper.getUrl(favoriteItem.image!)
+                        : (favoriteItem.galleryImages != null &&
+                                favoriteItem.galleryImages!.isNotEmpty)
+                            ? ImageHelper.getUrl(favoriteItem.galleryImages![0])
+                            : 'https://via.placeholder.com/150?text=No+Image+Available&fg=FFFFFF', // Fallback if src is null
                     imageBuilder: (context, imageProvider) => Container(
                       height: isWide ? 120 : 100,
                       width: isWide ? 120 : 100,

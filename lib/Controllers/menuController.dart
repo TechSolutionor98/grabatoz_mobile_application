@@ -27,9 +27,10 @@ class menuController extends GetxController {
         // Ensure response.data is List<dynamic>
         final data = response.data as List<dynamic>;
 
-        // Parse each item to Welcome model
+        // Parse each item to Welcome model and filter for active categories
         categories.value = data
             .map((json) => Menumodel.fromJson(json as Map<String, dynamic>))
+            .where((category) => category.isActive)
             .toList();
       } else {
         throw Exception("Failed to load categories");

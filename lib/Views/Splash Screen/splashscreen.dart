@@ -20,7 +20,7 @@ class SplashScreenState extends State<SplashScreen> {
     super.initState();
     // Trigger animations with delays
 
-    Future.delayed(const Duration(seconds: 1), () {
+    Future.delayed(const Duration(seconds: 0), () {
       setState(() {
         _isCentered = true;
       });

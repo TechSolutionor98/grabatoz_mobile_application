@@ -1,6 +1,7 @@
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:graba2z/Api/Services/apiservices.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
+import 'package:graba2z/Controllers/bannerProductController.dart';
 import 'package:graba2z/Controllers/deliveryController.dart';
 import 'package:graba2z/Controllers/favController.dart';
 import 'package:graba2z/Controllers/menuController.dart';
@@ -105,6 +106,7 @@ class _MyAppState extends State<MyApp> {
     Get.put(FocusController());
     Get.put(OrderController());
     Get.put(menuController());
+    Get.put(bannerProductController());
     // Get.put(AddressLabelController());
     // Get.put(PaymentMethodProvider(widget.userId ?? 'guest_user'));
 

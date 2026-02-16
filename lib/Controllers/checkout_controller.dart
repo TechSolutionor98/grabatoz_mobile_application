@@ -53,6 +53,7 @@ class UserController extends GetxController {
   getUserInformation() async {
     SharedPreferences sp = await SharedPreferences.getInstance();
     fullName.value = sp.getString('user_name') ?? '';
+
     if (fullName.value.isNotEmpty) {
       homeNameController.text = fullName.value;
     }
@@ -146,3 +147,5 @@ class UserController extends GetxController {
     }
   }
 }
+
+

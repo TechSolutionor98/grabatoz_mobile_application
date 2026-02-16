@@ -10,7 +10,7 @@ class AddressDetailsBottomSheet extends StatefulWidget {
   String? existingCity;
   String? existingState;
   String? existingZipCode;
-  
+
   AddressDetailsBottomSheet({
     super.key,
     required this.phone,
@@ -20,7 +20,7 @@ class AddressDetailsBottomSheet extends StatefulWidget {
     this.existingState,
     this.existingZipCode,
   });
-  
+
   @override
   _AddressDetailsBottomSheetState createState() =>
       _AddressDetailsBottomSheetState();
@@ -114,7 +114,7 @@ class _AddressDetailsBottomSheetState extends State<AddressDetailsBottomSheet> {
         // Update observable values too
         _authController.address.value = addressController.text;
       }
-      
+
     } else {
       Get.snackbar('Warning', "Some fields are missing",
           backgroundColor: Colors.red, colorText: Colors.white);
@@ -126,7 +126,7 @@ class _AddressDetailsBottomSheetState extends State<AddressDetailsBottomSheet> {
     return SafeArea(
       child: Padding(
         padding:
-            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
         child: DraggableScrollableSheet(
           expand: false,
           initialChildSize: 0.9,
@@ -177,9 +177,9 @@ class _AddressDetailsBottomSheetState extends State<AddressDetailsBottomSheet> {
                     value: 'UAE',
                     items: ['UAE']
                         .map((country) => DropdownMenuItem<String>(
-                              value: country,
-                              child: Text(country),
-                            ))
+                      value: country,
+                      child: Text(country),
+                    ))
                         .toList(),
                     onChanged: null,
                     decoration: InputDecoration(
@@ -193,9 +193,9 @@ class _AddressDetailsBottomSheetState extends State<AddressDetailsBottomSheet> {
                     value: selectedState,
                     items: states
                         .map((state) => DropdownMenuItem<String>(
-                              value: state,
-                              child: Text(state),
-                            ))
+                      value: state,
+                      child: Text(state),
+                    ))
                         .toList(),
                     onChanged: (value) {
                       setState(() {
@@ -221,22 +221,22 @@ class _AddressDetailsBottomSheetState extends State<AddressDetailsBottomSheet> {
                       SizedBox(width: 12),
                       Expanded(
                           child: Obx(
-                        () => _userController.isLoading.value
-                            ? Container(
+                                () => _userController.isLoading.value
+                                ? Container(
                                 width: 30,
                                 child:
-                                    Center(child: CircularProgressIndicator()))
-                            : ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Color(0xFF8FD034),
-                                ),
-                                onPressed: _saveAndSyncAddress,
-                                child: Text(
-                                  "Save Address",
-                                  style: TextStyle(color: Colors.white),
-                                ),
+                                Center(child: CircularProgressIndicator()))
+                                : ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Color(0xFF8FD034),
                               ),
-                      )),
+                              onPressed: _saveAndSyncAddress,
+                              child: Text(
+                                "Save Address",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          )),
                     ],
                   )
                 ],
