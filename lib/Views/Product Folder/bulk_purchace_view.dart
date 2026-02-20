@@ -272,7 +272,7 @@ class _BulkPurchaceViewState extends State<BulkPurchaceView> {
                   ),
                 ),
                 SizedBox(
-                  height: 15,
+                  height: 60,
                 ),
               ],
             ),

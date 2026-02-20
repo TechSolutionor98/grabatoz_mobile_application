@@ -1,0 +1,994 @@
+// import 'package:custom_rating_bar/custom_rating_bar.dart';
+
+import 'package:get/get.dart';
+import 'package:graba2z/Api/Models/newProductModel.dart';
+import 'package:graba2z/Configs/config.dart';
+import 'package:graba2z/Controllers/addtocart.dart';
+import 'package:graba2z/Controllers/favController.dart';
+import 'package:graba2z/Utils/appextensions.dart';
+import 'package:graba2z/Utils/image_helper.dart';
+import 'package:graba2z/Views/Product%20Folder/newProductDetails.dart';
+import 'package:url_launcher/url_launcher_string.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_svg/flutter_svg.dart' as svg;
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'dart:async';
+import 'dart:developer' as developer;
+import 'package:graba2z/Controllers/review_update_bus.dart';
+
+import '../../../../../../Utils/packages.dart';
+
+// Add: small white shopping bag SVG for the button
+const String _bagSvg = '''
+<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-bag">
+  <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
+  <path d="M3 6h18"></path>
+  <path d="M16 10a4 4 0 0 1-8 0"></path>
+</svg>
+''';
+
+class DealsProductCard extends StatefulWidget {
+  final productList;
+  final maxLines;
+  final String offerName;
+  final VoidCallback? onAddedToCart;
+  final bool showFavoriteIcon; // allow hiding fav icon when embedding
+
+  DealsProductCard({
+    super.key,
+    required this.offerName,
+    required this.productList,
+    this.maxLines = 1,
+    this.onAddedToCart,
+    this.showFavoriteIcon = true,
+  });
+
+  @override
+  State<DealsProductCard> createState() => _DealsProductCardState();
+}
+
+class _DealsProductCardState extends State<DealsProductCard> {
+  double _toDouble(dynamic v) {
+    if (v == null) return 0.0;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0.0;
+  }
+
+  double _avgRatingFromMap(Map m) {
+    // Prefer explicit average fields if provided
+    if (m.containsKey('averageRating')) return _toDouble(m['averageRating']);
+    if (m.containsKey('rating')) return _toDouble(m['rating']);
+    // Fallback: compute from reviews list
+    final revs = m['reviews'];
+    if (revs is List && revs.isNotEmpty) {
+      double sum = 0;
+      int cnt = 0;
+      for (final r in revs) {
+        if (r is Map && r['rating'] != null) {
+          sum += _toDouble(r['rating']);
+          cnt++;
+        }
+      }
+      if (cnt > 0) return sum / cnt;
+    }
+    return 0.0;
+  }
+
+  int _reviewsCountFromMap(Map m) {
+    final revs = m['reviews'];
+    if (revs is List) return revs.length;
+    if (m['reviewsCount'] is num) return (m['reviewsCount'] as num).toInt();
+    return 0;
+  }
+
+  Widget _buildStars(double avg, {double size = 20}) {
+    List<Widget> stars = [];
+    for (int i = 0; i < 5; i++) {
+      final threshold = i + 1;
+      if (avg >= threshold) {
+        stars.add(Icon(Icons.star, color: Colors.amber, size: size));
+      } else if (avg > i && avg < threshold) {
+        stars.add(Icon(Icons.star_half, color: Colors.amber, size: size));
+      } else {
+        stars.add(Icon(Icons.star_border, color: Colors.amber, size: size));
+      }
+    }
+    return Row(children: stars);
+  }
+
+  // --- Added: API-driven review stats for this product
+  double? _apiAvgRating;
+  int? _apiReviewsCount;
+  bool _loadingStats = false;
+  String? _productId; // track this card's product id
+  StreamSubscription<String>? _reviewUpdateSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // Resolve productId
+    if (widget.productList is Map) {
+      final map = Map<String, dynamic>.from(widget.productList);
+      _productId = (map['_id'] ?? '').toString();
+    }
+    _fetchReviewStats(); // initial fetch
+
+    // Listen for global "reviews updated" events
+    _reviewUpdateSub = ReviewUpdateBus.instance.stream.listen((pid) {
+      if (!mounted) return;
+      if (_productId != null && _productId!.isNotEmpty && pid == _productId) {
+        _fetchReviewStats();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant DealsProductCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update productId if card is rebuilt with a different product
+    if (widget.productList is Map) {
+      final map = Map<String, dynamic>.from(widget.productList);
+      final newId = (map['_id'] ?? '').toString();
+      if (newId != _productId) {
+        _productId = newId;
+        _fetchReviewStats();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _reviewUpdateSub?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchReviewStats() async {
+    try {
+      if (widget.productList is! Map) return;
+      final map = Map<String, dynamic>.from(widget.productList);
+      final String productId = (map['_id'] ?? '').toString();
+      if (productId.isEmpty) return;
+
+      setState(() => _loadingStats = true);
+      final endpoint = Configss.getReview.replaceFirst(':productId', productId);
+      final url = '$endpoint?page=1';
+      final res = await http.get(Uri.parse(url));
+      if (!mounted) return;
+
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body) as Map<String, dynamic>;
+        final stats = (data['stats'] is Map) ? Map<String, dynamic>.from(
+            data['stats']) : null;
+        setState(() {
+          _apiAvgRating =
+          (stats?['averageRating'] is num) ? (stats!['averageRating'] as num)
+              .toDouble() : null;
+          _apiReviewsCount =
+          (stats?['totalReviews'] is num) ? (stats!['totalReviews'] as num)
+              .toInt() : null;
+        });
+      }
+    } catch (_) {
+      // swallow; fallback to local data
+    } finally {
+      if (mounted) setState(() => _loadingStats = false);
+    }
+  }
+
+  Color _getOfferLabelColor() {
+    // مختلف colors کی list
+    final colors = [
+      const Color(0xFFFEE2E2),
+      const Color(0xFFDCFCE7),
+      const Color(0xFFECFCCB),
+      const Color(0xFFFFD900),
+      const Color(0xFFF37021),
+      const Color(0xFFDBB27C),
+      const Color(0xFFFF4500),
+    ];
+
+    // Product ID کی بنیاد پر ہیش کریں تاکہ ہر product کو مختلف رنگ ملے
+    if (widget.productList is Map) {
+      final productId = widget.productList['_id']?.toString() ?? '';
+      final hash = productId.hashCode.abs();
+      return colors[hash % colors.length];
+    }
+    return colors[0];
+  }
+
+  void _showFavPopup({required bool added}) {
+    showGeneralDialog(
+      context: context,
+      barrierLabel: added ? 'Added to wishlist' : 'Removed from wishlist',
+      barrierDismissible: false,
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (_, __, ___) => const SizedBox.shrink(),
+      transitionBuilder: (ctx, anim, _, __) {
+        final scale = Curves.easeOutBack.transform(anim.value);
+        return Center(
+          child: Transform.scale(
+            scale: scale,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(color: Colors.black87,
+                  borderRadius: BorderRadius.circular(40)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    added ? Icons.favorite : Icons.favorite_border,
+                    color: Colors.white,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    added ? 'Added to wishlist' : 'Removed from wishlist',
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    Future.delayed(const Duration(milliseconds: 900), () {
+      final nav = Navigator.of(context, rootNavigator: true);
+      if (nav.canPop()) nav.pop();
+    });
+  }
+
+  // @override
+  // void dispose() {
+  //   _reviewUpdateSub?.cancel();
+  //   super.dispose();
+  // }
+
+  void navigateToDetails() {
+    try {
+      if (widget.productList == null || widget.productList is! Map) {
+        print(
+            'DealsProductCard.onTap: Error - productList is null or not a Map.');
+        return;
+      }
+      var productData = widget.productList as Map;
+
+      // Extract images
+      int? offerPriceForDetails;
+      final rawOfferPrice = productData['offerPrice'];
+      if (rawOfferPrice is String) {
+        offerPriceForDetails = int.tryParse(rawOfferPrice);
+      } else if (rawOfferPrice is num) {
+        offerPriceForDetails = rawOfferPrice.toInt();
+      }
+
+      int? priceForDetails;
+      final rawPrice = productData['price'];
+      if (rawPrice is String) {
+        priceForDetails = int.tryParse(rawPrice);
+      } else if (rawPrice is num) {
+        priceForDetails = rawPrice.toInt();
+      }
+
+      List<String> imagesForDetails = [];
+      final rawGalleryImages = productData['galleryImages'];
+      if (rawGalleryImages is List) {
+        for (var img in rawGalleryImages) {
+          if (img is String && img.isNotEmpty) {
+            imagesForDetails.add(img);
+          }
+        }
+      }
+      if (imagesForDetails.isEmpty) {
+        final rawMainImage = productData['image'];
+        if (rawMainImage is String && rawMainImage.isNotEmpty) {
+          imagesForDetails.add(rawMainImage);
+        }
+      }
+      if (imagesForDetails.isEmpty) {
+        imagesForDetails.add('https://i.postimg.cc/SsWYSvq6/noimage.png');
+      }
+
+      // Extract specs
+      List<dynamic> specsForDetails = [];
+      final rawSpecs = productData['specifications'];
+      if (rawSpecs is List) {
+        try {
+          specsForDetails = List<dynamic>.from(rawSpecs);
+        } catch (e) {
+          print('DealsProductCard.onTap: ERROR converting specs: $e');
+        }
+      }
+
+      // Extract reviews
+      List<dynamic> reviewsForDetails = [];
+      final rawReviews = productData['reviews'];
+      if (rawReviews is List) {
+        try {
+          reviewsForDetails = List<dynamic>.from(rawReviews);
+        } catch (e) {
+          print('DealsProductCard.onTap: ERROR converting reviews: $e');
+        }
+      }
+
+      String productId = productData['_id']?.toString() ?? '';
+      String name = productData['name']?.toString() ??
+          'Product Name Not Available';
+
+      // Extract brand - already enriched by controller
+      dynamic brandData = productData['brand'];
+      String brandName = '';
+
+      if (brandData is Map) {
+        brandName = (brandData['name'] ?? brandData['_name'] ?? '').toString().trim();
+      }
+
+      developer.log("Brand for details: $brandName", name: "DealsProductCard");
+
+      // Extract parent category
+      dynamic parentCategoryData = productData['parentCategory'];
+      String categoryName = '';
+      String categoryId = '';
+      if (parentCategoryData is Map) {
+        categoryName = parentCategoryData['name']?.toString() ?? '';
+        categoryId = parentCategoryData['_id']?.toString() ?? '';
+      }
+
+      // Extract subcategory
+      String subcategoryName = '';
+      final sc1 = productData['subcategory'];
+      final sc2 = productData['subCategory'];
+      final sc3 = productData['childCategory'];
+      Map? sc;
+      if (sc1 is Map)
+        sc = sc1;
+      else if (sc2 is Map)
+        sc = sc2;
+      else if (sc3 is Map) sc = sc3;
+
+      if (sc != null && (sc['name']
+          ?.toString()
+          .isNotEmpty ?? false)) {
+        subcategoryName = sc['name'].toString();
+      } else {
+        final cat = productData['category'];
+        if (cat is Map && (cat['name']
+            ?.toString()
+            .isNotEmpty ?? false)) {
+          subcategoryName = cat['name'].toString();
+        }
+      }
+
+      String sku = productData['sku']?.toString() ?? '';
+      String stockStatus = productData['stockStatus']?.toString() ?? 'Unknown';
+      String description = productData['description']?.toString() ?? '';
+      String shortdesc = productData['shortDescription']?.toString() ?? '';
+
+      try {
+        Get.to(
+              () {
+            try {
+              return NewProductDetails(
+                specs: specsForDetails,
+                reviews: reviewsForDetails,
+                images: imagesForDetails,
+                productId: productId,
+                name: name,
+                brandName: brandName,
+                categoryName: categoryName,
+                categoryId: categoryId,
+                sku: sku,
+                offerPrice: (offerPriceForDetails ?? 0).toString(),
+                price: (priceForDetails ?? 0).toString(),
+                stockStatus: stockStatus,
+                description: description,
+                shortdesc: shortdesc,
+                subcategoryName: subcategoryName,
+              );
+            } catch (e, s) {
+              print(
+                  'DealsProductCard.onTap: ERROR INSTANTIATING NewProductDetails: $e');
+              print('Stacktrace: $s');
+              return const SizedBox.shrink();
+            }
+          },
+          preventDuplicates: false,
+        );
+      } catch (e, s) {
+        print('DealsProductCard.onTap: EXCEPTION DURING Get.to: $e');
+        print('Stacktrace: $s');
+      }
+    } catch (e, s) {
+      print('DealsProductCard.onTap: OUTER ERROR: $e');
+      print('Stacktrace: $s');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const placeholderImage = 'https://i.postimg.cc/SsWYSvq6/noimage.png';
+
+    if (widget.productList == null) {
+      print("Error in DealsProductCard build: widget.productList is null.");
+      return SizedBox.shrink();
+    }
+
+    String imageUrlToDisplay = placeholderImage;
+    dynamic galleryImages;
+    dynamic mainImage;
+
+    if (widget.productList is Map) {
+      galleryImages = widget.productList['galleryImages'];
+      mainImage = widget.productList['image'];
+
+      // Set imageUrlToDisplay with proper null checks
+      if (mainImage != null && mainImage
+          .toString()
+          .isNotEmpty) {
+        imageUrlToDisplay = mainImage.toString();
+      } else if (galleryImages is List &&
+          galleryImages.isNotEmpty &&
+          galleryImages[0] != null &&
+          galleryImages[0]
+              .toString()
+              .isNotEmpty) {
+        imageUrlToDisplay = galleryImages[0].toString();
+      }
+    } else {
+      print(
+          "DealsProductCard build: widget.productList is not a Map, using placeholder image.");
+    }
+
+    // Extract subcategory and brand names for display
+    String subcategoryNameForCard = '';
+    String brandNameForCard = '';
+
+    if (widget.productList is Map) {
+      final map = widget.productList as Map;
+
+      // Extract brand name
+      final brand = map['brand'];
+      if (brand is Map) {
+        brandNameForCard = (brand['name'] ?? brand['_name'] ?? '').toString().trim();
+      }
+
+      // Common API keys variations for subcategory
+      final sc1 = map['subcategory'];
+      final sc2 = map['subCategory'];
+      final sc3 = map['childCategory'];
+      Map? sc;
+      if (sc1 is Map) sc = sc1;
+      else if (sc2 is Map) sc = sc2;
+      else if (sc3 is Map) sc = sc3;
+
+      if (sc != null && (sc['name']?.toString().isNotEmpty ?? false)) {
+        subcategoryNameForCard = sc['name'].toString();
+      } else {
+        final cat = map['category'];
+        if (cat is Map && (cat['name']?.toString().isNotEmpty ?? false)) {
+          subcategoryNameForCard = cat['name'].toString();
+        } else {
+          final pc = map['parentCategory'];
+          if (pc is Map && (pc['name']?.toString().isNotEmpty ?? false)) {
+            subcategoryNameForCard = pc['name'].toString();
+          }
+        }
+      }
+    }
+
+    return AspectRatio(
+      aspectRatio: 0.72,
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: navigateToDetails,
+            child: SizedBox.expand(
+              child: defaultStyledContainer(
+                padding: const EdgeInsets.all(6.0),
+                width: double.infinity,
+                boxShadow: defaultBoxShadow,
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final maxH = constraints.maxHeight.isFinite ? constraints
+                        .maxHeight : 220.0;
+                    final double _imgScale = maxH < 190 ? 0.38 : (maxH < 210
+                        ? 0.40
+                        : 0.42);
+                    final imgSize = (maxH * _imgScale).clamp(90.0, 120.0);
+                    final gapBelowImage = 6.0;
+                    final gapBelowChip = 4.0;
+                    final gapTiny = 2.0;
+                    final urlForImage = ImageHelper.getUrl(
+                        imageUrlToDisplay ?? placeholderImage);
+                    final addToCartH = 26.0;
+                    return Column(
+                      children: [
+                        CachedNetworkImage(
+                          imageUrl: urlForImage,
+                          imageBuilder: (context, imageProvider) =>
+                              Container(
+                                height: imgSize.toDouble(),
+                                width: imgSize.toDouble(),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  image: DecorationImage(
+                                      image: imageProvider, fit: BoxFit.contain),
+                                ),
+                              ),
+                          placeholder: (context, url) =>
+                              SizedBox(
+                                height: imgSize.toDouble(),
+                                width: imgSize.toDouble(),
+                                child: Shimmer.fromColors(
+                                  baseColor: Colors.grey.shade300,
+                                  highlightColor: Colors.grey.shade100,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          errorWidget: (context, url, error) =>
+                              Container(
+                                height: imgSize.toDouble(),
+                                width: imgSize.toDouble(),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  image: const DecorationImage(
+                                    image: AssetImage(
+                                        'assets/images/noimage.png'),
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                              ),
+                        ),
+                        gapBelowImage.heightbox,
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Builder(
+                            builder: (_) {
+                              final status = (widget.productList is Map
+                                  ? widget.productList['stockStatus']?.toString()
+                                  : null) ?? 'Unknown';
+                              final s = status.toLowerCase();
+                              final Color bg = (s == 'out of stock')
+                                  ? kredColor
+                                  : (s == 'preorder' || s == 'pre order')
+                                  ? Colors.orange
+                                  : (s == 'available product' ||
+                                  s == 'available' || s == 'in stock')
+                                  ? kdefgreenColor
+                                  : kSecondaryColor;
+                              return Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(color: bg,
+                                        borderRadius: BorderRadius.circular(4)),
+                                    child: Text(
+                                      status,
+                                      style: const TextStyle(
+                                          color: kdefwhiteColor,
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  SizedBox(width: 5,),
+
+                                  if (widget.productList is Map &&
+                                      widget.productList['discount'] != null &&
+                                      widget.productList['discount'] != 0)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(color: Color(0xFFFACC15),
+                                          borderRadius: BorderRadius.circular(4)),
+                                      child: Text(
+                              "${widget.productList['discount']}% OFF",
+                                        style: const TextStyle(
+                                            color: kdefwhiteColor,
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                        gapBelowChip.heightbox,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Flexible(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      (widget.productList is Map
+                                          ? widget.productList['name']?.toString()
+                                          : null) ?? "Product Name",
+                                      maxLines: widget.maxLines,
+                                      style: const TextStyle(fontSize: 10,
+                                          color: kSecondaryColor,
+                                          fontWeight: FontWeight.bold),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    // Brand name
+                                    if (brandNameForCard.isNotEmpty) ...[
+                                      gapTiny.heightbox,
+                                      Text(
+                                        'Brand: $brandNameForCard',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 9,
+                                          color: Color(0xFF0EA5E9),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                    // Category name
+                                    if (subcategoryNameForCard.isNotEmpty) ...[
+                                      gapTiny.heightbox,
+                                      Text(
+                                        'Category: $subcategoryNameForCard',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 9,
+                                          color: Color(0xFFCA8A04),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                    gapTiny.heightbox,
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment
+                                          .start,
+                                      children: [
+                                        RichText(
+                                          text: TextSpan(
+                                            children: [
+                                              const TextSpan(
+                                                text: "Inclusive VAT ",
+                                                style: TextStyle(fontSize: 8,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Color(0xFF16A34A)),
+                                              ),
+                                              TextSpan(
+                                                text: (widget
+                                                    .productList is Map &&
+                                                    widget
+                                                        .productList['offerPrice'] !=
+                                                        null &&
+                                                    widget
+                                                        .productList['offerPrice']
+                                                        .toString() != '0' &&
+                                                    widget
+                                                        .productList['offerPrice']
+                                                        .toString()
+                                                        .isNotEmpty)
+                                                    ? "${widget
+                                                    .productList['offerPrice']} AED"
+                                                    : "${(widget
+                                                    .productList is Map ? widget
+                                                    .productList['price']
+                                                    ?.toString() : null) ??
+                                                    'N/A'} AED",
+                                                style: const TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: kredColor),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        if (widget.productList is Map &&
+                                            widget.productList['offerPrice'] !=
+                                                null &&
+                                            widget.productList['offerPrice']
+                                                .toString() != '0' &&
+                                            widget.productList['offerPrice']
+                                                .toString()
+                                                .isNotEmpty)
+                                          Text(
+                                            "AED ${(widget.productList is Map
+                                                ? widget.productList['price']
+                                                ?.toString()
+                                                : null) ?? 'N/A'}",
+                                            style: const TextStyle(
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.bold,
+                                              color: kSecondaryColor,
+                                              decoration: TextDecoration
+                                                  .lineThrough,
+                                              decorationColor: kredColor,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.only(top: gapTiny),
+                                      child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment
+                                            .center,
+                                        children: [
+                                              () {
+                                            double baseAvg = 0;
+                                            int baseCount = 0;
+                                            if (widget.productList is Map) {
+                                              final map = widget
+                                                  .productList as Map;
+                                              baseAvg = _avgRatingFromMap(map);
+                                              baseCount =
+                                                  _reviewsCountFromMap(map);
+                                            }
+                                            final double avg = _apiAvgRating ??
+                                                baseAvg;
+                                            final int count = _apiReviewsCount ??
+                                                baseCount;
+
+                                            return Row(
+                                              children: [
+                                                _buildStars(avg, size: 12),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  '(${count.toString()})',
+                                                  style: const TextStyle(
+                                                      fontSize: 10,
+                                                      color: klightblackColor),
+                                                ),
+                                              ],
+                                            );
+                                          }(),
+                                        ],
+                                      ),
+                                    ),
+                                    (((widget.productList is Map
+                                        ? widget.productList['stockStatus']
+                                        ?.toString()
+                                        : null) == 'Out of Stock') ? 6.0 : 2.0)
+                                        .heightbox,
+                                    if ((widget.productList is Map
+                                        ? widget.productList['stockStatus']
+                                        ?.toString()
+                                        : null) == 'Out of Stock')
+                                      Center(
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            // ...existing WhatsApp code...
+                                          },
+                                          child: Text(
+                                            'Check Availability',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              color: kPrimaryColor,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                              decoration: TextDecoration
+                                                  .underline,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Center(
+                                child: GetBuilder<CartNotifier>(builder: (cart) {
+                                  bool isOutOfStock = (widget.productList is Map
+                                      ? widget.productList['stockStatus']
+                                      ?.toString()
+                                      : null) == 'Out of Stock';
+                                  return GestureDetector(
+                                    onTap: () async {
+                                      if (isOutOfStock) return;
+                                      try {
+                                        final map = (widget.productList is Map)
+                                            ? Map<String, dynamic>.from(
+                                            widget.productList)
+                                            : <String, dynamic>{};
+                                        final String productId = (map['_id'] ??
+                                            '').toString();
+                                        final String productName = (map['name'] ??
+                                            'Unknown Product').toString();
+
+                                        final double offerP = _toDouble(
+                                            map['offerPrice']);
+                                        final double regularP = _toDouble(
+                                            map['price']);
+                                        final double finalPrice = offerP > 0
+                                            ? offerP
+                                            : regularP;
+                                        if (finalPrice <= 0) {
+                                          Get.snackbar('Info',
+                                              'Price not available for this product.');
+                                          return;
+                                        }
+
+                                        const placeholderImage = 'https://i.postimg.cc/SsWYSvq6/noimage.png';
+                                        String productImageForCart = placeholderImage;
+                                        final mainImage = map['image']
+                                            ?.toString();
+                                        final gallery = map['galleryImages'];
+                                        if (mainImage != null &&
+                                            mainImage.isNotEmpty) {
+                                          productImageForCart = mainImage;
+                                        } else if (gallery is List &&
+                                            gallery.isNotEmpty && (gallery.first
+                                            ?.toString()
+                                            .isNotEmpty ?? false)) {
+                                          productImageForCart =
+                                              gallery.first.toString();
+                                        }
+
+                                        String? userId;
+                                        try {
+                                          final prefs = await SharedPreferences
+                                              .getInstance();
+                                          userId = prefs
+                                              .getString('userId')
+                                              ?.toString();
+                                        } catch (_) {}
+
+                                        cart.addItemInfo(
+                                          CartOtherInfo(
+                                            productId: productId,
+                                            productName: productName,
+                                            productImage: productImageForCart,
+                                            productPrice: finalPrice,
+                                            quantity: 1,
+                                          ),
+                                          userId,
+                                        );
+
+                                        widget.onAddedToCart?.call();
+                                      } catch (e) {
+                                        Get.snackbar('Error',
+                                            'Failed to add item to cart.');
+                                      }
+                                    },
+                                    child: isOutOfStock
+                                        ? const SizedBox.shrink()
+                                        : Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 1),
+                                      width: Get.width / 2.8,
+                                      height: addToCartH,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(3),
+                                        color: kPrimaryColor,
+                                      ),
+                                      child: Center(
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            svg.SvgPicture.string(
+                                              _bagSvg,
+                                              width: 12,
+                                              height: 12,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            const Text(
+                                              "Add to Cart",
+                                              style: TextStyle(
+                                                color: kdefblackColor,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              overflow: TextOverflow.fade,
+                                              softWrap: false,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+         Positioned(top: 8, left: 8,
+             child: Container(
+               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+               decoration: BoxDecoration(
+                 color: _getOfferLabelColor(),
+                 borderRadius: BorderRadius.circular(6),
+               ),
+               child:  Text(
+                 widget.offerName,
+                 style: TextStyle(
+                   color: kdefblackColor,
+                   fontSize: 8,
+                   fontWeight: FontWeight.bold,
+                 ),
+               ),
+             )),
+          // Favorite icon overlay
+          if (widget.showFavoriteIcon)
+            Positioned(
+              top: 9,
+              right: 9,
+              child: GetBuilder<FavoriteController>(
+                builder: (favorite) {
+                  final productData = widget.productList;
+                  if (productData == null) {
+                    return SizedBox.shrink();
+                  }
+
+                  Newproductmodel model;
+                  try {
+                    if (productData is Newproductmodel) {
+                      model = productData;
+                    } else if (productData is Map<String, dynamic>) {
+                      model = Newproductmodel.fromJson(productData);
+                    } else if (productData is Map) {
+                      model = Newproductmodel.fromJson(Map<String, dynamic>.from(productData));
+                    } else {
+                      return SizedBox.shrink();
+                    }
+                  } catch (e) {
+                    return SizedBox.shrink();
+                  }
+
+                  return GestureDetector(
+                    onTap: () async {
+                      final authController = Get.find<AuthController>();
+                      if (!authController.userID.value.isNotEmpty) {
+                        context.route(Login());
+                        return;
+                      }
+
+                      if (model.id != null && model.id!.isNotEmpty) {
+                        final nowFav = await favorite.toggleFavorite(model, context, silent: true);
+                        _showFavPopup(added: nowFav);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          )
+                        ],
+                      ),
+                      child: Icon(
+                        (model.id != null && model.id!.isNotEmpty && favorite.isExist(model))
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        color: (model.id != null && model.id!.isNotEmpty && favorite.isExist(model)) ? kredColor : klightblackColor,
+                        size: 18,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}

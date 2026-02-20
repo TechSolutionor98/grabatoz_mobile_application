@@ -3,6 +3,7 @@ import 'package:get/get_core/src/get_main.dart';
 import '../Api/Models/menumodel.dart';
 import '../Controllers/menuController.dart';
 import '../Utils/packages.dart';
+import '../Views/Home/Screens/Shop Screen/Shop.dart';
 import 'MenuTile.dart';
 
 Drawer buildCategoryDrawer() {
@@ -15,6 +16,7 @@ Drawer buildCategoryDrawer() {
       }
 
       return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             height: 120,
@@ -30,7 +32,27 @@ Drawer buildCategoryDrawer() {
               ),
             ),
           ),
-
+          GestureDetector(
+            onTap: () {
+              Get.to(() => Shop(
+                id: "",
+                parentType: "",
+                displayTitle: "Gaming Zone",
+                slug: "gaming-zone",
+              ));
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Text(
+                'Gaming Zone',
+                textAlign: TextAlign.start,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
@@ -44,6 +66,7 @@ Drawer buildCategoryDrawer() {
               }).toList(),
             ),
           ),
+
         ],
       );
     }),

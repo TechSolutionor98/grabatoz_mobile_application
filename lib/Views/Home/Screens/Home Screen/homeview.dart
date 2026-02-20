@@ -1,13 +1,12 @@
 import 'dart:convert';
 import 'package:get/get.dart';
-import 'package:graba2z/Api/Models/categorymodel.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Controllers/brand_controller.dart';
+import 'package:graba2z/Controllers/homeSliderController.dart';
 import 'package:graba2z/Controllers/home_controller.dart';
-import 'package:graba2z/Controllers/menuController.dart';
 import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Utils/image_helper.dart';
-import 'package:graba2z/Views/Home/Screens/Search%20Screen/searchscreen.dart';
+import 'package:graba2z/Views/Home/Screens/Deals%20Screen/dealsview.dart';
 import 'package:graba2z/Views/Home/Screens/Search%20Screen/searchscreensecond.dart';
 import 'package:graba2z/Views/Home/Screens/banner%20redirect/bannerredirect.dart';
 import 'package:graba2z/Widgets/buildCategoryDrawer.dart';
@@ -36,6 +35,7 @@ class _HomeScreenViewState extends State<HomeScreenView> {
   final BrandController _brandController = Get.put(BrandController());
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _categoriesSectionKey = GlobalKey();
+  final HomeSliderController _sliderController = Get.put(HomeSliderController());
 
   static const String _asusSectionBrandId = '687609800de49396755b8ffa';
   static const String _hpSectionBrandId = '687609800de49396755b8ffe';
@@ -57,6 +57,7 @@ class _HomeScreenViewState extends State<HomeScreenView> {
   @override
   void initState() {
     super.initState();
+    _sliderController.homeCategorySlider();
     _homeController.fetchFeaturedProducts(
         fetchLimit: homeScreenSectionFetchLimit);
     _brandController.fetchProductsForBrand(_hpSectionBrandId,
@@ -274,6 +275,14 @@ class _HomeScreenViewState extends State<HomeScreenView> {
     _brandsAutoLoopStarted = true;
     _autoScrollBrandsLoop();
   }
+  String generateSlug(String text) {
+    return text
+        .toLowerCase()                        // CAPITAL → lowercase
+        .trim()                              // start/end spaces remove
+        .replaceAll(RegExp(r'[^\w\s-]'), '') // special characters remove
+        .replaceAll(RegExp(r'\s+'), '-')     // spaces → hyphen
+        .replaceAll(RegExp(r'-+'), '-');     // multiple hyphens → single
+  }
 
   Future<void> _autoScrollBrandsLoop() async {
     while (mounted) {
@@ -308,7 +317,6 @@ class _HomeScreenViewState extends State<HomeScreenView> {
 
   @override
   Widget build(BuildContext context) {
-    final menuController controller = Get.find<menuController>();
     return Scaffold(
       drawer: buildCategoryDrawer(),
       appBar: CustomAppBar(
@@ -340,7 +348,7 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                     Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (context) => SearchScreenSecond()));
+                            builder:(context) => SearchScreenSecond()));
                   },
                   icon: const Icon(Icons.search,
                       color: kdefwhiteColor, size: 28)),
@@ -431,7 +439,7 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  GetBuilder<HomeController>(
+                  GetBuilder<HomeSliderController>(
                     builder: (homeCtrl) {
                       if (homeCtrl.isCateloading.value) {
                         return const Center(child: CircularProgressIndicator());
@@ -467,9 +475,8 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                                   children: [
                                     GestureDetector(
                                       onTap: () {
-                                        Get.to(() => NewAllProduct(
-                                          id: category.sId ?? '',
-                                          parentType: "parentCategory",
+                                        Get.to(() => offerDeals(
+                                          slug: generateSlug(category.name ?? ''),
                                           displayTitle: category.name ?? '',
                                         ));
                                       },
@@ -479,7 +486,7 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                                           borderRadius: BorderRadius.circular(6),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.black.withOpacity(0.1),
+                                              color: Colors.black.withValues(alpha: 0.1),
                                               offset: const Offset(0, 2),
                                               blurRadius: 3,
                                               spreadRadius: 1,
@@ -679,10 +686,9 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                   // START: New Featured Products Section
                   Obx(() {
                     final isLoadingFeatured =
-                        _homeController.isLoadingFeaturedProducts?.value ??
-                            true;
+                        _homeController.isLoadingFeaturedProducts.value;
                     final featuredProductList =
-                        _homeController.featuredProducts ?? <dynamic>[].obs;
+                        _homeController.featuredProducts;
                     final sortedFeaturedProducts =
                         _getSortedDisplayProducts(featuredProductList);
                     final displayFeaturedProducts = sortedFeaturedProducts
@@ -1399,9 +1405,8 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                                       child: Center(
                                         child: BrandCard(
                                           id: (brand['_id'] ?? '').toString(),
-                                          imageUrl: (ImageHelper.getUrl(
-                                                      brand['logo']) ??
-                                                  'https://i.postimg.cc/SsWYSvq6/noimage.png')
+                                          imageUrl: ImageHelper.getUrl(
+                                                      brand['logo'])
                                               .toString(),
                                           name: (brand['name'] ?? 'No Name')
                                               .toString(),

@@ -222,57 +222,57 @@ class FilterDrawerContentState extends State<FilterDrawerContent> {
                 ),
               ),
               SizedBox(height: 20),
-
-              Text(
-                "SubCategory",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: kSecondaryColor,
-                ),
-              ),
-
-              SizedBox(height: 8),
-
-              Card(
-                elevation: 3,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8.0), // internal padding
-                  child: DropdownButtonFormField<String>(
-                    isExpanded: true, // ✅ prevents overflow
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: "Select SubCategory",
-                      hintStyle: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                      contentPadding: EdgeInsets.symmetric(vertical: 12), // vertical spacing
-                    ),
-                    style: TextStyle(fontSize: 13, color: Colors.black),
-                    value: filteredSubcategories.any((sub) =>
-                    sub.sId == filterController.selectedSubCategoryId.value)
-                        ? filterController.selectedSubCategoryId.value
-                        : null,
-                    items: filteredSubcategories.map((sub) {
-                      return DropdownMenuItem(
-                        value: sub.sId,
-                        child: Text(
-                          sub.name ?? '',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        filterController.selectedSubCategoryId.value = value;
-                        log(
-                            'The selected subcategory is ${filterController.selectedSubCategoryId.value}');
-                      });
-                    },
-                  ),
-                ),
-              ),
+              //
+              // Text(
+              //   "SubCategory",
+              //   style: TextStyle(
+              //     fontSize: 14,
+              //     fontWeight: FontWeight.bold,
+              //     color: kSecondaryColor,
+              //   ),
+              // ),
+              //
+              // SizedBox(height: 8),
+              //
+              // Card(
+              //   elevation: 3,
+              //   shape: RoundedRectangleBorder(
+              //     borderRadius: BorderRadius.circular(8),
+              //   ),
+              //   child: Padding(
+              //     padding: const EdgeInsets.symmetric(horizontal: 8.0), // internal padding
+              //     child: DropdownButtonFormField<String>(
+              //       isExpanded: true, // ✅ prevents overflow
+              //       decoration: InputDecoration(
+              //         border: InputBorder.none,
+              //         hintText: "Select SubCategory",
+              //         hintStyle: TextStyle(fontSize: 13, color: Colors.grey[600]),
+              //         contentPadding: EdgeInsets.symmetric(vertical: 12), // vertical spacing
+              //       ),
+              //       style: TextStyle(fontSize: 13, color: Colors.black),
+              //       value: filteredSubcategories.any((sub) =>
+              //       sub.sId == filterController.selectedSubCategoryId.value)
+              //           ? filterController.selectedSubCategoryId.value
+              //           : null,
+              //       items: filteredSubcategories.map((sub) {
+              //         return DropdownMenuItem(
+              //           value: sub.sId,
+              //           child: Text(
+              //             sub.name ?? '',
+              //             overflow: TextOverflow.ellipsis,
+              //           ),
+              //         );
+              //       }).toList(),
+              //       onChanged: (value) {
+              //         setState(() {
+              //           filterController.selectedSubCategoryId.value = value;
+              //           log(
+              //               'The selected subcategory is ${filterController.selectedSubCategoryId.value}');
+              //         });
+              //       },
+              //     ),
+              //   ),
+              // ),
 
               SizedBox(height: 20),
               Text("Brand",

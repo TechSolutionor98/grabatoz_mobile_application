@@ -477,6 +477,15 @@ class _NewProductDetailsState extends State<NewProductDetails>
     log('NewProductDetails initState START ------------------------');
     log('NewProductDetails initState: Received Product ID: ${widget.productId}');
     log('NewProductDetails initState: Received Name: ${widget.name}');
+    log('NewProductDetails initState: Received Brand Name: "${widget.brandName}"');
+    log('NewProductDetails initState: Received Category Name: "${widget.categoryName}"');
+
+    // If brand name is empty, try to fetch from product API
+    if (widget.brandName.isEmpty && widget.productId.isNotEmpty) {
+      log('🔄 Brand name is empty, fetching from product API...');
+      _fetchBrandName();
+    }
+
     log('NewProductDetails initState: Received Images count: ${widget.images.length}');
     if (widget.images.isNotEmpty) {
       log('NewProductDetails initState: First image: ${widget.images.first}');
@@ -503,22 +512,20 @@ class _NewProductDetailsState extends State<NewProductDetails>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
+        // Run all API calls in parallel - no need to wait, just trigger them
         if (widget.categoryId.isNotEmpty) {
           _homeController.getRelatedProducts(widget.categoryId);
-        } else {
-          log('NewProductDetails initState: categoryId is empty, skipping getRelatedProducts.');
         }
+        _fetchReviews(page: 1);
+        _fetchFrequentlyBought();
 
+        // Update reviews list if widget provides them
         if (widget.reviews is List) {
           _reviewCont.reviews.value = List<dynamic>.from(widget.reviews);
         } else {
           log('NewProductDetails initState: widget.reviews is not a List, initializing with empty list.');
           _reviewCont.reviews.value = [];
         }
-        // Fetch fresh reviews from API (page 1)
-        _fetchReviews(page: 1);
-        // Fetch frequently bought together items using smart accessory system
-        _fetchFrequentlyBought();
       }
     });
 
@@ -529,6 +536,47 @@ class _NewProductDetailsState extends State<NewProductDetails>
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  /// Fetch brand name from product API if not provided
+  Future<void> _fetchBrandName() async {
+    try {
+      if (widget.productId.isEmpty) return;
+
+      // Timeout after 5 seconds to prevent hanging
+      final response = await http.get(
+        Uri.parse('${Configss.baseUrl}/api/products/${widget.productId}'),
+      ).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          log('❌ Brand fetch timeout');
+          throw TimeoutException('Brand fetch took too long');
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        log('✅ Fetched product from API: ${data['name']}');
+
+        String fetchedBrandName = '';
+        if (data['brand'] is Map) {
+          fetchedBrandName = (data['brand']['name'] ?? '').toString();
+        }
+
+        if (fetchedBrandName.isNotEmpty && mounted) {
+          log('✅ Got brand name from API: $fetchedBrandName');
+          setState(() {
+            widget.brandName = fetchedBrandName;
+          });
+        }
+      } else {
+        log('❌ Failed to fetch product: ${response.statusCode}');
+      }
+    } on TimeoutException {
+      log('⏱️ Brand fetch timed out - using N/A');
+    } catch (e) {
+      log('❌ Error fetching brand name: $e');
+    }
   }
 
   Future<void> _fetchReviews({int page = 1}) async {
@@ -543,7 +591,14 @@ class _NewProductDetailsState extends State<NewProductDetails>
       final url = '$endpoint?page=$page';
       log('Fetching reviews: $url');
 
-      final res = await http.get(Uri.parse(url));
+      // Add timeout to prevent hanging
+      final res = await http.get(Uri.parse(url)).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Reviews fetch timed out');
+        },
+      );
+
       if (res.statusCode == 200) {
         final Map<String, dynamic> body =
             json.decode(res.body) as Map<String, dynamic>;
@@ -573,8 +628,10 @@ class _NewProductDetailsState extends State<NewProductDetails>
           _apiHasNext = (pagination['hasNext'] as bool?) ?? false;
         });
       } else {
-        log('Failed to fetch reviews. Status: ${res.statusCode} Body: ${res.body}');
+        log('Failed to fetch reviews. Status: ${res.statusCode}');
       }
+    } on TimeoutException {
+      log('⏱️ Reviews fetch timed out');
     } catch (e, st) {
       log('Error fetching reviews: $e\n$st');
     } finally {
@@ -869,15 +926,24 @@ class _NewProductDetailsState extends State<NewProductDetails>
 
           log('--- Trying suggestion with keywords: $keywords ---');
 
-          for (final searchTerm in searches) {
+          // Only try first 2 searches per suggestion to save time
+          for (int searchIdx = 0; searchIdx < searches.length && searchIdx < 2; searchIdx++) {
+            final searchTerm = searches[searchIdx];
             if (results.length >= _maxFrequentlyBought) break;
 
             try {
               final url =
-                  '${Configss.baseUrl}/api/products?search=${Uri.encodeComponent(searchTerm)}&limit=20';
+                  '${Configss.baseUrl}/api/products?search=${Uri.encodeComponent(searchTerm)}&limit=10';
               log('Searching: $searchTerm');
 
-              final res = await http.get(Uri.parse(url));
+              // Add timeout
+              final res = await http.get(Uri.parse(url)).timeout(
+                const Duration(seconds: 5),
+                onTimeout: () {
+                  throw TimeoutException('Search timeout: $searchTerm');
+                },
+              );
+
               if (res.statusCode == 200) {
                 final body = json.decode(res.body);
                 final products =
@@ -909,7 +975,6 @@ class _NewProductDetailsState extends State<NewProductDetails>
                     continue;
                   }
 
-                  // CHANGED: Check against global normalized names set
                   final normalized = _normalizeProductName(pName);
                   if (seenNormalizedNames.contains(normalized)) {
                     log('  ❌ Excluding (duplicate normalized name): $pName (normalized: $normalized)');
@@ -919,10 +984,11 @@ class _NewProductDetailsState extends State<NewProductDetails>
                   log('  ✅ Adding: $pName (normalized: $normalized)');
                   results.add(p);
                   seenIds.add(id);
-                  seenNormalizedNames
-                      .add(normalized); // Track this normalized name
+                  seenNormalizedNames.add(normalized);
                 }
               }
+            } on TimeoutException {
+              log('⏱️ Search timeout for "$searchTerm", skipping');
             } catch (e) {
               log('Error fetching for term "$searchTerm": $e');
             }
@@ -930,58 +996,6 @@ class _NewProductDetailsState extends State<NewProductDetails>
         }
 
         log('After specific suggestions: ${results.length} products found');
-
-        // Phase 2: Group-specific fallback (only if group was found)
-        if (results.length < _maxFrequentlyBought &&
-            fallbackKeywords.isNotEmpty) {
-          log('Not enough products (${results.length}), trying group-specific fallback...');
-          try {
-            final url = '${Configss.baseUrl}/api/products?limit=150';
-            final res = await http.get(Uri.parse(url));
-            if (res.statusCode == 200) {
-              final body = json.decode(res.body);
-              final products =
-                  (body is List) ? body : (body['products'] as List? ?? []);
-
-              for (final p in products) {
-                if (results.length >= _maxFrequentlyBought) break;
-                if (p is! Map<String, dynamic>) continue;
-
-                final id = (p['_id'] ?? '').toString();
-                if (seenIds.contains(id)) continue;
-
-                final pName = (p['name'] ?? '').toString();
-                final pNameLower = pName.toLowerCase();
-                final pCat = ((p['category'] as Map?)?['name'] ?? '')
-                    .toString()
-                    .toLowerCase();
-                final combined = '$pNameLower $pCat';
-
-                if (_isMainProductType(combined, excludeWords)) {
-                  log('Fallback: ❌ Excluding (main type): $pName');
-                  continue;
-                }
-
-                if (!_includesAny(combined, fallbackKeywords)) continue;
-
-                // CHANGED: Check against global normalized names set
-                final normalized = _normalizeProductName(pName);
-                if (seenNormalizedNames.contains(normalized)) {
-                  log('Fallback: ❌ Excluding (duplicate normalized name): $pName (normalized: $normalized)');
-                  continue;
-                }
-
-                log('Fallback: ✅ Adding: $pName (normalized: $normalized)');
-                results.add(p);
-                seenIds.add(id);
-                seenNormalizedNames
-                    .add(normalized); // Track this normalized name
-              }
-            }
-          } catch (e) {
-            log('Error in fallback fetch: $e');
-          }
-        }
       }
 
       // Phase 3: UNIVERSAL FALLBACK (laptop-style for all unmapped categories)
@@ -991,7 +1005,6 @@ class _NewProductDetailsState extends State<NewProductDetails>
         log('Current results count: ${results.length}');
         log('==========================================');
 
-        // Use broader exclude list to avoid suggesting main product types
         final universalExcludes = [
           'laptop',
           'notebook',
@@ -1015,15 +1028,23 @@ class _NewProductDetailsState extends State<NewProductDetails>
           'xbox',
         ];
 
-        for (final searchTerm in _genericFallbackSearches) {
+        // Only try first 3 searches to save time
+        for (int searchIdx = 0; searchIdx < _genericFallbackSearches.length && searchIdx < 3; searchIdx++) {
+          final searchTerm = _genericFallbackSearches[searchIdx];
           if (results.length >= _maxFrequentlyBought) break;
 
           try {
             final url =
-                '${Configss.baseUrl}/api/products?search=${Uri.encodeComponent(searchTerm)}&limit=20';
+                '${Configss.baseUrl}/api/products?search=${Uri.encodeComponent(searchTerm)}&limit=10';
             log('Universal search: $searchTerm');
 
-            final res = await http.get(Uri.parse(url));
+            final res = await http.get(Uri.parse(url)).timeout(
+              const Duration(seconds: 5),
+              onTimeout: () {
+                throw TimeoutException('Universal search timeout: $searchTerm');
+              },
+            );
+
             if (res.statusCode == 200) {
               final body = json.decode(res.body);
               final products =
@@ -1045,19 +1066,16 @@ class _NewProductDetailsState extends State<NewProductDetails>
                     .toLowerCase();
                 final combined = '$pNameLower $pCat';
 
-                // Exclude main product types
                 if (_isMainProductType(combined, universalExcludes)) {
                   log('  Universal: ❌ Excluding (main type): $pName');
                   continue;
                 }
 
-                // Simple check: must contain the search term
                 if (!pNameLower.contains(searchTerm.toLowerCase()) &&
                     !pCat.contains(searchTerm.toLowerCase())) {
                   continue;
                 }
 
-                // CHANGED: Check against global normalized names set
                 final normalized = _normalizeProductName(pName);
                 if (seenNormalizedNames.contains(normalized)) {
                   log('  Universal: ❌ Excluding (duplicate normalized name): $pName (normalized: $normalized)');
@@ -1067,10 +1085,11 @@ class _NewProductDetailsState extends State<NewProductDetails>
                 log('  Universal: ✅ Adding: $pName (normalized: $normalized)');
                 results.add(p);
                 seenIds.add(id);
-                seenNormalizedNames
-                    .add(normalized); // Track this normalized name
+                seenNormalizedNames.add(normalized);
               }
             }
+          } on TimeoutException {
+            log('⏱️ Universal search timeout for "$searchTerm", skipping');
           } catch (e) {
             log('Error in universal fallback for "$searchTerm": $e');
           }
@@ -1568,9 +1587,11 @@ class _NewProductDetailsState extends State<NewProductDetails>
                                         (widget.images[index] is String
                                                 ? widget.images[index]
                                                 : null) ??
-                                            placeholderImage;
+                                            placeholderImage.toString();
+
                                     if (newSelectedImageUrl.isEmpty)
-                                      newSelectedImageUrl = placeholderImage;
+                                      newSelectedImageUrl =
+                                          placeholderImage;
                                     _selectedImageUrl = newSelectedImageUrl;
                                   });
                                 },
@@ -1744,14 +1765,14 @@ class _NewProductDetailsState extends State<NewProductDetails>
                             ),
                             Expanded(
                               child: Text(
-                                ' ${widget.brandName}',
+                                ' ${widget.brandName.isNotEmpty ? widget.brandName : "N/A"}',
                                 style: Theme.of(context)
                                     .textTheme
                                     .titleMedium!
                                     .copyWith(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 14,
-                                        color: kPrimaryColor),
+                                        color: widget.brandName.isNotEmpty ? kPrimaryColor : Colors.grey),
                               ),
                             ),
                           ],
@@ -2613,7 +2634,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
                   ),
                   Container(
                     padding: const EdgeInsets.all(10),
-                    child: Text(widget.brandName),
+                    child: Text(widget.brandName.isNotEmpty ? widget.brandName : "N/A"),
                   ),
                 ],
               ),
@@ -3332,7 +3353,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                    color: const Color(0xFFFEE2E2),
+                                    color: const Color(0xFFFEF3C7),
                                     borderRadius: BorderRadius.circular(999)),
                                 child: const Text("Save 25%",
                                     style: TextStyle(

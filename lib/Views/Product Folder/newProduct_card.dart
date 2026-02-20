@@ -36,7 +36,7 @@ class NewProductCard extends StatefulWidget {
   NewProductCard({
     super.key,
     required this.prdouctList,
-    this.maxLines = 1,
+    this.maxLines = 2,
     this.onAddedToCart,
     this.showFavoriteIcon = true,
   });
@@ -225,7 +225,7 @@ class _NewProductCardState extends State<NewProductCard> {
       print("NewProductCard build: widget.prdouctList is not a Map, using placeholder image.");
       imageUrlToDisplay = placeholderImage;
     }
-    
+
     if (imageUrlToDisplay == null) {
         if (mainImage != null && mainImage.toString().isNotEmpty) {
         imageUrlToDisplay = mainImage.toString();
@@ -763,9 +763,24 @@ class _NewProductCardState extends State<NewProductCard> {
               if (productData == null) {
                 return SizedBox.shrink();
               }
-              final model = productData is Newproductmodel
-                  ? productData
-                  : (productData is Map ? Newproductmodel.fromJson(Map<String, dynamic>.from(productData)) : Newproductmodel());
+
+              Newproductmodel model;
+              try {
+                if (productData is Newproductmodel) {
+                  model = productData;
+                } else if (productData is Map<String, dynamic>) {
+                  model = Newproductmodel.fromJson(productData);
+                } else if (productData is Map) {
+                  model = Newproductmodel.fromJson(Map<String, dynamic>.from(productData));
+                } else {
+                  print("FavoriteController: Cannot convert productData to Newproductmodel. Type: ${productData.runtimeType}");
+                  return SizedBox.shrink();
+                }
+              } catch (e) {
+                print("FavoriteController: Error converting to Newproductmodel: $e");
+                return SizedBox.shrink();
+              }
+
               return Positioned(
                 top: 9,
                 right: 9,

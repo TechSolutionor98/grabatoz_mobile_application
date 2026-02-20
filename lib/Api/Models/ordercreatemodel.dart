@@ -1,4 +1,4 @@
-import 'package:graba2z/Utils/imageconstants.dart';
+import '../../Utils/imageconstants.dart';
 
 class OrderCreateModel {
   String? paymentMethod;

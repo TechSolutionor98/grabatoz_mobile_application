@@ -3,41 +3,31 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:graba2z/Utils/appextensions.dart';
+import 'package:graba2z/Views/Product%20Folder/newProduct_card.dart';
 import '../../../../Controllers/addtocart.dart';
 import '../../../../Controllers/bottomController.dart';
-import '../../../../Controllers/productcontroller.dart';
+import '../../../../Controllers/deals_controller.dart';
 import '../../../../Utils/appcolors.dart';
 import '../../../../Widgets/customappbar.dart';
-import '../../../Product Folder/newProduct_card.dart';
+import 'deals_product_card.dart';
 import '../Cart/cart.dart';
 
-const String _homeSvg = '''
-<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M4 12L12 4L20 12" />
-  <path d="M5 12V20H10V15H14V20H19V12" />
-</svg>
-''';
-
-class Shop extends StatefulWidget {
-  final String? id;
-  final String? parentType;
-  final String? displayTitle;
+class offerDeals extends StatefulWidget {
   final String? slug;
+  final String? displayTitle;
 
-  const Shop({
+  const offerDeals({
     Key? key,
-    required this.id,
-    required this.parentType,
-    this.displayTitle,
     this.slug,
+    this.displayTitle,
   }) : super(key: key);
 
   @override
-  State<Shop> createState() => _ShopState();
+  State<offerDeals> createState() => _offerDealsState();
 }
 
-class _ShopState extends State<Shop> {
-  final ShopController controller = Get.put(ShopController());
+class _offerDealsState extends State<offerDeals> {
+  late DealsController controller;
 
   static const int pageSize = 12;
   int visibleCount = pageSize;
@@ -45,6 +35,28 @@ class _ShopState extends State<Shop> {
   double _calcSortMaxWidth(BoxConstraints c) =>
       math.min(220.0, c.maxWidth * 0.38);
   List<dynamic> _sortedLocalProducts = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Use slug as tag to ensure unique controller instances
+    final tag = widget.slug ?? 'default-deals';
+    controller = Get.put(DealsController(), tag: tag);
+
+    // Fetch products immediately
+    if (widget.slug != null && widget.slug!.isNotEmpty) {
+      controller.fetchDealsProducts(slug: widget.slug!);
+      log("🔄 Fetching deals products for slug: ${widget.slug}");
+    }
+  }
+
+  @override
+  void dispose() {
+    // Clean up controller when leaving this screen
+    final tag = widget.slug ?? 'default-deals';
+    Get.delete<DealsController>(tag: tag);
+    super.dispose();
+  }
 
   void _showAddedToCartPopup() {
     final overlay = Overlay.of(context, rootOverlay: true);
@@ -131,36 +143,30 @@ class _ShopState extends State<Shop> {
   }
 
   ButtonStyle _webLikeLoadMoreStyle() {
-    const Color green600 = Color(0xFF16A34A); // Tailwind green-600
-    const Color green700 = Color(0xFF15803D); // Tailwind green-700
+    const Color green600 = Color(0xFF16A34A);
+    const Color green700 = Color(0xFF15803D);
     return ButtonStyle(
       padding: MaterialStateProperty.all(
           const EdgeInsets.symmetric(horizontal: 12, vertical: 4)),
-      // smaller px-3 py-1
       minimumSize: MaterialStateProperty.all(const Size(0, 32)),
-      // compact height
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      // FIX: was MaterialStateProperty.shrinkWrap
       visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
       backgroundColor: MaterialStateProperty.resolveWith<Color>(
         (states) => states.contains(MaterialState.pressed)
             ? green700
-            : green600, // hover/pressed -> green-700
+            : green600,
       ),
       foregroundColor: MaterialStateProperty.all(Colors.white),
-      // text-white
       elevation: MaterialStateProperty.all(4),
-      // shadow
       shadowColor: MaterialStateProperty.all(Colors.black.withOpacity(0.25)),
       shape: MaterialStateProperty.all(
         RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6)), // rounded-md
+            borderRadius: BorderRadius.circular(6)),
       ),
       textStyle: MaterialStateProperty.all(
           const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-      // text-sm
       overlayColor: MaterialStateProperty.all(
-          green700.withOpacity(0.12)), // transition-colors feedback
+          green700.withOpacity(0.12)),
     );
   }
 
@@ -172,7 +178,8 @@ class _ShopState extends State<Shop> {
         'discountedPrice',
         'salePrice',
         'sellingPrice',
-        'price'
+        'price',
+        'offerPrice'
       ];
       for (final k in keys) {
         final v = e[k];
@@ -197,7 +204,7 @@ class _ShopState extends State<Shop> {
     return '';
   }
 
-  // Apply the selected sorting inside stock groups, then combine (Available -> PreOrder -> Out of Stock)
+  // Apply the selected sorting inside stock groups
   List<dynamic> _applySortOption(List<dynamic> base) {
     if (base.isEmpty) return base;
 
@@ -234,7 +241,6 @@ class _ShopState extends State<Shop> {
         break;
       case 'Newest First':
       default:
-        // Preserve incoming order (already grouped)
         return base;
     }
 
@@ -263,27 +269,10 @@ class _ShopState extends State<Shop> {
       } else if (s == 'out of stock') {
         outOfStockItems.add(product);
       } else {
-        // Treat all other/unknown as available
         availableItems.add(product);
       }
     }
-    // CHANGE: Available -> PreOrder -> Out of Stock
     return [...availableItems, ...preorderItems, ...outOfStockItems];
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    if(widget.slug == 'gaming-zone') {
-      controller.fetchGamingZoneProducts(slug: widget.slug!);
-      log("this function is calling");
-    } else {
-    controller.fetchProducts(
-      id: widget.id,
-      parentType: widget.parentType,
-    );
-    log("Second function is calling");
-  }
   }
 
   @override
@@ -296,38 +285,18 @@ class _ShopState extends State<Shop> {
           builder: (context) {
             return IconButton(
               onPressed: () {
-                if (widget.id == '2') {
-                  navigationProvider.setTabIndex(0);
-                } else {
-                  Navigator.of(context).pop();
-                }
+                Navigator.of(context).pop();
               },
               icon: const Icon(Icons.arrow_back_ios, size: 20),
             );
           },
         ),
-        titleText: widget.displayTitle,
+        titleText: widget.displayTitle ?? "Deals",
         actionicon: GetBuilder<CartNotifier>(
           builder: (cartNotifier) {
             return Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // GestureDetector(
-                //   onTap: () async {
-                //     Get.put(BottomNavigationController()).setTabIndex(0);
-                //     Get.offAll(() => Home());
-                //   },
-                //   child: Padding(
-                //     padding: const EdgeInsets.only(right: 10.0),
-                //     child: SvgPicture.string(
-                //       _homeSvg,
-                //       width: 28,
-                //       height: 28,
-                      //       fit: BoxFit.contain,
-                //       semanticsLabel: 'Home',
-                //     ),
-                //   ),
-                // ),
                 Stack(
                   alignment: Alignment.topRight,
                   children: [
@@ -439,8 +408,9 @@ class _ShopState extends State<Shop> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final product = products[index];
-                    return NewProductCard(
-                      prdouctList: product,
+                    return DealsProductCard(
+                      offerName: widget.displayTitle.toString(),
+                      productList: product,
                       onAddedToCart: _showAddedToCartPopup,
                     );
                   },
@@ -448,7 +418,7 @@ class _ShopState extends State<Shop> {
                 ),
               ),
             ),
-            // Load More reveals locally (server paging disabled when fetching 2.5k)
+            // Load More
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),

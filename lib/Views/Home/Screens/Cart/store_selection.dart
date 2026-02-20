@@ -37,13 +37,13 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
           "Shop No. 2, Building 716 Khalid Bin Al Waleed Rd - opposite Main Entrance of Admiral Plaza Hotel - Dubai - Al Souq Al Kabeer - Dubai - United Arab Emirates",
       "phone": "+97142316533"
     },
-    {
-      "title": "GrabAtoZ",
-      "storeId": '3',
-      "address":
-          "Al Jahra Building, 2nd floor, 18th st - Khalid Bin Al Waleed Rd - Al Raffa - Dubai - United Arab Emirates",
-      "phone": "+97143357974"
-    },
+    // {
+    //   "title": "GrabAtoZ",
+    //   "storeId": '3',
+    //   "address":
+    //       "Al Jahra Building, 2nd floor, 18th st - Khalid Bin Al Waleed Rd - Al Raffa - Dubai - United Arab Emirates",
+    //   "phone": "+97143357974"
+    // },
   ];
 
   String _digitsOnly(String s) => s.replaceAll(RegExp(r'[^0-9]'), '');

@@ -82,9 +82,11 @@ class HomeController extends GetxController {
     }
   }
 
+
+
   Future<List<categoriesModel>> getCategory() async {
     isCateloading.value = true;
-    String url = "${Configss.newHomeCategory}";
+    String url = "${Configss.getAllCategories}";
     var response = await http.get(Uri.parse(url));
     isCateloading.value = false;
     if (response.statusCode == 200) {
@@ -128,6 +130,8 @@ class HomeController extends GetxController {
       return category;
     }
   }
+
+
 
   getHomeCategoryProducts() async {
     if (firstId.value.isEmpty) return;
