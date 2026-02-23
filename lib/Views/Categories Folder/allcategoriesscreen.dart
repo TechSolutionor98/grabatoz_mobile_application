@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
+import 'package:graba2z/Controllers/homeSliderController.dart';
 import 'package:graba2z/Controllers/home_controller.dart';
 import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Views/Categories%20Folder/subcategories_view.dart';
@@ -7,6 +8,9 @@ import 'package:graba2z/Views/Home/Screens/Cart/cart.dart';
 import 'package:graba2z/Views/Home/home.dart';
 import '../../Utils/packages.dart';
 import 'package:graba2z/Configs/config.dart';
+
+import '../Home/Screens/Deals Screen/dealsview.dart';
+import '../Home/Screens/Search Screen/searchscreensecond.dart';
 
 class AllCategoriesScreen extends StatefulWidget {
   const AllCategoriesScreen({super.key});
@@ -16,86 +20,84 @@ class AllCategoriesScreen extends StatefulWidget {
 }
 
 class _AllCategoriesScreenState extends State<AllCategoriesScreen> {
+  String generateSlug(String text) {
+    return text
+        .toLowerCase()                        // CAPITAL → lowercase
+        .trim()                              // start/end spaces remove
+        .replaceAll(RegExp(r'[^\w\s-]'), '') // special characters remove
+        .replaceAll(RegExp(r'\s+'), '-')     // spaces → hyphen
+        .replaceAll(RegExp(r'-+'), '-');     // multiple hyphens → single
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: CustomAppBar(
         titleText: "All Categories",
-        actionicon: GetBuilder<CartNotifier>(
-          builder: (
-            cartNotifier,
-          ) {
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Home Icon
-                // GestureDetector(
-                //   onTap: () async {
-                //     // Update the bottom navigation index safely
-                //     Get.put(BottomNavigationController()).setTabIndex(0);
-
-                //     Get.to(() => Home());
-                //   },
-                //   child: Padding(
-                //     padding: const EdgeInsets.only(right: 10.0),
-                //     child: Text(
-                //       '🏠',
-                //       style: TextStyle(fontSize: 25),
-                //     ),
-                //   ),
-                // ),
-                // Cart Icon with Badge
-                Stack(
-                  alignment: Alignment.topRight,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        context.route(Cart());
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 5.0),
-                        child: Image.asset(
-                          "assets/icons/addcart.png",
-                          color: kdefwhiteColor,
-                          width: 25,
-                          height: 25,
+          actionicon: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+              onPressed: () {
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder:(context) => SearchScreenSecond()));
+              },
+              icon: const Icon(Icons.search,
+                  color: kdefwhiteColor, size: 28)),
+          GetBuilder<CartNotifier>(
+            builder: (cartNotifier) {
+              return Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      context.route(const Cart());
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 5.0),
+                      child: Image.asset(
+                        "assets/icons/addcart.png",
+                        color: kdefwhiteColor,
+                        width: 28,
+                        height: 28,
+                      ),
+                    ),
+                  ),
+                  if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: const BoxDecoration(
+                          color: kredColor,
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          cartNotifier.cartOtherInfoList.length.toString(),
+                          style: const TextStyle(
+                            color: kdefwhiteColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-
-                    // Badge for cart count
-                    if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(
-                          width: 14,
-                          height: 14,
-                          decoration: const BoxDecoration(
-                            color: kredColor,
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            cartNotifier.cartOtherInfoList.length.toString(),
-                            style: const TextStyle(
-                              color: kdefwhiteColor,
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
                   ],
-                ),
-              ],
-            );
-          },
-        ),
+                ],
+              );
+            },
+          ),
+        ],
+      )
       ),
       body: SafeArea(
-        child: GetBuilder<HomeController>(builder: (
+        child: GetBuilder<HomeSliderController>(builder: (
           apiservice,
         ) {
           if (apiservice.isCateloading.value) {
@@ -148,10 +150,10 @@ class _AllCategoriesScreenState extends State<AllCategoriesScreen> {
                     children: [
                       GestureDetector(
                         onTap: () {
-                          Get.to(() => SubCategoryScreen(
-                                title: category.name ?? '',
-                                selectedCategoryId: category.sId ?? '',
-                              ));
+                          Get.to(() => offerDeals(
+                            slug: generateSlug(category.name ?? ''),
+                            displayTitle: category.name ?? '',
+                          ));
                           // Get.to(() => NewAllProduct(
                           //       id: category.sId ?? '',
                           //       parentType: "parentCategory",

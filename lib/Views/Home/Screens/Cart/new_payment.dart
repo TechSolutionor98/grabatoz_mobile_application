@@ -159,6 +159,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                   // normalized
                                   _usercontroller.optionalNote.text);
                             } else {
+                              // Get full phone number with country code from SharedPreferences
+                              String fullPhone = prefs.getString('guest_phone') ??
+                                  _usercontroller.homePhoneController.text;
+
                               createOrder(
                                   _usercontroller.orderItems,
                                   'home',
@@ -166,8 +170,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                     "name": customerName,
                                     "email":
                                         _usercontroller.homeemailAddress.text,
-                                    "phone": _usercontroller
-                                        .homePhoneController.text,
+                                    "phone": fullPhone,
                                     "address": _usercontroller.street.value
                                         .replaceAll('"', ''),
                                     "city": _usercontroller.city.value
@@ -221,6 +224,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                   // normalized
                                   _usercontroller.optionalNote.text);
                             } else {
+                              // Get full phone number with country code from SharedPreferences
+                              String fullPhonePickup = prefs.getString('guest_phone') ??
+                                  _usercontroller.homePhoneController.text;
+
                               createOrder(
                                   _usercontroller.orderItems,
                                   'pickup',
@@ -228,8 +235,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                                     "name": customerName,
                                     "email":
                                         _usercontroller.homeemailAddress.text,
-                                    "phone": _usercontroller
-                                        .homePhoneController.text,
+                                    "phone": fullPhonePickup,
                                     "address": _usercontroller.street.value
                                         .replaceAll('"', ''),
                                     "city": _usercontroller.city.value

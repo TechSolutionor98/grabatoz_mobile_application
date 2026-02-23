@@ -36,7 +36,7 @@ class NewProductCard extends StatefulWidget {
   NewProductCard({
     super.key,
     required this.prdouctList,
-    this.maxLines = 2,
+    this.maxLines = 1,
     this.onAddedToCart,
     this.showFavoriteIcon = true,
   });

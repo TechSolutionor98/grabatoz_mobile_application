@@ -9,11 +9,13 @@ import 'package:graba2z/Controllers/home_controller.dart';
 import 'package:graba2z/Controllers/searchController.dart';
 import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Views/Filter%20Screen/filter.dart';
+import 'package:graba2z/Views/Home/Screens/banner%20redirect/filter_screen.dart';
 import 'package:graba2z/Views/Home/Screens/Cart/cart.dart';
 import 'package:graba2z/Views/Home/home.dart';
 import 'package:graba2z/Views/Product%20Folder/newProduct_card.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../Utils/packages.dart';
+import '../Home/Screens/Search Screen/searchscreensecond.dart';
 
 const String _homeSvg = '''
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -58,6 +60,14 @@ class _NewAllProductState extends State<NewAllProduct> {
   // Pagination state
   static const int _pageSize = 10;
   int _visibleCount = _pageSize;
+
+  // Filter state - Extract brands and categories from products
+  List<Map<String, String>> _availableBrands = [];
+  List<Map<String, String>> _availableCategories = [];
+  Set<String> _selectedBrandIds = {};
+  Set<String> _selectedCategoryIds = {};
+
+  // ...existing code...
 
   // Fetch-all support (SearchScreen parity)
   // CHANGE: use a local (non-Get registered) SearchScController to avoid affecting SearchScreen
@@ -230,12 +240,24 @@ class _NewAllProductState extends State<NewAllProduct> {
     // NEW: recompute sorted list when local controller's products change (debounced)
     _sortedWorker = debounce<List<dynamic>>(
       _searchScController.searhProducts,
-      (_) => _recomputeSortedLocal(),
+      (_) {
+        _recomputeSortedLocal();
+        // Extract brands/categories when products change
+        if (mounted) {
+          _extractBrandsAndCategories();
+        }
+      },
       time: const Duration(milliseconds: 60),
     );
 
     _fetchAllFromSearchForInitial();
 
+    // Also extract after initial delay
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted && _searchScController.searhProducts.isNotEmpty) {
+        _extractBrandsAndCategories();
+      }
+    });
   }
 
   Future<void> _recomputeSortedLocal() async {
@@ -271,7 +293,23 @@ class _NewAllProductState extends State<NewAllProduct> {
   // Initial fetch using the same logic as SearchScreen
   Future<void> _fetchAllFromSearchForInitial() async {
     if (_effectiveParentType == 'featured') {
-      // ...existing featured handling...
+      // Featured products: load from home controller
+      setState(() => _loadingAll = true);
+      try {
+        // Copy featured products to search controller for unified filtering
+        final featured = _homeController.featuredProducts ?? <dynamic>[].obs;
+        _searchScController.searhProducts.assignAll(featured);
+        _searchScController.fetchedIds.clear();
+        _searchScController.hasFilterApplied.value = false;
+        _searchScController.isMoreDataAvailableForShop.value = false;
+
+        // Extract brands and categories from featured products
+        _extractBrandsAndCategories();
+
+        if (mounted) setState(() => _loadingAll = false);
+      } catch (_) {
+        if (mounted) setState(() => _loadingAll = false);
+      }
       return;
     }
 
@@ -472,6 +510,124 @@ class _NewAllProductState extends State<NewAllProduct> {
     }
   }
 
+  // Extract brands and categories from current products
+  void _extractBrandsAndCategories() {
+    if (_searchScController.searhProducts.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _availableBrands.clear();
+          _availableCategories.clear();
+        });
+      }
+      return;
+    }
+
+    final Map<String, String> brandNameMap = {};
+    final Map<String, String> categoryNameMap = {};
+
+    for (final product in _searchScController.searhProducts) {
+      if (product is! Map<String, dynamic>) {
+        continue;
+      }
+
+      // Extract brand
+      final brand = product['brand'];
+      if (brand is Map<String, dynamic>) {
+        final brandId = brand['_id']?.toString();
+        final brandName = brand['name']?.toString();
+        if (brandId != null && brandId.isNotEmpty && brandName != null && brandName.isNotEmpty) {
+          brandNameMap[brandId] = brandName;
+        }
+      } else if (brand is String && brand.isNotEmpty) {
+        final brandName = product['brandName']?.toString() ?? 'Unknown Brand';
+        brandNameMap[brand] = brandName;
+      }
+
+      // Extract category
+      final category = product['category'];
+      if (category is Map<String, dynamic>) {
+        final categoryId = category['_id']?.toString();
+        final categoryName = category['name']?.toString();
+        if (categoryId != null && categoryId.isNotEmpty && categoryName != null && categoryName.isNotEmpty) {
+          categoryNameMap[categoryId] = categoryName;
+        }
+      } else if (category is String && category.isNotEmpty) {
+        final categoryName = product['categoryName']?.toString() ?? 'Unknown Category';
+        categoryNameMap[category] = categoryName;
+      }
+    }
+
+    // Convert to sorted lists
+    final brandsList = brandNameMap.entries
+        .map((e) => {'id': e.key, 'name': e.value})
+        .toList();
+    brandsList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
+
+    final categoriesList = categoryNameMap.entries
+        .map((e) => {'id': e.key, 'name': e.value})
+        .toList();
+    categoriesList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
+
+    if (mounted) {
+      setState(() {
+        _availableBrands = brandsList;
+        _availableCategories = categoriesList;
+      });
+    }
+  }
+
+  // Filter products based on selected brands and categories
+  List<dynamic> _filterProductsByBrandsAndCategories(List<dynamic> products) {
+    if (_selectedBrandIds.isEmpty && _selectedCategoryIds.isEmpty) {
+      return products;
+    }
+
+    final List<dynamic> filtered = [];
+    final bool filterByBrand = _selectedBrandIds.isNotEmpty;
+    final bool filterByCategory = _selectedCategoryIds.isNotEmpty;
+
+    for (final product in products) {
+      if (product is! Map<String, dynamic>) {
+        continue;
+      }
+
+      // Check brand filter
+      bool brandMatches = true;
+      if (filterByBrand) {
+        final brand = product['brand'];
+        String? brandId;
+
+        if (brand is Map<String, dynamic>) {
+          brandId = brand['_id']?.toString();
+        } else if (brand is String) {
+          brandId = brand;
+        }
+
+        brandMatches = brandId != null && _selectedBrandIds.contains(brandId);
+        if (!brandMatches) continue;
+      }
+
+      // Check category filter
+      if (filterByCategory) {
+        final category = product['category'];
+        String? categoryId;
+
+        if (category is Map<String, dynamic>) {
+          categoryId = category['_id']?.toString();
+        } else if (category is String) {
+          categoryId = category;
+        }
+
+        final categoryMatches = categoryId != null && _selectedCategoryIds.contains(categoryId);
+        if (!categoryMatches) continue;
+      }
+
+      filtered.add(product);
+    }
+
+    return filtered;
+  }
+
   String? _findBrandNameById(String id) {
     for (final b in _brandController.brandList) {
       final bid = (b?['_id'] ?? '').toString();
@@ -508,10 +664,17 @@ class _NewAllProductState extends State<NewAllProduct> {
   Widget build(BuildContext context) {
     final navigationProvider = Get.put(BottomNavigationController());
     return Scaffold(
-      endDrawer: FilterScreen(
-        onApplyFilters: (filters) async {
-          // Apply filters to this screen only (local controller)
-          await _applyFiltersForThisScreen(filters);
+      endDrawer: FilterDrawer(
+        availableBrands: _availableBrands,
+        availableCategories: _availableCategories,
+        selectedBrandIds: _selectedBrandIds,
+        selectedCategoryIds: _selectedCategoryIds,
+        onApply: (selectedBrands, selectedCategories) {
+          setState(() {
+            _selectedBrandIds = selectedBrands;
+            _selectedCategoryIds = selectedCategories;
+            _visibleCount = _pageSize;
+          });
         },
       ),
       appBar: CustomAppBar(
@@ -528,73 +691,66 @@ class _NewAllProductState extends State<NewAllProduct> {
             }, icon: const Icon(Icons.arrow_back_ios, size: 20),);
           },),
         titleText: _computeTitle(),
-        actionicon: GetBuilder<CartNotifier>(
-          builder: (cartNotifier) {
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GestureDetector(
-                  onTap: () async {
-                    Get.put(BottomNavigationController()).setTabIndex(0);
-                    Get.offAll(() => Home());
+          actionicon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder:(context) => SearchScreenSecond()));
                   },
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 10.0),
-                    child: SvgPicture.string(
-                      _homeSvg,
-                      width: 28,
-                      height: 28,
-                      fit: BoxFit.contain,
-                      semanticsLabel: 'Home',
-                    ),
-                  ),
-                ),
-                Stack(
-                  alignment: Alignment.topRight,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        context.route(Cart());
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 5.0),
-                        child: Image.asset(
-                          "assets/icons/addcart.png",
-                          color: kdefwhiteColor,
-                          width: 28,
-                          height: 28,
+                  icon: const Icon(Icons.search,
+                      color: kdefwhiteColor, size: 28)),
+              GetBuilder<CartNotifier>(
+                builder: (cartNotifier) {
+                  return Stack(
+                    alignment: Alignment.topRight,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          context.route(const Cart());
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 5.0),
+                          child: Image.asset(
+                            "assets/icons/addcart.png",
+                            color: kdefwhiteColor,
+                            width: 28,
+                            height: 28,
+                          ),
                         ),
                       ),
-                    ),
-                    if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(
-                          width: 18,
-                          height: 18,
-                          decoration: const BoxDecoration(
-                            color: kredColor,
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            cartNotifier.cartOtherInfoList.length.toString(),
-                            style: const TextStyle(
-                              color: kdefwhiteColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                      if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: const BoxDecoration(
+                              color: kredColor,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              cartNotifier.cartOtherInfoList.length.toString(),
+                              style: const TextStyle(
+                                color: kdefwhiteColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
-                ),
-              ],
-            );
-          },
-        ),
+                  );
+                },
+              ),
+            ],
+          )
       ),
       // CHANGE: single Obx that switches from featured view to filtered-search view when filters are applied
       body: Obx(() {
@@ -631,14 +787,18 @@ class _NewAllProductState extends State<NewAllProduct> {
             );
           }
           final display = _getSortedDisplayProducts(raw);
-          if (display.isEmpty) return const Center(child: Text("No products found."));
+
+          // Apply brand and category filters
+          final filtered = _filterProductsByBrandsAndCategories(display);
+
+          if (filtered.isEmpty) return const Center(child: Text("No products found."));
           // Apply UI sort
-          final applied = _applySortOption(display);
+          final applied = _applySortOption(filtered);
           final visible = applied.take(_visibleCount).toList();
           return SafeArea(
             child: CustomScrollView(
               slivers: [
-                // Header with responsive sort button
+                // Header: Filter button + Sort button
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
@@ -647,16 +807,38 @@ class _NewAllProductState extends State<NewAllProduct> {
                         final maxW = _calcSortMaxWidth(constraints);
                         return Row(
                           children: [
-                            const Icon(Icons.inventory_2, size: 18, color: kPrimaryColor),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                '${applied.length} products found',
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                                overflow: TextOverflow.ellipsis,
+                            // Filter button
+                            InkWell(
+                              onTap: () {
+                                Scaffold.of(context).openEndDrawer();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: kPrimaryColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: const [
+                                    Icon(Icons.filter_list,
+                                        size: 18, color: Colors.white),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Filter',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const Expanded(child: SizedBox()), // Spacer
+                            // Sort button
                             SizedBox(
                               width: maxW,
                               child: _sortMenuButton(),
@@ -667,6 +849,24 @@ class _NewAllProductState extends State<NewAllProduct> {
                     ),
                   ),
                 ),
+                // Product count display (below filter/sort)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.inventory_2, size: 18, color: kPrimaryColor),
+                        const SizedBox(width: 10),
+                        Text(
+                          '${applied.length} products found',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // Products grid
                 SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 5),
                   sliver: SliverGrid(
@@ -687,16 +887,17 @@ class _NewAllProductState extends State<NewAllProduct> {
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 12)),
+                // Load More button
                 SliverToBoxAdapter(
                   child: Visibility(
-                    visible: _visibleCount < display.length,
+                    visible: _visibleCount < filtered.length,
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                       child: Center(
                         child: ElevatedButton(
                           style: _webLikeLoadMoreStyle(),
                           onPressed: () {
-                            final total = display.length;
+                            final total = filtered.length;
                             final next = _visibleCount + _pageSize;
                             setState(() {
                               _visibleCount = next > total ? total : next;
@@ -751,11 +952,15 @@ class _NewAllProductState extends State<NewAllProduct> {
         final base = _sortedLocalProducts.isNotEmpty
             ? _sortedLocalProducts
             : _getSortedDisplayProducts(sc.searhProducts);
-        if (base.isEmpty && sc.isrequesting.value == 0) {
+
+        // Apply brand and category filters
+        final filteredProducts = _filterProductsByBrandsAndCategories(base);
+
+        if (filteredProducts.isEmpty && sc.isrequesting.value == 0) {
           return const Center(child: Text("No products found."));
         }
         // Apply UI sort
-        final displayable = _applySortOption(base);
+        final displayable = _applySortOption(filteredProducts);
         final visibleProducts = displayable.take(_visibleCount).toList();
 
         return SafeArea(
@@ -768,22 +973,66 @@ class _NewAllProductState extends State<NewAllProduct> {
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final maxW = _calcSortMaxWidth(constraints);
-                      return Row(
+                      return Column(
                         children: [
-                          const Icon(Icons.inventory_2, size: 18, color: kPrimaryColor),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              '${displayable.length} products',
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                          Row(
+                            children: [
+                              // Filter button
+                              InkWell(
+                                onTap: () {
+                                  Scaffold.of(context).openEndDrawer();
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: kPrimaryColor,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: const [
+                                          Icon(Icons.filter_list,
+                                              size: 18, color: Colors.white),
+                                          SizedBox(width: 4),
+                                          Text(
+                                            'Filter',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              Expanded(child: Container()), // Spacer
+                              SizedBox(
+                                width: maxW,
+                                child: _sortMenuButton(),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            width: maxW,
-                            child: _sortMenuButton(),
+                          SizedBox(height: 8,),
+                          Row(
+                            children: [
+                              const Icon(Icons.inventory_2,
+                                  size: 18, color: kPrimaryColor),
+                              SizedBox(width: 10,),
+                              Text(
+                                '${filteredProducts.length} products found',
+                                style: const TextStyle(
+                                    fontSize: 14, fontWeight: FontWeight.w700),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
+
                         ],
                       );
                     },
@@ -840,36 +1089,36 @@ class _NewAllProductState extends State<NewAllProduct> {
         );
       }),
 
-      bottomNavigationBar: widget.id == '2'
-          ? const SizedBox.shrink()
-          : SafeArea(
-        child: SizedBox(
-          height: 60,
-          child: Builder(builder: (context) {
-            return GestureDetector(
-              onTap: () {
-                Scaffold.of(context).openEndDrawer();
-              },
-              child: Container(
-                color: kSecondaryColor,
-                child: Center(
-                  child: Padding(
-                    padding: defaultPadding(vertical: 10),
-                    child: Text(
-                      'Filter By',
-                      style: TextStyle(
-                        color: kdefwhiteColor,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }),
-        ),
-      ),
+      // bottomNavigationBar: widget.id == '2'
+      //     ? const SizedBox.shrink()
+      //     : SafeArea(
+      //   child: SizedBox(
+      //     height: 60,
+      //     child: Builder(builder: (context) {
+      //       return GestureDetector(
+      //         onTap: () {
+      //           Scaffold.of(context).openEndDrawer();
+      //         },
+      //         child: Container(
+      //           color: kSecondaryColor,
+      //           child: Center(
+      //             child: Padding(
+      //               padding: defaultPadding(vertical: 10),
+      //               child: Text(
+      //                 'Filter By',
+      //                 style: TextStyle(
+      //                   color: kdefwhiteColor,
+      //                   fontSize: 18,
+      //                   fontWeight: FontWeight.bold,
+      //                 ),
+      //               ),
+      //             ),
+      //           ),
+      //         ),
+      //       );
+      //     }),
+      //   ),
+      // ),
 
     );
   }

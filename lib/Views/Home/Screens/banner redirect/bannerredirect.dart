@@ -7,12 +7,12 @@ import 'package:graba2z/Utils/appextensions.dart';
 import '../../../../Controllers/addtocart.dart';
 import '../../../../Controllers/bannerProductController.dart';
 import '../../../../Controllers/bottomController.dart';
-import '../../../../Controllers/productcontroller.dart';
 import '../../../../Utils/appcolors.dart';
 import '../../../../Widgets/customappbar.dart';
 import '../../../Product Folder/newProduct_card.dart';
-import '../../home.dart';
 import '../Cart/cart.dart';
+import '../Search Screen/searchscreensecond.dart';
+import 'filter_screen.dart';
 
 const String _homeSvg = '''
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -39,43 +39,106 @@ class _bannerProductState extends State<bannerProduct> {
 
   final bannerProductController controller = Get.put(bannerProductController());
 
-
   static const int pageSize = 12;
   int visibleCount = pageSize;
+
+  // Filter state
+  Map<String, String> _allBrandsMap = {}; // All brands from API: {id: name}
+  List<Map<String, String>> _availableBrands = []; // Brands in current products
+  List<Map<String, String>> _availableCategories = []; // Categories in current products
+  Set<String> _selectedBrandIds = {};
+  Set<String> _selectedCategoryIds = {};
+  bool _isBrandsLoading = true;
 
   double _calcSortMaxWidth(BoxConstraints c) =>
       math.min(220.0, c.maxWidth * 0.38);
   List<dynamic> _sortedLocalProducts = const [];
 
+  // Filter products based on selected brands and categories - OPTIMIZED
+  List<dynamic> _filterProductsByBrandsAndCategories(List<dynamic> products) {
+    // If no filters selected, return all products (early exit)
+    if (_selectedBrandIds.isEmpty && _selectedCategoryIds.isEmpty) {
+      return products;
+    }
+
+    final List<dynamic> filtered = [];
+    final bool filterByBrand = _selectedBrandIds.isNotEmpty;
+    final bool filterByCategory = _selectedCategoryIds.isNotEmpty;
+
+    for (final product in products) {
+      if (product is! Map<String, dynamic>) {
+        continue;
+      }
+
+      // Check brand filter
+      bool brandMatches = true;
+      if (filterByBrand) {
+        final brand = product['brand'];
+        String? brandId;
+
+        if (brand is Map<String, dynamic>) {
+          brandId = brand['_id']?.toString();
+        } else if (brand is String) {
+          brandId = brand;
+        }
+
+        brandMatches = brandId != null && _selectedBrandIds.contains(brandId);
+        if (!brandMatches) continue; // Skip if brand doesn't match
+      }
+
+      // Check category filter
+      if (filterByCategory) {
+        final category = product['category'];
+        String? categoryId;
+
+        if (category is Map<String, dynamic>) {
+          categoryId = category['_id']?.toString();
+        } else if (category is String) {
+          categoryId = category;
+        }
+
+        final categoryMatches = categoryId != null && _selectedCategoryIds.contains(categoryId);
+        if (!categoryMatches) continue; // Skip if category doesn't match
+      }
+
+      // Both filters passed, add to filtered list
+      filtered.add(product);
+    }
+
+    return filtered;
+  }
+
   void _showAddedToCartPopup() {
     final overlay = Overlay.of(context, rootOverlay: true);
     if (overlay == null) return;
     final entry = OverlayEntry(
-      builder: (_) => Positioned.fill(
-        child: IgnorePointer(
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.black87,
-                borderRadius: BorderRadius.circular(40),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.shopping_cart, color: Colors.white, size: 24),
-                  SizedBox(width: 8),
-                  Text(
-                    'Added to cart',
-                    style: TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold),
+      builder: (_) =>
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.black87,
+                    borderRadius: BorderRadius.circular(40),
                   ),
-                ],
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      Icon(Icons.shopping_cart, color: Colors.white, size: 24),
+                      SizedBox(width: 8),
+                      Text(
+                        'Added to cart',
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ),
-      ),
     );
     overlay.insert(entry);
     Future.delayed(const Duration(milliseconds: 900), () {
@@ -90,11 +153,13 @@ class _bannerProductState extends State<bannerProduct> {
     return PopupMenuButton<String>(
       onOpened: () => setState(() => _sortMenuOpen = true),
       onCanceled: () => setState(() => _sortMenuOpen = false),
-      onSelected: (val) => setState(() {
-        _sortLabel = val;
-        _sortMenuOpen = false;
-      }),
-      itemBuilder: (_) => const [
+      onSelected: (val) =>
+          setState(() {
+            _sortLabel = val;
+            _sortMenuOpen = false;
+          }),
+      itemBuilder: (_) =>
+      const [
         PopupMenuItem(value: 'Newest First', child: Text('Newest First')),
         PopupMenuItem(
             value: 'Price: Low to High', child: Text('Price: Low to High')),
@@ -123,7 +188,7 @@ class _bannerProductState extends State<bannerProduct> {
             Transform.rotate(
               angle: _sortMenuOpen ? 3.14159 : 0,
               child:
-                  const Icon(Icons.expand_more, size: 16, color: Colors.black),
+              const Icon(Icons.expand_more, size: 16, color: Colors.black),
             ),
           ],
         ),
@@ -144,7 +209,8 @@ class _bannerProductState extends State<bannerProduct> {
       // FIX: was MaterialStateProperty.shrinkWrap
       visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
       backgroundColor: MaterialStateProperty.resolveWith<Color>(
-        (states) => states.contains(MaterialState.pressed)
+            (states) =>
+        states.contains(MaterialState.pressed)
             ? green700
             : green600, // hover/pressed -> green-700
       ),
@@ -192,7 +258,9 @@ class _bannerProductState extends State<bannerProduct> {
       final keys = ['name', 'productName', 'title'];
       for (final k in keys) {
         final v = e[k];
-        if (v is String && v.trim().isNotEmpty) return v.trim();
+        if (v is String && v
+            .trim()
+            .isNotEmpty) return v.trim();
       }
     }
     return '';
@@ -202,10 +270,16 @@ class _bannerProductState extends State<bannerProduct> {
   List<dynamic> _applySortOption(List<dynamic> base) {
     if (base.isEmpty) return base;
 
+    // For "Newest First", return as-is (no sorting needed)
+    if (_sortLabel == 'Newest First') {
+      return base;
+    }
+
     final available = <dynamic>[];
     final preorder = <dynamic>[];
     final outOfStock = <dynamic>[];
 
+    // Categorize by stock status in single pass
     for (final e in base) {
       if (e is Map) {
         final s = (e['stockStatus'] ?? '').toString().toLowerCase();
@@ -221,6 +295,7 @@ class _bannerProductState extends State<bannerProduct> {
       }
     }
 
+    // Only sort if needed
     int Function(dynamic, dynamic)? cmp;
     switch (_sortLabel) {
       case 'Price: Low to High':
@@ -233,10 +308,8 @@ class _bannerProductState extends State<bannerProduct> {
         cmp = (a, b) =>
             _nameOf(a).toLowerCase().compareTo(_nameOf(b).toLowerCase());
         break;
-      case 'Newest First':
       default:
-        // Preserve incoming order (already grouped)
-        return base;
+        return [...available, ...preorder, ...outOfStock];
     }
 
     available.sort(cmp);
@@ -276,8 +349,121 @@ class _bannerProductState extends State<bannerProduct> {
   void initState() {
     super.initState();
     controller.fetchProductsByName(
-      name: widget.brandname ,
+      name: widget.brandname,
     );
+
+    // Listen to product list changes and extract brands/categories automatically
+    ever(controller.bannerProductList, (_) {
+      // Reset filters when product list changes
+      if (mounted) {
+        setState(() {
+          _selectedBrandIds.clear();
+          _selectedCategoryIds.clear();
+          visibleCount = pageSize;
+        });
+        _extractBrandsAndCategories();
+      }
+    });
+
+    // Also try extracting after initial delay in case products already loaded
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted && controller.bannerProductList.isNotEmpty) {
+        _extractBrandsAndCategories();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(bannerProduct oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // If brandname changed, fetch new products and reset filter
+    if (oldWidget.brandname != widget.brandname) {
+      if (mounted) {
+        setState(() {
+          _selectedBrandIds.clear();
+          _selectedCategoryIds.clear();
+          _availableBrands.clear();
+          _availableCategories.clear();
+          visibleCount = pageSize;
+        });
+      }
+
+      controller.fetchProductsByName(
+        name: widget.brandname,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
+  // Extract brands and categories from current products - OPTIMIZED
+  void _extractBrandsAndCategories() {
+    if (controller.bannerProductList.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _availableBrands.clear();
+          _availableCategories.clear();
+        });
+      }
+      return;
+    }
+
+    final Map<String, String> brandNameMap = {};
+    final Map<String, String> categoryNameMap = {};
+
+    for (final product in controller.bannerProductList) {
+      if (product is! Map<String, dynamic>) {
+        continue;
+      }
+
+      // Extract brand
+      final brand = product['brand'];
+      if (brand is Map<String, dynamic>) {
+        final brandId = brand['_id']?.toString();
+        final brandName = brand['name']?.toString();
+        if (brandId != null && brandId.isNotEmpty && brandName != null && brandName.isNotEmpty) {
+          brandNameMap[brandId] = brandName;
+        }
+      } else if (brand is String && brand.isNotEmpty) {
+        final brandName = product['brandName']?.toString() ?? 'Unknown Brand';
+        brandNameMap[brand] = brandName;
+      }
+
+      // Extract category
+      final category = product['category'];
+      if (category is Map<String, dynamic>) {
+        final categoryId = category['_id']?.toString();
+        final categoryName = category['name']?.toString();
+        if (categoryId != null && categoryId.isNotEmpty && categoryName != null && categoryName.isNotEmpty) {
+          categoryNameMap[categoryId] = categoryName;
+        }
+      } else if (category is String && category.isNotEmpty) {
+        final categoryName = product['categoryName']?.toString() ?? 'Unknown Category';
+        categoryNameMap[category] = categoryName;
+      }
+    }
+
+    // Convert to sorted lists
+    final brandsList = brandNameMap.entries
+        .map((e) => {'id': e.key, 'name': e.value})
+        .toList();
+    brandsList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
+
+    final categoriesList = categoryNameMap.entries
+        .map((e) => {'id': e.key, 'name': e.value})
+        .toList();
+    categoriesList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
+
+    if (mounted) {
+      setState(() {
+        _availableBrands = brandsList;
+        _availableCategories = categoriesList;
+      });
+    }
   }
 
   @override
@@ -285,85 +471,92 @@ class _bannerProductState extends State<bannerProduct> {
     final navigationProvider = Get.put(BottomNavigationController());
     return Scaffold(
       appBar: CustomAppBar(
-        showLeading: true,
-        leadingWidget: Builder(
-          builder: (context) {
-            return IconButton(
-              onPressed: () {
+          showLeading: true,
+          leadingWidget: Builder(
+            builder: (context) {
+              return IconButton(
+                onPressed: () {
                   Navigator.of(context).pop();
-              },
-              icon: const Icon(Icons.arrow_back_ios, size: 20),
-            );
-          },
-        ),
-        titleText: widget.displayTitle,
-        actionicon: GetBuilder<CartNotifier>(
-          builder: (cartNotifier) {
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                GestureDetector(
-                  onTap: () async {
-                    Get.put(BottomNavigationController()).setTabIndex(0);
-                    Get.offAll(() => Home());
+                },
+                icon: const Icon(Icons.arrow_back_ios, size: 20),
+              );
+            },
+          ),
+          titleText: widget.displayTitle,
+          actionicon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => SearchScreenSecond()));
                   },
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 10.0),
-                    child: SvgPicture.string(
-                      _homeSvg,
-                      width: 28,
-                      height: 28,
-                      fit: BoxFit.contain,
-                      semanticsLabel: 'Home',
-                    ),
-                  ),
-                ),
-                Stack(
-                  alignment: Alignment.topRight,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        context.route(Cart());
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 5.0),
-                        child: Image.asset(
-                          "assets/icons/addcart.png",
-                          color: kdefwhiteColor,
-                          width: 28,
-                          height: 28,
+                  icon: const Icon(Icons.search,
+                      color: kdefwhiteColor, size: 28)),
+              GetBuilder<CartNotifier>(
+                builder: (cartNotifier) {
+                  return Stack(
+                    alignment: Alignment.topRight,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          context.route(const Cart());
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 5.0),
+                          child: Image.asset(
+                            "assets/icons/addcart.png",
+                            color: kdefwhiteColor,
+                            width: 28,
+                            height: 28,
+                          ),
                         ),
                       ),
-                    ),
-                    if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(
-                          width: 18,
-                          height: 18,
-                          decoration: const BoxDecoration(
-                            color: kredColor,
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            cartNotifier.cartOtherInfoList.length.toString(),
-                            style: const TextStyle(
-                              color: kdefwhiteColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                      if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: const BoxDecoration(
+                              color: kredColor,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              cartNotifier.cartOtherInfoList.length.toString(),
+                              style: const TextStyle(
+                                color: kdefwhiteColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
-                ),
-              ],
-            );
-          },
-        ),
+                  );
+                },
+              ),
+            ],
+          )
+      ),
+      endDrawer: FilterDrawer(
+        key: const ValueKey('filter_drawer'),
+        availableBrands: _availableBrands,
+        availableCategories: _availableCategories,
+        selectedBrandIds: _selectedBrandIds,
+        selectedCategoryIds: _selectedCategoryIds,
+        onApply: (selectedBrands, selectedCategories) {
+          setState(() {
+            _selectedBrandIds = selectedBrands;
+            _selectedCategoryIds = selectedCategories;
+            visibleCount = pageSize; // Reset to first page
+          });
+        },
       ),
       body: Obx(() {
         if (controller.isLoading.value) {
@@ -374,13 +567,21 @@ class _bannerProductState extends State<bannerProduct> {
           return const Center(child: Text("No products found"));
         }
 
+        // Get sorted products first
         final base = _sortedLocalProducts.isNotEmpty
             ? _sortedLocalProducts
             : _getSortedDisplayProducts(controller.bannerProductList);
 
+        // Apply filter by brands and categories (fast operation with early exit)
+        final filtered = _filterProductsByBrandsAndCategories(base);
+
         // Apply UI sort
-        final displayable = _applySortOption(base);
-        final products = displayable.take(visibleCount).toList();
+        final displayable = _applySortOption(filtered);
+
+        // Only take visible count for display (efficient pagination)
+        final products = displayable.length > visibleCount
+            ? displayable.sublist(0, visibleCount)
+            : displayable;
 
         return CustomScrollView(
           slivers: [
@@ -390,23 +591,65 @@ class _bannerProductState extends State<bannerProduct> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final maxW = _calcSortMaxWidth(constraints);
-                    return Row(
+                    return Column(
                       children: [
-                        const Icon(Icons.inventory_2,
-                            size: 18, color: kPrimaryColor),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            '${controller.bannerProductList.length} products found',
-                            style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w700),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        Row(
+                          children: [
+                            // Filter button
+                            InkWell(
+                              onTap: () {
+                                Scaffold.of(context).openEndDrawer();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: kPrimaryColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: const [
+                                        Icon(Icons.filter_list,
+                                            size: 18, color: Colors.white),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Filter',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Expanded(child: Container()), // Spacer
+                            SizedBox(
+                              width: maxW,
+                              child: _sortMenuButton(),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: maxW,
-                          child: _sortMenuButton(),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(Icons.inventory_2,
+                                size: 18, color: kPrimaryColor),
+                            const SizedBox(width: 10),
+                            Text(
+                              '${filtered.length} products',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     );
@@ -425,7 +668,7 @@ class _bannerProductState extends State<bannerProduct> {
                   mainAxisSpacing: 8,
                 ),
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) {
+                      (context, index) {
                     final product = products[index];
                     return NewProductCard(
                       prdouctList: product,
@@ -441,18 +684,18 @@ class _bannerProductState extends State<bannerProduct> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                 child: Center(
-                  child: (visibleCount < controller.bannerProductList.length)
+                  child: (visibleCount < filtered.length)
                       ? ElevatedButton(
-                          style: _webLikeLoadMoreStyle(),
-                          onPressed: () {
-                            final total = controller.bannerProductList.length;
-                            final next = visibleCount + pageSize;
-                            setState(() {
-                              visibleCount = next > total ? total : next;
-                            });
-                          },
-                          child: const Text('Load More'),
-                        )
+                    style: _webLikeLoadMoreStyle(),
+                    onPressed: () {
+                      final total = filtered.length;
+                      final next = visibleCount + pageSize;
+                      setState(() {
+                        visibleCount = next > total ? total : next;
+                      });
+                    },
+                    child: const Text('Load More'),
+                  )
                       : const SizedBox.shrink(),
                 ),
               ),
@@ -464,3 +707,4 @@ class _bannerProductState extends State<bannerProduct> {
     );
   }
 }
+

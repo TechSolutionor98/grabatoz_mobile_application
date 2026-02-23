@@ -77,7 +77,7 @@ class _NewSummaryViewState extends State<NewSummaryView> {
                       ),
                       Row(),
                       Text(widget.customerEmail),
-                      Text("+971${widget.phone}"),
+                      Text("${widget.phone}"),
                       Text(widget.addressCustomer),
                     ],
                   )
@@ -89,7 +89,7 @@ class _NewSummaryViewState extends State<NewSummaryView> {
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Row(),
-                      Text("Phone: +971${widget.phone}"),
+                      Text("Phone: ${widget.phone}"),
                       Text(widget.companyName),
                       Text(widget.companyAddress),
                       // text

@@ -16,6 +16,8 @@ import 'package:graba2z/Views/Home/Screens/Cart/new_summary_view.dart';
 import 'package:graba2z/Views/Home/Screens/Cart/store_selection.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:intl_phone_field/phone_number.dart';
 
 class CheckoutStepper extends StatefulWidget {
   bool isforguest;
@@ -34,6 +36,92 @@ class _CheckoutStepperState extends State<CheckoutStepper> {
   bool isOtpVerifying = false;
   bool canResend = false;
 
+  // Phone number with country code
+  String completePhoneNumber = '';
+  String selectedCountryCode = '+971';
+  String initialCountryCode = 'AE';
+  bool _isParsingPhone = false; // Flag to prevent recursive parsing
+
+  // Country dial code to ISO code mapping
+  final Map<String, String> dialCodeToCountry = {
+    '+971': 'AE', // UAE
+    '+966': 'SA', // Saudi Arabia
+    '+968': 'OM', // Oman
+    '+974': 'QA', // Qatar
+    '+973': 'BH', // Bahrain
+    '+965': 'KW', // Kuwait
+    '+91': 'IN',  // India
+    '+92': 'PK',  // Pakistan
+    '+44': 'GB',  // UK
+    '+1': 'US',   // USA
+    '+63': 'PH',  // Philippines
+    '+20': 'EG',  // Egypt
+    '+962': 'JO', // Jordan
+    '+961': 'LB', // Lebanon
+    '+86': 'CN',  // China
+    '+81': 'JP',  // Japan
+    '+82': 'KR',  // South Korea
+    '+49': 'DE',  // Germany
+    '+33': 'FR',  // France
+    '+39': 'IT',  // Italy
+    '+34': 'ES',  // Spain
+    '+61': 'AU',  // Australia
+    '+55': 'BR',  // Brazil
+    '+7': 'RU',   // Russia
+    '+90': 'TR',  // Turkey
+    '+27': 'ZA',  // South Africa
+    '+234': 'NG', // Nigeria
+    '+254': 'KE', // Kenya
+    '+880': 'BD', // Bangladesh
+    '+94': 'LK',  // Sri Lanka
+    '+977': 'NP', // Nepal
+    '+60': 'MY',  // Malaysia
+    '+65': 'SG',  // Singapore
+    '+62': 'ID',  // Indonesia
+    '+66': 'TH',  // Thailand
+    '+84': 'VN',  // Vietnam
+  };
+
+  // Parse phone number and detect country
+  void _parseAndSetCountry(String phone) {
+    if (phone.isEmpty || _isParsingPhone) return;
+
+    _isParsingPhone = true; // Set flag to prevent recursive calls
+
+    String cleanPhone = phone.trim();
+    if (!cleanPhone.startsWith('+')) {
+      cleanPhone = '+$cleanPhone';
+    }
+
+    // Try to find matching country code (longest match first)
+    String detectedCountry = 'AE';
+    String detectedDialCode = '+971';
+
+    // Sort by length descending to match longer codes first (+971 before +97)
+    final sortedCodes = dialCodeToCountry.keys.toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+
+    for (String dialCode in sortedCodes) {
+      if (cleanPhone.startsWith(dialCode)) {
+        detectedCountry = dialCodeToCountry[dialCode]!;
+        detectedDialCode = dialCode;
+
+        // Extract just the number part (without country code)
+        String numberPart = cleanPhone.substring(dialCode.length);
+        _userController.homePhoneController.text = numberPart;
+
+        break;
+      }
+    }
+
+    initialCountryCode = detectedCountry;
+    selectedCountryCode = detectedDialCode;
+    completePhoneNumber = cleanPhone;
+
+    if (mounted) setState(() {});
+
+    _isParsingPhone = false; // Reset flag
+  }
 
   bool checkguest = true;
   int otpSeconds = 60;
@@ -80,17 +168,20 @@ class _CheckoutStepperState extends State<CheckoutStepper> {
   }
 
   void _syncFromAuthControllers() {
+    if (_isParsingPhone) return; // Prevent recursive calls
+
     // Sync all fields including state from Edit Profile to Checkout
     final phone = _authController.editPhoneController.text.trim();
     final street = _authController.editaddressController.text.trim();
     final city = _authController.editcityController.text.trim();
     final zip = _authController.editzipcodeController.text.trim();
-    final state = _authController.editStateController.text.trim(); // Add this
+    final state = _authController.editStateController.text.trim();
     bool changed = false;
 
-    if (phone.isNotEmpty && _userController.homePhoneController.text != phone) {
-      _userController.homePhoneController.text = phone;
-      _userController.phoneController.text = phone;
+    // Only parse if phone has country code and is different from what we already have
+    if (phone.isNotEmpty && phone.startsWith('+') && completePhoneNumber != phone) {
+      // Parse country code from phone number
+      _parseAndSetCountry(phone);
       changed = true;
     }
 
@@ -281,8 +372,8 @@ class _CheckoutStepperState extends State<CheckoutStepper> {
     try {
       final phone = _authController.editPhoneController.text.trim();
       if (phone.isNotEmpty) {
-        _userController.homePhoneController.text = phone;
-        _userController.phoneController.text = phone;
+        // Parse phone and detect country code
+        _parseAndSetCountry(phone);
       }
       final street = _authController.editaddressController.text.trim();
       final city = _authController.editcityController.text.trim();
@@ -302,11 +393,14 @@ class _CheckoutStepperState extends State<CheckoutStepper> {
 
   void _syncToAuthController() {
     // Sync checkout data back to edit profile controllers
-    if (_userController.isHomeDelivery.value) {
-      _authController.editPhoneController.text = _userController.homePhoneController.text;
-    } else {
-      _authController.editPhoneController.text = _userController.phoneController.text;
-    }
+    // Use complete phone number with country code
+    final fullPhone = completePhoneNumber.isNotEmpty
+        ? completePhoneNumber
+        : (_userController.isHomeDelivery.value
+            ? _userController.homePhoneController.text
+            : _userController.phoneController.text);
+
+    _authController.editPhoneController.text = fullPhone;
 
     _authController.editaddressController.text = _userController.street.value;
     _authController.editcityController.text = _userController.city.value;
@@ -314,9 +408,7 @@ class _CheckoutStepperState extends State<CheckoutStepper> {
     _authController.editStateController.text = _userController.state.value;
 
     // Also update observable values in auth controller
-    _authController.phoneNumber.value = _userController.isHomeDelivery.value
-        ? _userController.homePhoneController.text
-        : _userController.phoneController.text;
+    _authController.phoneNumber.value = fullPhone;
     _authController.address.value = _userController.street.value;
   }
 
@@ -341,10 +433,17 @@ class _CheckoutStepperState extends State<CheckoutStepper> {
 
   String _digitsOnly(String s) => s.replaceAll(RegExp(r'[^0-9]'), '');
 
-  bool _isValidUaePhone(String input) {
+  bool _isValidPhone(String input) {
     final d = _digitsOnly(input);
-    final numPart = d.startsWith('0') ? d.substring(1) : d; // drop leading 0
-    return numPart.length == 9;
+    return d.length >= 7 && d.length <= 15;
+  }
+
+  // Alias for backwards compatibility
+  bool _isValidUaePhone(String input) => _isValidPhone(input);
+
+  // Get full phone number with country code
+  String getFullPhoneNumber() {
+    return completePhoneNumber;
   }
 
   getcalculations() {
@@ -443,6 +542,11 @@ class _CheckoutStepperState extends State<CheckoutStepper> {
 
 
   Widget _buildStepContent() {
+    // Use completePhoneNumber which is set by IntlPhoneField
+    final displayPhone = _userController.isHomeDelivery.value
+        ? completePhoneNumber
+        : _userController.phoneController.text;
+
     switch (_userController.activeStep.value) {
       case 0:
         return _shippingStep();
@@ -456,9 +560,7 @@ class _CheckoutStepperState extends State<CheckoutStepper> {
           companyAddress: _userController.storeAddress.value,
           companyName: _userController.storeName.value,
           customerEmail: userEmail,
-          phone: _userController.isHomeDelivery.value
-              ? _userController.homePhoneController.text
-              : _userController.phoneController.text,
+          phone: displayPhone,
           shippingType: _userController.isHomeDelivery.value
               ? 'Home Delivery'
               : 'Store Pickup',
@@ -743,42 +845,43 @@ class _CheckoutStepperState extends State<CheckoutStepper> {
 
 
 
-                    Row(
-                      children: [
-                        Expanded(
-                          flex: 5,
-                          child: TextFormField(
-                            keyboardType: TextInputType.phone,
-                            controller: _userController.homePhoneController,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                              LengthLimitingTextInputFormatter(9), // limit to 9 digits
-                            ],
-                            onChanged: (v) {
-                              setState(() {
-                                if (v.trim().isEmpty) {
-                                  _homePhoneError = 'Phone is required';
-                                } else if (!_isValidUaePhone(v)) {
-                                  _homePhoneError = 'Enter a valid number';
-                                } else {
-                                  _homePhoneError = null;
-                                }
-                              });
-                            },
-                            decoration: InputDecoration(
-                              prefix: const Text('+971    '),
-                              labelText: "Phone number",
-                              hintText: "041234567",
-                              hintStyle: const TextStyle(color: Colors.grey),
-                              border: const OutlineInputBorder(
-                                  borderSide: BorderSide(color: Colors.grey)),
-                              enabledBorder: const OutlineInputBorder(
-                                  borderSide: BorderSide(color: Colors.grey)),
-                              errorText: _homePhoneError,
-                            ),
-                          ),
+                    // International Phone Field
+                    IntlPhoneField(
+                      key: ValueKey(initialCountryCode), // Rebuild when country changes
+                      controller: _userController.homePhoneController,
+                      decoration: InputDecoration(
+                        labelText: 'Phone Number',
+                        hintText: 'Enter phone number',
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey),
                         ),
-                      ],
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: BorderSide(color: Colors.grey),
+                        ),
+                        errorText: _homePhoneError,
+                      ),
+                      initialCountryCode: initialCountryCode,
+                      disableLengthCheck: false,
+                      dropdownIconPosition: IconPosition.trailing,
+                      flagsButtonPadding: const EdgeInsets.only(left: 10),
+                      showDropdownIcon: true,
+                      dropdownTextStyle: const TextStyle(fontSize: 14),
+                      onChanged: (PhoneNumber phone) {
+                        setState(() {
+                          completePhoneNumber = phone.completeNumber;
+                          selectedCountryCode = '+${phone.countryCode}';
+                          if (phone.number.isEmpty) {
+                            _homePhoneError = 'Phone is required';
+                          } else {
+                            _homePhoneError = null;
+                          }
+                        });
+                      },
+                      onCountryChanged: (country) {
+                        setState(() {
+                          selectedCountryCode = '+${country.dialCode}';
+                        });
+                      },
                     ),
                     const SizedBox(height: 16),
                     Obx(
@@ -898,6 +1001,9 @@ class _CheckoutStepperState extends State<CheckoutStepper> {
                 if (_userController.isHomeDelivery.value) {
                   final homePhone =
                       _userController.homePhoneController.text.trim();
+                  // Use complete phone number from IntlPhoneField
+                  final fullPhoneNumber = completePhoneNumber;
+
                   if(widget.isforguest){
                     if(checkguest && isVerifying){
                       Get.snackbar('Warning', 'Please enter a Email and verify it',
@@ -905,27 +1011,28 @@ class _CheckoutStepperState extends State<CheckoutStepper> {
                       return;
                     }
                   }
-                  else if (homePhone.isEmpty || !_isValidUaePhone(homePhone)) {
+                  // Validate phone number - check both homePhone and completePhoneNumber
+                  if (homePhone.isEmpty || fullPhoneNumber.isEmpty) {
                     setState(() {
-                      _homePhoneError = homePhone.isEmpty
-                          ? 'Phone is required'
-                          : 'Enter a valid UAE number';
+                      _homePhoneError = 'Phone is required';
                     });
                     Get.snackbar('Warning', 'Please enter a valid phone number',
                         backgroundColor: Colors.red, colorText: Colors.white);
                     return;
                   }
                   final prefs = await SharedPreferences.getInstance();
-                  await prefs.setString('guest_phone', homePhone);
+                  // Save full phone number with country code
+                  await prefs.setString('guest_phone', fullPhoneNumber);
+                  await prefs.setString('guest_country_code', selectedCountryCode);
 
-                  // Sync phone to edit profile first
-                  _authController.editPhoneController.text = homePhone;
-                  _authController.phoneNumber.value = homePhone;
+                  // Sync full phone to edit profile (but NOT homePhoneController - IntlPhoneField manages that)
+                  _authController.editPhoneController.text = fullPhoneNumber;
+                  _authController.phoneNumber.value = fullPhoneNumber;
 
                   if (_userController.street.value.isEmpty && _userController.activeStep.value == 0) {
                     // Save phone to backend BEFORE showing address form
                     await _authController.sendUserData(
-                      phone: homePhone,
+                      phone: fullPhoneNumber,
                       name: _authController.editNameController.text,
                       email: _authController.editemailController.text,
                       street: _authController.editaddressController.text,

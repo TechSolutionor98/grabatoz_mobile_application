@@ -35,6 +35,8 @@ import 'package:flutter_html/flutter_html.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 
+import '../Home/Screens/Search Screen/searchscreensecond.dart';
+
 const String _homeSvg = '''
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
   <path d="M4 12L12 4L20 12" />
@@ -1429,76 +1431,66 @@ class _NewProductDetailsState extends State<NewProductDetails>
             height: 100,
             color: kdefwhiteColor,
           ),
-          actionicon: GetBuilder<CartNotifier>(
-            builder: (
-              cartNotifier,
-            ) {
-              return Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () async {
-                      Get.put(BottomNavigationController()).setTabIndex(0);
-                      Get.offAll(() => Home());
+            actionicon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder:(context) => SearchScreenSecond()));
                     },
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 10.0),
-                      child: SvgPicture.string(
-                        _homeSvg,
-                        width: 28,
-                        height: 28,
-                        fit: BoxFit.contain,
-                        // stroke is white in SVG; matches AppBar foreground
-                        semanticsLabel: 'Home',
-                      ),
-                    ),
-                  ),
-                  Stack(
-                    alignment: Alignment.topRight,
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          context.route(Cart());
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 5.0),
-                          child: Image.asset(
-                            "assets/icons/addcart.png",
-                            color: kdefwhiteColor,
-                            width: 28,
-                            height: 28,
+                    icon: const Icon(Icons.search,
+                        color: kdefwhiteColor, size: 28)),
+                GetBuilder<CartNotifier>(
+                  builder: (cartNotifier) {
+                    return Stack(
+                      alignment: Alignment.topRight,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            context.route(const Cart());
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 5.0),
+                            child: Image.asset(
+                              "assets/icons/addcart.png",
+                              color: kdefwhiteColor,
+                              width: 28,
+                              height: 28,
+                            ),
                           ),
                         ),
-                      ),
-                      if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
-                        Positioned(
-                          top: 0,
-                          right: 0,
-                          child: Container(
-                            width: 18,
-                            height: 18,
-                            decoration: const BoxDecoration(
-                              color: kredColor,
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              cartNotifier.cartOtherInfoList.length.toString(),
-                              style: const TextStyle(
-                                color: kdefwhiteColor,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                        if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: Container(
+                              width: 18,
+                              height: 18,
+                              decoration: const BoxDecoration(
+                                color: kredColor,
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                cartNotifier.cartOtherInfoList.length.toString(),
+                                style: const TextStyle(
+                                  color: kdefwhiteColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
-                  ),
-                ],
-              );
-            },
-          ),
+                    );
+                  },
+                ),
+              ],
+            )
         ),
         body: SafeArea(
           child: CustomScrollView(

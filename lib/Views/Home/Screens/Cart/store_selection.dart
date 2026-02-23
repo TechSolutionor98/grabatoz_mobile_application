@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:graba2z/Controllers/checkout_controller.dart';
 import 'package:graba2z/Utils/appcolors.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:intl_phone_field/phone_number.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class StoreSelectionScreen extends StatefulWidget {
@@ -14,6 +16,23 @@ class StoreSelectionScreen extends StatefulWidget {
 
 class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
   String? _pickupPhoneError;
+
+  // Phone country code detection
+  String completePhoneNumber = '';
+  String selectedCountryCode = '+971';
+  String initialCountryCode = 'AE';
+  bool _isParsingPhone = false;
+
+  // Country dial code to ISO code mapping
+  final Map<String, String> dialCodeToCountry = {
+    '+971': 'AE', '+966': 'SA', '+968': 'OM', '+974': 'QA', '+973': 'BH',
+    '+965': 'KW', '+91': 'IN', '+92': 'PK', '+44': 'GB', '+1': 'US',
+    '+63': 'PH', '+20': 'EG', '+962': 'JO', '+961': 'LB', '+86': 'CN',
+    '+81': 'JP', '+82': 'KR', '+49': 'DE', '+33': 'FR', '+39': 'IT',
+    '+34': 'ES', '+61': 'AU', '+55': 'BR', '+7': 'RU', '+90': 'TR',
+    '+27': 'ZA', '+234': 'NG', '+254': 'KE', '+880': 'BD', '+94': 'LK',
+    '+977': 'NP', '+60': 'MY', '+65': 'SG', '+62': 'ID', '+66': 'TH', '+84': 'VN',
+  };
 
   final List<Map<String, String>> stores = [
     {
@@ -62,42 +81,42 @@ class _StoreSelectionScreenState extends State<StoreSelectionScreen> {
       padding: const EdgeInsets.all(4.0),
       child: Column(
         children: [
-          // Phone number field with same style as new_checkout_view
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: _userController.phoneController,
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    LengthLimitingTextInputFormatter(9),
-                  ],
-                  onChanged: (v) {
-                    setState(() {
-                      if (v.trim().isEmpty) {
-                        _pickupPhoneError = 'Phone is required';
-                      } else if (!_isValidUaePhone(v)) {
-                        _pickupPhoneError = 'Enter a valid number';
-                      } else {
-                        _pickupPhoneError = null;
-                      }
-                    });
-                  },
-                  decoration: InputDecoration(
-                    prefix: const Text('+971    '),
-                    labelText: "Phone number",
-                    hintText: "041234567",
-                    hintStyle: const TextStyle(color: Colors.grey),
-                    border: const OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.grey)),
-                    enabledBorder: const OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.grey)),
-                    errorText: _pickupPhoneError,
-                  ),
-                ),
-              ),
-            ],
+          // Phone number field with IntlPhoneField
+          IntlPhoneField(
+            key: ValueKey(initialCountryCode),
+            controller: _userController.phoneController,
+            decoration: InputDecoration(
+              labelText: 'Phone Number',
+              hintText: 'Enter phone number',
+              hintStyle: const TextStyle(color: Colors.grey),
+              border: const OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey)),
+              enabledBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey)),
+              errorText: _pickupPhoneError,
+            ),
+            initialCountryCode: initialCountryCode,
+            disableLengthCheck: false,
+            dropdownIconPosition: IconPosition.trailing,
+            flagsButtonPadding: const EdgeInsets.only(left: 10),
+            showDropdownIcon: true,
+            dropdownTextStyle: const TextStyle(fontSize: 14),
+            onChanged: (PhoneNumber phone) {
+              setState(() {
+                completePhoneNumber = phone.completeNumber;
+                selectedCountryCode = '+${phone.countryCode}';
+                if (phone.number.isEmpty) {
+                  _pickupPhoneError = 'Phone is required';
+                } else {
+                  _pickupPhoneError = null;
+                }
+              });
+            },
+            onCountryChanged: (country) {
+              setState(() {
+                selectedCountryCode = '+${country.dialCode}';
+              });
+            },
           ),
           SizedBox(height: 20),
 

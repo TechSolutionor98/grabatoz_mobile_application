@@ -28,11 +28,9 @@ class DealsController extends GetxController {
 
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
-        print("Deals API Response: $decoded");
-        developer.log(decoded.toString(), name: "FetchDealsProducts");
+        developer.log("Deals API Response received", name: "FetchDealsProducts");
 
         final filtered = <dynamic>[];
-        final enrichTasks = <Future<void>>[];
 
         // Handle response - API returns array of offers with nested product field
         if (decoded is List) {
@@ -41,27 +39,13 @@ class DealsController extends GetxController {
               if (item.containsKey('product') && item['product'] is Map<String, dynamic>) {
                 final product = item['product'] as Map<String, dynamic>;
                 filtered.add(product);
-                enrichTasks.add(_enrichProductData(product));
               } else {
-                final product = item;
-                if (product is Map<String, dynamic>) {
-                  filtered.add(product);
-                  enrichTasks.add(_enrichProductData(product));
-                }
+                filtered.add(item);
               }
             } else if (item is Map) {
-              final product = Map<String, dynamic>.from(item);
-              filtered.add(product);
-              enrichTasks.add(_enrichProductData(product));
+              filtered.add(Map<String, dynamic>.from(item));
             }
           }
-
-          // Wait for all enrichment tasks in parallel
-          if (enrichTasks.isNotEmpty) {
-            await Future.wait(enrichTasks, eagerError: false);
-          }
-          productList.value = filtered;
-          developer.log("Loaded ${filtered.length} deals products", name: "FetchDealsProducts");
         } else if (decoded is Map<String, dynamic>) {
           dynamic dataField;
           if (decoded['data'] is List) {
@@ -76,40 +60,46 @@ class DealsController extends GetxController {
             for (final item in dataField) {
               if (item is Map<String, dynamic>) {
                 if (item.containsKey('product') && item['product'] is Map<String, dynamic>) {
-                  final product = item['product'] as Map<String, dynamic>;
-                  filtered.add(product);
-                  enrichTasks.add(_enrichProductData(product));
+                  filtered.add(item['product'] as Map<String, dynamic>);
                 } else {
                   filtered.add(item);
-                  enrichTasks.add(_enrichProductData(item));
                 }
               } else if (item is Map) {
-                final product = Map<String, dynamic>.from(item);
-                filtered.add(product);
-                enrichTasks.add(_enrichProductData(product));
+                filtered.add(Map<String, dynamic>.from(item));
               }
             }
-
-            // Wait for all enrichment tasks in parallel
-            if (enrichTasks.isNotEmpty) {
-              await Future.wait(enrichTasks, eagerError: false);
-            }
           }
-          productList.value = filtered;
-        } else {
-          productList.clear();
-          Get.snackbar("Error", "Unexpected API response format");
         }
+
+        // Set products immediately for fast display
+        productList.value = filtered;
+        isLoading(false);
+        developer.log("Loaded ${filtered.length} deals products", name: "FetchDealsProducts");
+
+        // Enrich data in background (non-blocking)
+        _enrichProductsInBackground(filtered);
+
       } else {
         Get.snackbar("Error", "Failed to load deals: ${response.statusCode}");
-        developer.log("API Error: ${response.statusCode} - ${response.body}", name: "FetchDealsProducts");
+        developer.log("API Error: ${response.statusCode}", name: "FetchDealsProducts");
+        isLoading(false);
       }
     } catch (e) {
       Get.snackbar("Error", "Error loading deals: $e");
       developer.log("Exception: $e", name: "FetchDealsProducts");
-    } finally {
       isLoading(false);
     }
+  }
+
+  // Enrich products in background without blocking UI
+  Future<void> _enrichProductsInBackground(List<dynamic> products) async {
+    for (final product in products) {
+      if (product is Map<String, dynamic>) {
+        await _enrichProductData(product);
+      }
+    }
+    // Trigger UI update after enrichment
+    productList.refresh();
   }
 
   /// Enrich product data by fetching brand and category names from their IDs

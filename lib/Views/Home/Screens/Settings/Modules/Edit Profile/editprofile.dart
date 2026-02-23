@@ -1,6 +1,8 @@
 import 'package:get/get.dart';
 import 'package:flutter/services.dart';
 import 'package:graba2z/Views/Home/home.dart';
+import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:intl_phone_field/phone_number.dart';
 import '../../../../../../Utils/packages.dart';
 import '../../../../../../Controllers/delete_account_controller.dart';
 
@@ -18,6 +20,23 @@ class EditProfileState extends State<EditProfile> {
   String? _phoneError;
   String selectedState = 'Select State';
   
+  // Phone country code detection
+  String completePhoneNumber = '';
+  String selectedCountryCode = '+971';
+  String initialCountryCode = 'AE';
+  bool _isParsingPhone = false; // Flag to prevent recursive parsing
+
+  // Country dial code to ISO code mapping
+  final Map<String, String> dialCodeToCountry = {
+    '+971': 'AE', '+966': 'SA', '+968': 'OM', '+974': 'QA', '+973': 'BH',
+    '+965': 'KW', '+91': 'IN', '+92': 'PK', '+44': 'GB', '+1': 'US',
+    '+63': 'PH', '+20': 'EG', '+962': 'JO', '+961': 'LB', '+86': 'CN',
+    '+81': 'JP', '+82': 'KR', '+49': 'DE', '+33': 'FR', '+39': 'IT',
+    '+34': 'ES', '+61': 'AU', '+55': 'BR', '+7': 'RU', '+90': 'TR',
+    '+27': 'ZA', '+234': 'NG', '+254': 'KE', '+880': 'BD', '+94': 'LK',
+    '+977': 'NP', '+60': 'MY', '+65': 'SG', '+62': 'ID', '+66': 'TH', '+84': 'VN',
+  };
+
   List<String> states = [
     'Select State',
     'Abu Dhabi',
@@ -47,9 +66,63 @@ class EditProfileState extends State<EditProfile> {
           selectedState = 'Select State';
         });
       }
+
+      // Parse phone and detect country code
+      final phone = _authController.editPhoneController.text.trim();
+      if (phone.isNotEmpty) {
+        _parseAndSetCountry(phone);
+      }
     });
     
     _authController.editStateController.addListener(_onStateChanged);
+    _authController.editPhoneController.addListener(_onPhoneChanged);
+  }
+
+  // Listen for phone changes from API
+  void _onPhoneChanged() {
+    if (_isParsingPhone) return; // Prevent recursive calls
+
+    final phone = _authController.editPhoneController.text.trim();
+    // Only parse if the phone has country code format and hasn't been parsed yet
+    if (phone.isNotEmpty && phone.startsWith('+') && completePhoneNumber != phone) {
+      _parseAndSetCountry(phone);
+    }
+  }
+
+  // Parse phone number and detect country
+  void _parseAndSetCountry(String phone) {
+    if (phone.isEmpty || _isParsingPhone) return;
+
+    _isParsingPhone = true; // Set flag to prevent recursive calls
+
+    String cleanPhone = phone.trim();
+    if (!cleanPhone.startsWith('+')) {
+      cleanPhone = '+$cleanPhone';
+    }
+
+    // Sort by length descending to match longer codes first
+    final sortedCodes = dialCodeToCountry.keys.toList()
+      ..sort((a, b) => b.length.compareTo(a.length));
+
+    for (String dialCode in sortedCodes) {
+      if (cleanPhone.startsWith(dialCode)) {
+        String numberPart = cleanPhone.substring(dialCode.length);
+
+        initialCountryCode = dialCodeToCountry[dialCode]!;
+        selectedCountryCode = dialCode;
+        completePhoneNumber = cleanPhone;
+
+        // Update controller with just the number part (no country code)
+        _authController.editPhoneController.text = numberPart;
+
+        if (mounted) setState(() {});
+
+        _isParsingPhone = false; // Reset flag
+        return;
+      }
+    }
+
+    _isParsingPhone = false; // Reset flag if no match found
   }
 
   void _onStateChanged() {
@@ -68,6 +141,7 @@ class EditProfileState extends State<EditProfile> {
   @override
   void dispose() {
     _authController.editStateController.removeListener(_onStateChanged);
+    _authController.editPhoneController.removeListener(_onPhoneChanged);
     _verificationCodeController.dispose();
     super.dispose();
   }
@@ -139,18 +213,24 @@ class EditProfileState extends State<EditProfile> {
                                       buttonColor: kPrimaryColor,
                                       textColor: kdefwhiteColor,
                                       onPressFunction: () {
+                                        // Validate phone if entered
                                         final phone = _authController.editPhoneController.text.trim();
-                                        if (phone.isNotEmpty && !_isValidUaePhone(phone)) {
+                                        if (phone.isNotEmpty && phone.length < 6) {
                                           setState(() {
-                                            _phoneError = 'Enter a valid UAE phone number';
+                                            _phoneError = 'Enter a valid phone number';
                                           });
                                           Get.snackbar('Warning', 'Please enter a valid phone number',
                                               backgroundColor: Colors.red, colorText: Colors.white);
                                           return;
                                         }
                                         
+                                        // Use complete phone number with country code
+                                        final fullPhone = completePhoneNumber.isNotEmpty
+                                            ? completePhoneNumber
+                                            : phone;
+
                                         _authController.sendUserData(
-                                          phone: _authController.editPhoneController.text,
+                                          phone: fullPhone,
                                           name: _authController.editNameController.text,
                                           email: _authController.editemailController.text,
                                           street: _authController.editaddressController.text,
@@ -228,33 +308,38 @@ class EditProfileState extends State<EditProfile> {
           SizedBox(height: 6,),
           Text("Phone Number"),
           SizedBox(height: 6),
-          TextField(
+          IntlPhoneField(
+            key: ValueKey(initialCountryCode),
             controller: _authController.editPhoneController,
-            keyboardType: TextInputType.phone,
-            inputFormatters: [
-              FilteringTextInputFormatter.digitsOnly,
-              LengthLimitingTextInputFormatter(9),
-            ],
-            onChanged: (v) {
+            decoration: InputDecoration(
+              labelText: 'Phone Number',
+              hintText: 'Enter phone number',
+              hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
+              border: OutlineInputBorder(),
+              errorText: _phoneError,
+            ),
+            initialCountryCode: initialCountryCode,
+            disableLengthCheck: false,
+            dropdownIconPosition: IconPosition.trailing,
+            flagsButtonPadding: const EdgeInsets.only(left: 10),
+            showDropdownIcon: true,
+            dropdownTextStyle: const TextStyle(fontSize: 14),
+            onChanged: (PhoneNumber phone) {
               setState(() {
-                if (v.trim().isEmpty) {
+                completePhoneNumber = phone.completeNumber;
+                selectedCountryCode = '+${phone.countryCode}';
+                if (phone.number.isEmpty) {
                   _phoneError = null;
-                } else if (!_isValidUaePhone(v)) {
-                  _phoneError = 'Enter a valid 9-digit number';
                 } else {
                   _phoneError = null;
                 }
               });
             },
-            decoration: InputDecoration(
-              prefix: const Text('+971    '),
-              labelText: 'Phone number',
-              floatingLabelBehavior: FloatingLabelBehavior.never,
-              hintText: "041234567",
-              hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
-              border: OutlineInputBorder(),
-              errorText: _phoneError,
-            ),
+            onCountryChanged: (country) {
+              setState(() {
+                selectedCountryCode = '+${country.dialCode}';
+              });
+            },
           ),
         ],
       ),

@@ -1,14 +1,19 @@
 import 'dart:developer';
 import 'dart:math' as math;
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:graba2z/Utils/appextensions.dart';
-import 'package:graba2z/Views/Product%20Folder/newProduct_card.dart';
 import '../../../../Controllers/addtocart.dart';
 import '../../../../Controllers/bottomController.dart';
 import '../../../../Controllers/deals_controller.dart';
 import '../../../../Utils/appcolors.dart';
 import '../../../../Widgets/customappbar.dart';
+import '../../../../Configs/config.dart';
+import '../../../Filter Screen/filter.dart';
+import '../Search Screen/searchscreensecond.dart';
+import '../banner redirect/filter_screen.dart';
 import 'deals_product_card.dart';
 import '../Cart/cart.dart';
 
@@ -34,7 +39,17 @@ class _offerDealsState extends State<offerDeals> {
 
   double _calcSortMaxWidth(BoxConstraints c) =>
       math.min(220.0, c.maxWidth * 0.38);
-  List<dynamic> _sortedLocalProducts = const [];
+
+  // Cached sorted products to avoid re-sorting on every build
+  List<dynamic> _cachedSortedProducts = [];
+  String _lastSortLabel = 'Newest First';
+  int _lastProductCount = 0;
+
+  // Filter state
+  List<Map<String, String>> _availableBrands = [];
+  List<Map<String, String>> _availableCategories = [];
+  Set<String> _selectedBrandIds = {};
+  Set<String> _selectedCategoryIds = {};
 
   @override
   void initState() {
@@ -48,14 +63,93 @@ class _offerDealsState extends State<offerDeals> {
       controller.fetchDealsProducts(slug: widget.slug!);
       log("🔄 Fetching deals products for slug: ${widget.slug}");
     }
+
+    // Fetch all brands from API
+    _fetchAllBrands();
+
+    // Listen to product list changes and extract brands/categories automatically
+    ever(controller.productList, (_) {
+      // Reset filters when product list changes
+      if (mounted) {
+        setState(() {
+          _selectedBrandIds.clear();
+          _selectedCategoryIds.clear();
+          visibleCount = pageSize;
+        });
+        _extractBrandsAndCategories();
+      }
+    });
+
+    // Also try extracting after initial delay in case products already loaded
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted && controller.productList.isNotEmpty) {
+        _extractBrandsAndCategories();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(offerDeals oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // If slug changed, fetch new products and reset filter
+    if (oldWidget.slug != widget.slug) {
+      if (mounted) {
+        setState(() {
+          _selectedBrandIds.clear();
+          _selectedCategoryIds.clear();
+          _availableBrands.clear();
+          _availableCategories.clear();
+          visibleCount = pageSize;
+        });
+      }
+
+      final tag = widget.slug ?? 'default-deals';
+      controller = Get.put(DealsController(), tag: tag);
+
+      if (widget.slug != null && widget.slug!.isNotEmpty) {
+        controller.fetchDealsProducts(slug: widget.slug!);
+      }
+    }
   }
 
   @override
   void dispose() {
-    // Clean up controller when leaving this screen
     final tag = widget.slug ?? 'default-deals';
     Get.delete<DealsController>(tag: tag);
     super.dispose();
+  }
+
+  // Fetch all brands from API
+  Future<void> _fetchAllBrands() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${Configss.getallbrands}'),
+      ).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> brandsList = data is List ? data : data['data'] ?? [];
+
+        final brands = brandsList
+            .where((b) => b is Map<String, dynamic>)
+            .map((b) => {
+          'id': b['_id']?.toString() ?? '',
+          'name': b['name']?.toString() ?? 'Unknown Brand',
+        })
+            .where((b) => (b['id'] as String).isNotEmpty)
+            .toList();
+
+        if (mounted) {
+          setState(() {
+            _availableBrands = List<Map<String, String>>.from(brands);
+          });
+          log("✅ Fetched ${_availableBrands.length} brands from API");
+        }
+      }
+    } catch (e) {
+      log("❌ Error fetching brands: $e");
+    }
   }
 
   void _showAddedToCartPopup() {
@@ -178,8 +272,9 @@ class _offerDealsState extends State<offerDeals> {
         'discountedPrice',
         'salePrice',
         'sellingPrice',
+        'offerPrice',
         'price',
-        'offerPrice'
+
       ];
       for (final k in keys) {
         final v = e[k];
@@ -275,6 +370,151 @@ class _offerDealsState extends State<offerDeals> {
     return [...availableItems, ...preorderItems, ...outOfStockItems];
   }
 
+  // Get cached sorted products - only re-sort when needed
+  List<dynamic> _getCachedSortedProducts() {
+    final productList = controller.productList;
+
+    // Check if we need to re-sort
+    if (_cachedSortedProducts.isEmpty ||
+        _lastSortLabel != _sortLabel ||
+        _lastProductCount != productList.length) {
+
+      final base = _getSortedDisplayProducts(productList);
+      _cachedSortedProducts = _applySortOption(base);
+      _lastSortLabel = _sortLabel;
+      _lastProductCount = productList.length;
+    }
+
+    return _cachedSortedProducts;
+  }
+
+  // Extract categories and brands from current products
+  void _extractBrandsAndCategories() {
+    if (controller.productList.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _availableCategories.clear();
+          _availableBrands.clear();
+        });
+      }
+      return;
+    }
+
+    final Map<String, String> brandNameMap = {};
+    final Map<String, String> categoryNameMap = {};
+    final List<String> brandIdsToFetch = [];
+
+    for (final product in controller.productList) {
+      if (product is! Map<String, dynamic>) {
+        continue;
+      }
+
+      // Extract brand - only from products in current deals
+      final brand = product['brand'];
+      if (brand is String && brand.isNotEmpty) {
+        if (!brandNameMap.containsKey(brand)) {
+          // Check if we already have this brand in _availableBrands
+          final existingBrand = _availableBrands.firstWhereOrNull(
+            (b) => b['id'] == brand,
+          );
+
+          if (existingBrand != null) {
+            brandNameMap[brand] = existingBrand['name'] ?? 'Brand';
+          } else {
+            brandNameMap[brand] = 'Brand'; // Fallback
+            if (!brandIdsToFetch.contains(brand)) {
+              brandIdsToFetch.add(brand);
+            }
+          }
+        }
+      }
+
+      // Extract category
+      final category = product['parentCategory'];
+      if (category is Map<String, dynamic>) {
+        final categoryId = category['_id']?.toString();
+        final categoryName = category['name']?.toString();
+        if (categoryId != null && categoryId.isNotEmpty && categoryName != null && categoryName.isNotEmpty) {
+          categoryNameMap[categoryId] = categoryName;
+        }
+      } else if (category is String && category.isNotEmpty) {
+        final categoryName = product['categoryName']?.toString() ?? 'Unknown Category';
+        categoryNameMap[category] = categoryName;
+      }
+    }
+
+    // Convert to sorted lists - only brands available in this deals page
+    final brandsList = brandNameMap.entries
+        .map((e) => {'id': e.key, 'name': e.value})
+        .toList();
+    brandsList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
+
+    final categoriesList = categoryNameMap.entries
+        .map((e) => {'id': e.key, 'name': e.value})
+        .toList();
+    categoriesList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
+
+    if (mounted) {
+      setState(() {
+        _availableBrands = brandsList;
+        _availableCategories = categoriesList;
+      });
+      log("✅ Filter updated: ${_availableBrands.length} brands in deals, ${_availableCategories.length} categories");
+    }
+  }
+
+  // Filter products based on selected brands and categories
+  List<dynamic> _filterProductsByBrandsAndCategories(List<dynamic> products) {
+    if (_selectedBrandIds.isEmpty && _selectedCategoryIds.isEmpty) {
+      return products;
+    }
+
+    final List<dynamic> filtered = [];
+    final bool filterByBrand = _selectedBrandIds.isNotEmpty;
+    final bool filterByCategory = _selectedCategoryIds.isNotEmpty;
+
+    for (final product in products) {
+      if (product is! Map<String, dynamic>) {
+        continue;
+      }
+
+      // Check brand filter
+      bool brandMatches = true;
+      if (filterByBrand) {
+        final brand = product['brand'];
+        String? brandId;
+
+        if (brand is Map<String, dynamic>) {
+          brandId = brand['_id']?.toString();
+        } else if (brand is String) {
+          brandId = brand;
+        }
+
+        brandMatches = brandId != null && _selectedBrandIds.contains(brandId);
+        if (!brandMatches) continue;
+      }
+
+      // Check category filter
+      if (filterByCategory) {
+        final category = product['parentCategory'];
+        String? categoryId;
+
+        if (category is Map<String, dynamic>) {
+          categoryId = category['_id']?.toString();
+        } else if (category is String) {
+          categoryId = category;
+        }
+
+        final categoryMatches = categoryId != null && _selectedCategoryIds.contains(categoryId);
+        if (!categoryMatches) continue;
+      }
+
+      filtered.add(product);
+    }
+
+    return filtered;
+  }
+
   @override
   Widget build(BuildContext context) {
     final navigationProvider = Get.put(BottomNavigationController());
@@ -292,57 +532,79 @@ class _offerDealsState extends State<offerDeals> {
           },
         ),
         titleText: widget.displayTitle ?? "Deals",
-        actionicon: GetBuilder<CartNotifier>(
-          builder: (cartNotifier) {
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Stack(
-                  alignment: Alignment.topRight,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        context.route(Cart());
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 5.0),
-                        child: Image.asset(
-                          "assets/icons/addcart.png",
-                          color: kdefwhiteColor,
-                          width: 28,
-                          height: 28,
+          actionicon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder:(context) => SearchScreenSecond()));
+                  },
+                  icon: const Icon(Icons.search,
+                      color: kdefwhiteColor, size: 28)),
+              GetBuilder<CartNotifier>(
+                builder: (cartNotifier) {
+                  return Stack(
+                    alignment: Alignment.topRight,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          context.route(const Cart());
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 5.0),
+                          child: Image.asset(
+                            "assets/icons/addcart.png",
+                            color: kdefwhiteColor,
+                            width: 28,
+                            height: 28,
+                          ),
                         ),
                       ),
-                    ),
-                    if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(
-                          width: 18,
-                          height: 18,
-                          decoration: const BoxDecoration(
-                            color: kredColor,
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            cartNotifier.cartOtherInfoList.length.toString(),
-                            style: const TextStyle(
+                      if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: const BoxDecoration(
+                              color: kredColor,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              cartNotifier.cartOtherInfoList.length.toString(),
+                              style: const TextStyle(
                                 color: kdefwhiteColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
-                ),
-              ],
-            );
-          },
-        ),
+                  );
+                },
+              ),
+            ],
+          )
+      ),
+      endDrawer: FilterDrawer(
+        availableBrands: _availableBrands,
+        availableCategories: _availableCategories,
+        selectedBrandIds: _selectedBrandIds,
+        selectedCategoryIds: _selectedCategoryIds,
+        onApply: (selectedBrands, selectedCategories) {
+          setState(() {
+            _selectedBrandIds = selectedBrands;
+            _selectedCategoryIds = selectedCategories;
+            visibleCount = pageSize;
+          });
+        },
       ),
 
       // 🔹 BODY
@@ -355,13 +617,19 @@ class _offerDealsState extends State<offerDeals> {
           return const Center(child: Text("No products found"));
         }
 
-        final base = _sortedLocalProducts.isNotEmpty
-            ? _sortedLocalProducts
-            : _getSortedDisplayProducts(controller.productList);
+        // Get sorted products
+        final base = _getSortedDisplayProducts(controller.productList);
+
+        // Apply filter by brands and categories
+        final filtered = _filterProductsByBrandsAndCategories(base);
 
         // Apply UI sort
-        final displayable = _applySortOption(base);
-        final products = displayable.take(visibleCount).toList();
+        final displayable = _applySortOption(filtered);
+
+        // Only take visible count for display
+        final products = displayable.length > visibleCount
+            ? displayable.sublist(0, visibleCount)
+            : displayable;
 
         return CustomScrollView(
           slivers: [
@@ -371,24 +639,66 @@ class _offerDealsState extends State<offerDeals> {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final maxW = _calcSortMaxWidth(constraints);
-                    return Row(
+                    return Column(
                       children: [
-                        const Icon(Icons.inventory_2,
-                            size: 18, color: kPrimaryColor),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            '${controller.productList.length} products found',
-                            style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w700),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        Row(
+                          children: [
+                            // Filter button
+                            InkWell(
+                              onTap: () {
+                                Scaffold.of(context).openEndDrawer();
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: kPrimaryColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: const [
+                                        Icon(Icons.filter_list,
+                                            size: 18, color: Colors.white),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          'Filter',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Expanded(child: Container()), // Spacer
+                            SizedBox(
+                              width: maxW,
+                              child: _sortMenuButton(),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        SizedBox(
-                          width: maxW,
-                          child: _sortMenuButton(),
+                        SizedBox(height: 8,),
+                        Row(
+                          children: [
+                            const Icon(Icons.inventory_2,
+                                size: 18, color: kPrimaryColor),
+                            SizedBox(width: 10,),
+                            Text(
+                              '${filtered.length} products found',
+                              style: const TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.w700),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
+
                       ],
                     );
                   },
@@ -423,11 +733,11 @@ class _offerDealsState extends State<offerDeals> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                 child: Center(
-                  child: (visibleCount < controller.productList.length)
+                  child: (visibleCount < filtered.length)
                       ? ElevatedButton(
                           style: _webLikeLoadMoreStyle(),
                           onPressed: () {
-                            final total = controller.productList.length;
+                            final total = filtered.length;
                             final next = visibleCount + pageSize;
                             setState(() {
                               visibleCount = next > total ? total : next;
