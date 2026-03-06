@@ -84,7 +84,7 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
     bool found = false;
     // Search through all categories to find the path to this subcategory
     for (final category in _menuController.categories) {
-      final categoryId = idValues.reverse[category.id] ?? '';
+      final categoryId = category.id;
       if (_findAndExpandPath(category.children, subcategoryId, categoryId)) {
         _expandedCategories.add(categoryId);
         found = true;
@@ -217,7 +217,7 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
 
   // Build parent category tile (level 0)
   Widget _buildCategoryTile(Menumodel category) {
-    final categoryId = idValues.reverse[category.id] ?? '';
+    final categoryId = category.id;
     final categoryName = category.name;
     final hasChildren = category.children.isNotEmpty;
     final isExpanded = _expandedCategories.contains(categoryId);

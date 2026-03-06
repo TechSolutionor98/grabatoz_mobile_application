@@ -6,6 +6,7 @@ import '../Utils/packages.dart';
 import 'package:http/http.dart' as http;
 
 import '../Views/Home/Screens/banner redirect/bannerredirect.dart';
+import '../Views/Home/Screens/Deals Screen/dealsview.dart';
 
 class ImageCarouselSlider extends StatefulWidget {
   const ImageCarouselSlider({super.key});
@@ -119,12 +120,36 @@ class ImageCarouselSliderState extends State<ImageCarouselSlider> {
                 final link = banner['redirect_url'] ?? "";
                 final name = extractLastWord(link);
 
-                Navigator.push(context, MaterialPageRoute(builder: (context) {
-                  return bannerProduct(
-                    brandname: name,
-                    displayTitle: name,
-                  );
-                }));
+                debugPrint("Banner link: $link");
+
+                // Check if link contains "offers/" or "/offers/" - redirect to deals page
+                if (link.contains("offers/") || link.contains("/offers/")) {
+                  // Extract slug from offers link (e.g., "offers/ramadan-offers" -> "ramadan-offers")
+                  String offerSlug = "";
+                  if (link.contains("/offers/")) {
+                    offerSlug = link.split("/offers/").last.split("?").first;
+                  } else {
+                    offerSlug = link.split("offers/").last.split("?").first;
+                  }
+                  // Remove any trailing slashes
+                  offerSlug = offerSlug.replaceAll("/", "");
+
+                  debugPrint("Offer slug: $offerSlug");
+
+                  Navigator.push(context, MaterialPageRoute(builder: (context) {
+                    return offerDeals(
+                      slug: offerSlug,
+                      displayTitle: offerSlug.replaceAll("-", " ").split(' ').map((word) => word.isNotEmpty ? '${word[0].toUpperCase()}${word.substring(1)}' : '').join(' '),
+                    );
+                  }));
+                } else {
+                  Navigator.push(context, MaterialPageRoute(builder: (context) {
+                    return bannerProduct(
+                      brandname: name,
+                      displayTitle: name,
+                    );
+                  }));
+                }
               },
               child: Container(
                 decoration: BoxDecoration(

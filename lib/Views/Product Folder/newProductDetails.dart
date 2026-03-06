@@ -1131,7 +1131,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
     }
   }
 
-  final String phoneNumber = '+971508604360';
+  final String phoneNumber = '+971505033860';
 
   Future<void> _launchWhatsApp() async {
     final message = Uri.encodeComponent(
@@ -2120,7 +2120,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                _actionButton(Icons.chat_bubble_outline,
+                                _actionButtonWithSvg(_chat,
                                     "Chat\nWith Specialist", () {
                                   requestCall();
                                 }),
@@ -2877,6 +2877,38 @@ class _NewProductDetailsState extends State<NewProductDetails>
           child: Column(
             children: [
               Icon(icon, color: kPrimaryColor),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 12),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _actionButtonWithSvg(String svgString, String label, Function()? onTap) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: kPrimaryColor),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            children: [
+              SvgPicture.string(
+                svgString,
+                width: 24,
+                height: 24,
+                colorFilter: ColorFilter.mode(kPrimaryColor, BlendMode.srcIn),
+              ),
               const SizedBox(height: 6),
               Text(
                 label,

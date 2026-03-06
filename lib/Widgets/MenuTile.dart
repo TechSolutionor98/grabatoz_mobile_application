@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:graba2z/Views/Home/Screens/Shop%20Screen/Shop.dart';
 import '../Api/Models/menumodel.dart';
@@ -118,10 +117,10 @@ class _CategoryTileState extends State<CategoryTile> {
           Column(
             children: widget.children.map((child) {
               return CategoryTile(
-                title: child.name ?? '',
-                slug: child.slug ?? '',
-                id: child.id.toString(),
-                children: child.children ?? [],
+                title: child.name,
+                slug: child.slug,
+                id: child.id,
+                children: child.children,
                 level: widget.level + 1,
               );
             }).toList(),

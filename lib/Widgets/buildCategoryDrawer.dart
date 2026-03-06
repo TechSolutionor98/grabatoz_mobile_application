@@ -1,6 +1,5 @@
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
-import '../Api/Models/menumodel.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../Controllers/menuController.dart';
 import '../Utils/packages.dart';
 import '../Views/Home/Screens/Shop Screen/Shop.dart';
@@ -32,6 +31,27 @@ Drawer buildCategoryDrawer() {
               ),
             ),
           ),
+          // Crownyx Tile - Opens website
+          GestureDetector(
+            onTap: () async {
+              final Uri url = Uri.parse('https://www.crownexcel.ae');
+              if (await canLaunchUrl(url)) {
+                await launchUrl(url, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Text(
+                'Crownyx',
+                textAlign: TextAlign.start,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          // Gaming Zone Tile
           GestureDetector(
             onTap: () {
               Get.to(() => Shop(
@@ -60,7 +80,7 @@ Drawer buildCategoryDrawer() {
                 return CategoryTile(
                   title: category.name,
                   slug: category.slug,
-                  id: idValues.reverse[category.id] ?? '',
+                  id: category.id,
                   children: category.children.where((c) => c.level == 1).toList(),
                 );
               }).toList(),
