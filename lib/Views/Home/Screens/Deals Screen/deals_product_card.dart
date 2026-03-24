@@ -1,5 +1,3 @@
-// import 'package:custom_rating_bar/custom_rating_bar.dart';
-
 import 'package:get/get.dart';
 import 'package:graba2z/Api/Models/newProductModel.dart';
 import 'package:graba2z/Configs/config.dart';
@@ -8,7 +6,6 @@ import 'package:graba2z/Controllers/favController.dart';
 import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Utils/image_helper.dart';
 import 'package:graba2z/Views/Product%20Folder/newProductDetails.dart';
-import 'package:url_launcher/url_launcher_string.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_svg/flutter_svg.dart' as svg;
 import 'dart:convert';
@@ -16,7 +13,6 @@ import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:graba2z/Controllers/review_update_bus.dart';
-
 import '../../../../../../Utils/packages.dart';
 
 // Add: small white shopping bag SVG for the button

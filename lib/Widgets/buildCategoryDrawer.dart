@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:graba2z/Views/Home/Screens/Deals%20Screen/dealsview.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../Controllers/menuController.dart';
 import '../Utils/packages.dart';
@@ -17,59 +18,90 @@ Drawer buildCategoryDrawer() {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
+          Container(
             height: 120,
-            child: DrawerHeader(
-              decoration: BoxDecoration(color: kPrimaryColor),
-              child: Center(
-                child: Image.asset(
-                  AppImages.logoicon,
-                  width: 90,
-                  height: 90,
-                  color: kdefwhiteColor,
-                ),
+            color: kPrimaryColor,
+            width: double.infinity,
+            child: Center(
+              child: Image.asset(
+                AppImages.logoicon,
+                width: 90,
+                height: 90,
+                color: kdefwhiteColor,
               ),
             ),
           ),
           // Crownyx Tile - Opens website
           GestureDetector(
             onTap: () async {
-              final Uri url = Uri.parse('https://www.crownexcel.ae');
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url, mode: LaunchMode.externalApplication);
-              }
+            Get.to(()=>offerDeals(
+              displayTitle:"CROWNYX",
+              slug: "crownyx",
+            ));
             },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Text(
-                'Crownyx',
-                textAlign: TextAlign.start,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+            child: Container(
+              color: const Color(0xFF2B3497),
+              width: double.infinity,
+              padding: const EdgeInsets.only(top: 14, bottom: 14, left: 16, right: 22),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'CROWNYX',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF2B3497)),
+                  ),
+                ],
               ),
             ),
           ),
+
+          const Divider(height: 1, thickness: 1, color: Colors.black),
           // Gaming Zone Tile
           GestureDetector(
-            onTap: () {
-              Get.to(() => Shop(
-                id: "",
-                parentType: "",
-                displayTitle: "Gaming Zone",
+            onTap: () async {
+              Get.to(()=>offerDeals(
+                displayTitle:"Gaming Zone",
                 slug: "gaming-zone",
               ));
             },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Text(
-                'Gaming Zone',
-                textAlign: TextAlign.start,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
+            child: Container(
+              color: const Color(0xFF2B3497),
+              width: double.infinity,
+              padding: const EdgeInsets.only(top: 14, bottom: 14, left: 16, right: 22),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Gaming Zone',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF2B3497)),
+                  ),
+                ],
               ),
             ),
           ),
@@ -86,7 +118,6 @@ Drawer buildCategoryDrawer() {
               }).toList(),
             ),
           ),
-
         ],
       );
     }),

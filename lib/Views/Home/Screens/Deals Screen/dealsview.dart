@@ -46,6 +46,7 @@ class _offerDealsState extends State<offerDeals> {
   int _lastProductCount = 0;
 
   // Filter state
+  Map<String, String> _brandLookup = {};
   List<Map<String, String>> _availableBrands = [];
   List<Map<String, String>> _availableCategories = [];
   Set<String> _selectedBrandIds = {};
@@ -131,20 +132,27 @@ class _offerDealsState extends State<offerDeals> {
         final data = jsonDecode(response.body);
         final List<dynamic> brandsList = data is List ? data : data['data'] ?? [];
 
-        final brands = brandsList
-            .where((b) => b is Map<String, dynamic>)
-            .map((b) => {
-          'id': b['_id']?.toString() ?? '',
-          'name': b['name']?.toString() ?? 'Unknown Brand',
-        })
-            .where((b) => (b['id'] as String).isNotEmpty)
-            .toList();
+        final Map<String, String> brandLookup = {};
+        for (final item in brandsList) {
+          if (item is! Map<String, dynamic>) continue;
+
+          final id = (item['_id'] ?? item['id'] ?? '').toString().trim();
+          if (id.isEmpty) continue;
+
+          final name = (item['name'] ?? item['nameAr'] ?? item['_name'] ?? 'Unknown Brand')
+              .toString()
+              .trim();
+          brandLookup[id] = name.isEmpty ? 'Unknown Brand' : name;
+        }
 
         if (mounted) {
           setState(() {
-            _availableBrands = List<Map<String, String>>.from(brands);
+            _brandLookup = brandLookup;
           });
-          log("✅ Fetched ${_availableBrands.length} brands from API");
+          if (controller.productList.isNotEmpty) {
+            _extractBrandsAndCategories();
+          }
+          log("✅ Fetched ${_brandLookup.length} brands from API");
         }
       }
     } catch (e) {
@@ -402,35 +410,37 @@ class _offerDealsState extends State<offerDeals> {
 
     final Map<String, String> brandNameMap = {};
     final Map<String, String> categoryNameMap = {};
-    final List<String> brandIdsToFetch = [];
 
     for (final product in controller.productList) {
       if (product is! Map<String, dynamic>) {
         continue;
       }
 
-      // Extract brand - only from products in current deals
+      // Extract brand from either the embedded object or the legacy id string.
       final brand = product['brand'];
-      if (brand is String && brand.isNotEmpty) {
-        if (!brandNameMap.containsKey(brand)) {
-          // Check if we already have this brand in _availableBrands
-          final existingBrand = _availableBrands.firstWhereOrNull(
-            (b) => b['id'] == brand,
-          );
+      String? brandId;
+      String brandName = '';
 
-          if (existingBrand != null) {
-            brandNameMap[brand] = existingBrand['name'] ?? 'Brand';
-          } else {
-            brandNameMap[brand] = 'Brand'; // Fallback
-            if (!brandIdsToFetch.contains(brand)) {
-              brandIdsToFetch.add(brand);
-            }
-          }
+      if (brand is Map) {
+        final brandMap = Map<String, dynamic>.from(brand);
+        brandId = (brandMap['_id'] ?? brandMap['id'] ?? '').toString().trim();
+        brandName = (brandMap['name'] ?? brandMap['nameAr'] ?? brandMap['_name'] ?? '')
+            .toString()
+            .trim();
+      } else if (brand is String) {
+        brandId = brand.trim();
+        brandName = _brandLookup[brandId] ?? '';
+      }
+
+      if (brandId != null && brandId.isNotEmpty) {
+        if (brandName.isEmpty) {
+          brandName = _brandLookup[brandId] ?? 'Brand';
         }
+        brandNameMap[brandId] = brandName;
       }
 
       // Extract category
-      final category = product['parentCategory'];
+      final category = product['category'];
       if (category is Map<String, dynamic>) {
         final categoryId = category['_id']?.toString();
         final categoryName = category['name']?.toString();
@@ -496,7 +506,7 @@ class _offerDealsState extends State<offerDeals> {
 
       // Check category filter
       if (filterByCategory) {
-        final category = product['parentCategory'];
+        final category = product['category'];
         String? categoryId;
 
         if (category is Map<String, dynamic>) {

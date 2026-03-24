@@ -65,18 +65,18 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        _buildPaymentTile(
-          value: 'Tamara',
-          title: 'Tamara',
-          subtitle: 'Buy now, pay later in 3 installments',
-          logo: 'assets/images/tmara.png', // Replace with your asset
-        ),
-        _buildPaymentTile(
-          value: 'Tabby',
-          title: 'Tabby',
-          subtitle: 'Split your purchase into 4 payments',
-          logo: 'assets/images/tabby.jpg',
-        ),
+        // _buildPaymentTile(
+        //   value: 'Tamara',
+        //   title: 'Tamara',
+        //   subtitle: 'Buy now, pay later in 3 installments',
+        //   logo: 'assets/images/tmara.png', // Replace with your asset
+        // ),
+        // _buildPaymentTile(
+        //   value: 'Tabby',
+        //   title: 'Tabby',
+        //   subtitle: 'Split your purchase into 4 payments',
+        //   logo: 'assets/images/tabby.jpg',
+        // ),
         _buildPaymentTile(
           value: 'Card',
           title: 'Pay By Card',

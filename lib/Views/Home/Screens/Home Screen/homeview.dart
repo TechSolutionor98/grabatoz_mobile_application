@@ -455,108 +455,111 @@ class _HomeScreenViewState extends State<HomeScreenView> {
 
                       return SizedBox(
                         height: 120,
-                        child: Align(
-                          alignment: homeCtrl.category.length <= 3
-                              ? Alignment.center
-                              : Alignment.centerLeft,
-                          child: ListView.builder(
-                            shrinkWrap: homeCtrl.category.length <= 3,
-                            physics: homeCtrl.category.length <= 3
-                                ? const NeverScrollableScrollPhysics()
-                                : const BouncingScrollPhysics(),
-                            scrollDirection: Axis.horizontal,
-                            padding: defaultPadding(horizontal: 8, vertical: 5),
-                            itemCount: itemCount,
-                            itemBuilder: (ctx, index) {
-                              final category = homeCtrl.category[index];
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 10),
-                                child: Column(
-                                  children: [
-                                    GestureDetector(
-                                      onTap: () {
-                                        Get.to(() => offerDeals(
-                                          slug: generateSlug(category.name ?? ''),
-                                          displayTitle: category.name ?? '',
-                                        ));
-                                      },
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          color: kdefgreyColor,
-                                          borderRadius: BorderRadius.circular(6),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black.withValues(alpha: 0.1),
-                                              offset: const Offset(0, 2),
-                                              blurRadius: 3,
-                                              spreadRadius: 1,
-                                            ),
-                                          ],
-                                        ),
-                                        child: CachedNetworkImage(
-                                          imageUrl:
-                                          Configss.baseUrl + (category.image ?? ''),
-                                          imageBuilder: (context, imageProvider) => Container(
-                                            height: 65,
-                                            width: 60,
-                                            decoration: BoxDecoration(
-                                              image: DecorationImage(
-                                                image: imageProvider,
-                                                fit: BoxFit.cover,
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              padding: defaultPadding(horizontal: 8, vertical: 5),
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minWidth: constraints.maxWidth - 16,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: List.generate(itemCount, (index) {
+                                    final category = homeCtrl.category[index];
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                                      child: Column(
+                                        children: [
+                                          GestureDetector(
+                                            onTap: () {
+                                              Get.to(() => offerDeals(
+                                                slug: generateSlug(category.name ?? ''),
+                                                displayTitle: category.name ?? '',
+                                              ));
+                                            },
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: kdefgreyColor,
+                                                borderRadius: BorderRadius.circular(6),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.black.withValues(alpha: 0.1),
+                                                    offset: const Offset(0, 2),
+                                                    blurRadius: 3,
+                                                    spreadRadius: 1,
+                                                  ),
+                                                ],
                                               ),
-                                            ),
-                                          ),
-                                          placeholder: (context, url) => SizedBox(
-                                            height: 65,
-                                            width: 60,
-                                            child: Shimmer.fromColors(
-                                              baseColor: Colors.grey.shade300,
-                                              highlightColor: Colors.grey.shade100,
-                                              child: Container(
-                                                decoration: BoxDecoration(
-                                                  color: Colors.grey,
-                                                  borderRadius: BorderRadius.circular(6),
+                                              child: CachedNetworkImage(
+                                                imageUrl:
+                                                Configss.baseUrl + (category.image ?? ''),
+                                                imageBuilder: (context, imageProvider) => Container(
+                                                  height: 65,
+                                                  width: 60,
+                                                  decoration: BoxDecoration(
+                                                    image: DecorationImage(
+                                                      image: imageProvider,
+                                                      fit: BoxFit.cover,
+                                                    ),
+                                                  ),
+                                                ),
+                                                placeholder: (context, url) => SizedBox(
+                                                  height: 65,
+                                                  width: 60,
+                                                  child: Shimmer.fromColors(
+                                                    baseColor: Colors.grey.shade300,
+                                                    highlightColor: Colors.grey.shade100,
+                                                    child: Container(
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.grey,
+                                                        borderRadius: BorderRadius.circular(6),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                errorWidget: (context, url, error) => Container(
+                                                  height: 65,
+                                                  width: 60,
+                                                  decoration: BoxDecoration(
+                                                    borderRadius: BorderRadius.circular(6),
+                                                    image: const DecorationImage(
+                                                      image: AssetImage(
+                                                          'assets/images/noimage.png'),
+                                                      fit: BoxFit.contain,
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
                                             ),
                                           ),
-                                          errorWidget: (context, url, error) => Container(
-                                            height: 65,
-                                            width: 60,
-                                            decoration: BoxDecoration(
-                                              borderRadius: BorderRadius.circular(6),
-                                              image: const DecorationImage(
-                                                image: AssetImage(
-                                                    'assets/images/noimage.png'),
-                                                fit: BoxFit.contain,
-                                              ),
+                                          8.0.heightbox,
+                                          Text(
+                                            (category.name?.characters
+                                                .take(12)
+                                                .toString() ??
+                                                '') +
+                                                ((category.name?.length ?? 0) > 12
+                                                    ? '...'
+                                                    : ''),
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: kSecondaryColor,
                                             ),
+                                            textAlign: TextAlign.center,
+                                            maxLines: 1,
                                           ),
-                                        ),
+                                        ],
                                       ),
-                                    ),
-                                    8.0.heightbox,
-                                    Text(
-                                      (category.name?.characters
-                                          .take(12)
-                                          .toString() ??
-                                          '') +
-                                          ((category.name?.length ?? 0) > 12
-                                              ? '...'
-                                              : ''),
-                                      style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: kSecondaryColor,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 1,
-                                    ),
-                                  ],
+                                    );
+                                  }),
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                            );
+                          },
                         ),
                       );
                     },
@@ -671,15 +674,15 @@ class _HomeScreenViewState extends State<HomeScreenView> {
                     ),
                   ),
 
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8.0, vertical: 0.0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8.0),
-                      child: Image.asset('assets/images/tamara.png',
-                          height: 70, fit: BoxFit.fill, width: double.infinity),
-                    ),
-                  ),
+                  // Padding(
+                  //   padding: const EdgeInsets.symmetric(
+                  //       horizontal: 8.0, vertical: 0.0),
+                  //   child: ClipRRect(
+                  //     borderRadius: BorderRadius.circular(8.0),
+                  //     child: Image.asset('assets/images/tamara.png',
+                  //         height: 70, fit: BoxFit.fill, width: double.infinity),
+                  //   ),
+                  // ),
 
                   const SizedBox(height: 10.0),
 

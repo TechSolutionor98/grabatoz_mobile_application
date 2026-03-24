@@ -62,7 +62,7 @@ class _ShopState extends State<Shop> {
 
     // Create unique tag for this Shop instance
     _controllerTag =
-        'shop_${widget.id ?? 'default'}_${DateTime.now().millisecondsSinceEpoch}';
+    'shop_${widget.id ?? 'default'}_${DateTime.now().millisecondsSinceEpoch}';
     controller = Get.put(ShopController(), tag: _controllerTag);
 
     if (widget.slug == 'gaming-zone') {
@@ -164,7 +164,7 @@ class _ShopState extends State<Shop> {
             Transform.rotate(
               angle: _sortMenuOpen ? 3.14159 : 0,
               child:
-                  const Icon(Icons.expand_more, size: 16, color: Colors.black),
+              const Icon(Icons.expand_more, size: 16, color: Colors.black),
             ),
           ],
         ),
@@ -185,7 +185,7 @@ class _ShopState extends State<Shop> {
       // FIX: was MaterialStateProperty.shrinkWrap
       visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
       backgroundColor: MaterialStateProperty.resolveWith<Color>(
-        (states) => states.contains(MaterialState.pressed)
+            (states) => states.contains(MaterialState.pressed)
             ? green700
             : green600, // hover/pressed -> green-700
       ),
@@ -283,7 +283,7 @@ class _ShopState extends State<Shop> {
         break;
       case 'Newest First':
       default:
-        // Preserve incoming order (already grouped)
+      // Preserve incoming order (already grouped)
         return base;
     }
 
@@ -328,8 +328,8 @@ class _ShopState extends State<Shop> {
     final categoryId = filters['categoryId']?.toString() ?? '';
     final subCategoryId = filters['subCategoryId']?.toString() ?? '';
     final selectedBrandIds = (filters['selectedBrandIds'] as List<dynamic>?)
-            ?.map((e) => e.toString())
-            .toList() ??
+        ?.map((e) => e.toString())
+        .toList() ??
         [];
 
     // Reset case: all filters empty (including brands)
@@ -625,7 +625,7 @@ class _ShopState extends State<Shop> {
                   mainAxisSpacing: 8,
                 ),
                 delegate: SliverChildBuilderDelegate(
-                  (context, index) {
+                      (context, index) {
                     final product = products[index];
                     return NewProductCard(
                       prdouctList: product,
@@ -643,16 +643,16 @@ class _ShopState extends State<Shop> {
                 child: Center(
                   child: (visibleCount < displayable.length)
                       ? ElevatedButton(
-                          style: _webLikeLoadMoreStyle(),
-                          onPressed: () {
-                            final total = displayable.length;
-                            final next = visibleCount + pageSize;
-                            setState(() {
-                              visibleCount = next > total ? total : next;
-                            });
-                          },
-                          child: const Text('Load More'),
-                        )
+                    style: _webLikeLoadMoreStyle(),
+                    onPressed: () {
+                      final total = displayable.length;
+                      final next = visibleCount + pageSize;
+                      setState(() {
+                        visibleCount = next > total ? total : next;
+                      });
+                    },
+                    child: const Text('Load More'),
+                  )
                       : const SizedBox.shrink(),
                 ),
               ),

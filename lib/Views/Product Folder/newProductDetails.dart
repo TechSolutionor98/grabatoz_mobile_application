@@ -1942,176 +1942,176 @@ class _NewProductDetailsState extends State<NewProductDetails>
                                   color: kSecondaryColor,
                                 ),
                               ),
-                        const SizedBox(height: 10),
-                        Builder(
-                          builder: (_) {
-                            final offer =
-                                double.tryParse(widget.offerPrice) ?? 0.0;
-                            final regular =
-                                double.tryParse(widget.price) ?? 0.0;
-                            const double eps = 0.0001;
-                            final useOffer = offer > eps &&
-                                (regular <= eps || offer < regular);
-                            final price = useOffer ? offer : regular;
-                            final monthly = price > eps ? (price / 4.0) : 0.0;
-
-                            return GestureDetector(
-                              onTap: () {
-                                if (price > eps) {
-                                  Get.to(() => TamaraInfoScreen(price: price));
-                                }
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
-                                ),
-                                padding: const EdgeInsets.all(12),
-                                child: RichText(
-                                  text: TextSpan(
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF374151), // gray-700
-                                    ),
-                                    children: [
-                                      const TextSpan(
-                                          text: 'Or split in 4 payments of '),
-                                      TextSpan(
-                                        text:
-                                            'AED ${monthly.toStringAsFixed(2)}/mo',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF111827), // gray-900
-                                        ),
-                                      ),
-                                      const TextSpan(
-                                          text:
-                                              ' - No late fees, Sharia compliant!\n'),
-                                      const TextSpan(text: 'More options '),
-                                      WidgetSpan(
-                                        alignment: PlaceholderAlignment.middle,
-                                        child: Container(
-                                          margin:
-                                              const EdgeInsets.only(left: 6),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 2),
-                                          decoration: BoxDecoration(
-                                            borderRadius:
-                                                BorderRadius.circular(999),
-                                            gradient: const LinearGradient(
-                                              colors: [
-                                                Color(0xFFFBCFE8),
-                                                // pink-300
-                                                Color(0xFFD8B4FE),
-                                                // purple-300
-                                                Color(0xFFBFDBFE),
-                                                // indigo-300 (approx)
-                                              ],
-                                            ),
-                                          ),
-                                          child: const Text(
-                                            'tamara',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.bold,
-                                              color:
-                                                  Color(0xFF111827), // gray-900
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        Builder(
-                          builder: (_) {
-                            final offer =
-                                double.tryParse(widget.offerPrice) ?? 0.0;
-                            final regular =
-                                double.tryParse(widget.price) ?? 0.0;
-                            const double eps = 0.0001;
-                            final useOffer = offer > eps &&
-                                (regular <= eps || offer < regular);
-                            final price = useOffer ? offer : regular;
-                            final monthly12 =
-                                price > eps ? (price / 12.0) : 0.0;
-                            final monthly4 = price > eps
-                                ? (price / 4.0)
-                                : 0.0; // informational only
-
-                            return GestureDetector(
-                              onTap: () {
-                                if (price > eps) {
-                                  Get.to(() => TabbyInfoScreen(price: price));
-                                }
-                              },
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border:
-                                      Border.all(color: Colors.grey.shade300),
-                                ),
-                                padding: const EdgeInsets.all(12),
-                                child: RichText(
-                                  text: TextSpan(
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF374151), // gray-700
-                                    ),
-                                    children: [
-                                      const TextSpan(text: 'As low as '),
-                                      TextSpan(
-                                        text:
-                                            'AED ${monthly12.toStringAsFixed(2)}/mo',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF111827), // gray-900
-                                        ),
-                                      ),
-                                      const TextSpan(
-                                          text:
-                                              ' or 4 interest-free payments. '),
-                                      const TextSpan(
-                                        text: 'Learn more',
-                                      ),
-                                      WidgetSpan(
-                                        alignment: PlaceholderAlignment.middle,
-                                        child: Container(
-                                          margin:
-                                              const EdgeInsets.only(left: 6),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 3),
-                                          decoration: BoxDecoration(
-                                            color: Color(
-                                                0xFF059669), // emerald-600
-                                            borderRadius:
-                                                BorderRadius.circular(6),
-                                          ),
-                                          child: const Text(
-                                            'tabby',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w800,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                        // const SizedBox(height: 10),
+                        // Builder(
+                        //   builder: (_) {
+                        //     final offer =
+                        //         double.tryParse(widget.offerPrice) ?? 0.0;
+                        //     final regular =
+                        //         double.tryParse(widget.price) ?? 0.0;
+                        //     const double eps = 0.0001;
+                        //     final useOffer = offer > eps &&
+                        //         (regular <= eps || offer < regular);
+                        //     final price = useOffer ? offer : regular;
+                        //     final monthly = price > eps ? (price / 4.0) : 0.0;
+                        //
+                        //     return GestureDetector(
+                        //       onTap: () {
+                        //         if (price > eps) {
+                        //           Get.to(() => TamaraInfoScreen(price: price));
+                        //         }
+                        //       },
+                        //       child: Container(
+                        //         decoration: BoxDecoration(
+                        //           color: Colors.white,
+                        //           borderRadius: BorderRadius.circular(12),
+                        //           border:
+                        //               Border.all(color: Colors.grey.shade300),
+                        //         ),
+                        //         padding: const EdgeInsets.all(12),
+                        //         child: RichText(
+                        //           text: TextSpan(
+                        //             style: const TextStyle(
+                        //               fontSize: 12,
+                        //               color: Color(0xFF374151), // gray-700
+                        //             ),
+                        //             children: [
+                        //               const TextSpan(
+                        //                   text: 'Or split in 4 payments of '),
+                        //               TextSpan(
+                        //                 text:
+                        //                     'AED ${monthly.toStringAsFixed(2)}/mo',
+                        //                 style: const TextStyle(
+                        //                   fontWeight: FontWeight.w600,
+                        //                   color: Color(0xFF111827), // gray-900
+                        //                 ),
+                        //               ),
+                        //               const TextSpan(
+                        //                   text:
+                        //                       ' - No late fees, Sharia compliant!\n'),
+                        //               const TextSpan(text: 'More options '),
+                        //               WidgetSpan(
+                        //                 alignment: PlaceholderAlignment.middle,
+                        //                 child: Container(
+                        //                   margin:
+                        //                       const EdgeInsets.only(left: 6),
+                        //                   padding: const EdgeInsets.symmetric(
+                        //                       horizontal: 8, vertical: 2),
+                        //                   decoration: BoxDecoration(
+                        //                     borderRadius:
+                        //                         BorderRadius.circular(999),
+                        //                     gradient: const LinearGradient(
+                        //                       colors: [
+                        //                         Color(0xFFFBCFE8),
+                        //                         // pink-300
+                        //                         Color(0xFFD8B4FE),
+                        //                         // purple-300
+                        //                         Color(0xFFBFDBFE),
+                        //                         // indigo-300 (approx)
+                        //                       ],
+                        //                     ),
+                        //                   ),
+                        //                   child: const Text(
+                        //                     'tamara',
+                        //                     style: TextStyle(
+                        //                       fontSize: 11,
+                        //                       fontWeight: FontWeight.bold,
+                        //                       color:
+                        //                           Color(0xFF111827), // gray-900
+                        //                     ),
+                        //                   ),
+                        //                 ),
+                        //               ),
+                        //             ],
+                        //           ),
+                        //         ),
+                        //       ),
+                        //     );
+                        //   },
+                        // ),
+                        // const SizedBox(height: 8),
+                        // Builder(
+                        //   builder: (_) {
+                        //     final offer =
+                        //         double.tryParse(widget.offerPrice) ?? 0.0;
+                        //     final regular =
+                        //         double.tryParse(widget.price) ?? 0.0;
+                        //     const double eps = 0.0001;
+                        //     final useOffer = offer > eps &&
+                        //         (regular <= eps || offer < regular);
+                        //     final price = useOffer ? offer : regular;
+                        //     final monthly12 =
+                        //         price > eps ? (price / 12.0) : 0.0;
+                        //     final monthly4 = price > eps
+                        //         ? (price / 4.0)
+                        //         : 0.0; // informational only
+                        //
+                        //     return GestureDetector(
+                        //       onTap: () {
+                        //         if (price > eps) {
+                        //           Get.to(() => TabbyInfoScreen(price: price));
+                        //         }
+                        //       },
+                        //       child: Container(
+                        //         decoration: BoxDecoration(
+                        //           color: Colors.white,
+                        //           borderRadius: BorderRadius.circular(12),
+                        //           border:
+                        //               Border.all(color: Colors.grey.shade300),
+                        //         ),
+                        //         padding: const EdgeInsets.all(12),
+                        //         child: RichText(
+                        //           text: TextSpan(
+                        //             style: const TextStyle(
+                        //               fontSize: 12,
+                        //               color: Color(0xFF374151), // gray-700
+                        //             ),
+                        //             children: [
+                        //               const TextSpan(text: 'As low as '),
+                        //               TextSpan(
+                        //                 text:
+                        //                     'AED ${monthly12.toStringAsFixed(2)}/mo',
+                        //                 style: const TextStyle(
+                        //                   fontWeight: FontWeight.w600,
+                        //                   color: Color(0xFF111827), // gray-900
+                        //                 ),
+                        //               ),
+                        //               const TextSpan(
+                        //                   text:
+                        //                       ' or 4 interest-free payments. '),
+                        //               const TextSpan(
+                        //                 text: 'Learn more',
+                        //               ),
+                        //               WidgetSpan(
+                        //                 alignment: PlaceholderAlignment.middle,
+                        //                 child: Container(
+                        //                   margin:
+                        //                       const EdgeInsets.only(left: 6),
+                        //                   padding: const EdgeInsets.symmetric(
+                        //                       horizontal: 8, vertical: 3),
+                        //                   decoration: BoxDecoration(
+                        //                     color: Color(
+                        //                         0xFF059669), // emerald-600
+                        //                     borderRadius:
+                        //                         BorderRadius.circular(6),
+                        //                   ),
+                        //                   child: const Text(
+                        //                     'tabby',
+                        //                     style: TextStyle(
+                        //                       fontSize: 12,
+                        //                       fontWeight: FontWeight.w800,
+                        //                       color: Colors.white,
+                        //                     ),
+                        //                   ),
+                        //                 ),
+                        //               ),
+                        //             ],
+                        //           ),
+                        //         ),
+                        //       ),
+                        //     );
+                        //   },
+                        // ),
                         SizedBox(
                           height: 10,
                         ),
