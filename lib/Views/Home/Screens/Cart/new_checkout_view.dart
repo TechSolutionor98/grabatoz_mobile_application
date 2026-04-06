@@ -991,7 +991,7 @@ class _CheckoutStepperState extends State<CheckoutStepper> {
             alignment: Alignment.centerRight,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+                backgroundColor: kPrimaryColor,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),

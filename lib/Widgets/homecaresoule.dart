@@ -97,6 +97,7 @@ class ImageCarouselSliderState extends State<ImageCarouselSlider> {
 
   Future<void> loadBanners() async {
     bannerList = await fetchBanners(); // fetch list of maps
+    if (!mounted) return;
     setState(() {}); // update UI
   }
 
@@ -185,6 +186,7 @@ class ImageCarouselSliderState extends State<ImageCarouselSlider> {
             autoPlay: true,
             autoPlayInterval: const Duration(seconds: 6),
             onPageChanged: (index, reason) {
+              if (!mounted) return;
               setState(() {
                 _currentIndex = index;
               });

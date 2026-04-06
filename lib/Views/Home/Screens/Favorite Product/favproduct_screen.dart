@@ -16,6 +16,19 @@ class Favorite extends StatefulWidget {
   State<Favorite> createState() => _FavoriteState();
 }
 class _FavoriteState extends State<Favorite> {
+  void _handleBack() {
+    final navigator = Navigator.of(context);
+
+    if (navigator.canPop()) {
+      navigator.pop();
+      return;
+    }
+
+    if (Get.isRegistered<BottomNavigationController>()) {
+      Get.find<BottomNavigationController>().setTabIndex(0);
+    }
+  }
+
   void _showAddedToCartPopup() {
     final overlay = Overlay.of(context, rootOverlay: true);
     if (overlay == null) return;
@@ -115,72 +128,76 @@ class _FavoriteState extends State<Favorite> {
   Widget build(BuildContext context) {
     final provider = FavoriteController.of(context, listen: true);
     final favoriteList = provider.favorites;
-     final navigationProvider = Get.put(BottomNavigationController());
-
-    return Scaffold(
-      appBar: CustomAppBar(
-        showLeading: true,
-        leadingWidget: Builder(builder:(context){
-         return IconButton(onPressed: () {
-            navigationProvider.setTabIndex(0);
-          }, icon: const Icon(Icons.arrow_back_ios, size: 20),);
-        }),
-        titleText: "Favorites",
-        actionicon: GetBuilder<CartNotifier>(
-          builder: (
-            cartNotifier,
-          ) {
-            return Stack(
-              alignment: Alignment.topRight,
-              children: [
-                // The cart icon
-                GestureDetector(
-                  onTap: () {
-                    context.route(Cart());
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 5.0),
-                    child: Image.asset(
-                      "assets/icons/addcart.png",
-                      color: kdefwhiteColor,
-                      width: 28,
-                      height: 28,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _handleBack();
+        }
+      },
+      child: Scaffold(
+        appBar: CustomAppBar(
+          showLeading: true,
+          leadingWidget: IconButton(
+            onPressed: _handleBack,
+            icon: const Icon(Icons.arrow_back_ios, size: 20),
+          ),
+          titleText: "Favorites",
+          actionicon: GetBuilder<CartNotifier>(
+            builder: (
+              cartNotifier,
+            ) {
+              return Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  // The cart icon
+                  GestureDetector(
+                    onTap: () {
+                      context.route(Cart());
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 5.0),
+                      child: Image.asset(
+                        "assets/icons/addcart.png",
+                        color: kdefwhiteColor,
+                        width: 28,
+                        height: 28,
+                      ),
                     ),
                   ),
-                ),
-                // The dynamic badge showing cart count
-                if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      width: 18,
-                      height: 18,
-                      decoration: const BoxDecoration(
-                        color: kredColor,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        cartNotifier.cartOtherInfoList.length.toString(),
-                        style: const TextStyle(
-                          color: kdefwhiteColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                  // The dynamic badge showing cart count
+                  if (cartNotifier.cartOtherInfoList.isNotEmpty) ...[
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: const BoxDecoration(
+                          color: kredColor,
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          cartNotifier.cartOtherInfoList.length.toString(),
+                          style: const TextStyle(
+                            color: kdefwhiteColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
-            );
-          },
+              );
+            },
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: GetBuilder<AuthController>(builder: (
-          authProvider,
-        ) {
+        body: SafeArea(
+          child: GetBuilder<AuthController>(builder: (
+            authProvider,
+          ) {
           int getCrossAxisCount(BuildContext context) {
             final width = MediaQuery.of(context).size.width;
             if (width >= 1100) return 8;
@@ -307,7 +324,8 @@ class _FavoriteState extends State<Favorite> {
                     },
                   ),
                 );
-        }),
+          }),
+        ),
       ),
     );
   }

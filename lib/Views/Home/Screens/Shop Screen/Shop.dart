@@ -64,17 +64,12 @@ class _ShopState extends State<Shop> {
     _controllerTag =
     'shop_${widget.id ?? 'default'}_${DateTime.now().millisecondsSinceEpoch}';
     controller = Get.put(ShopController(), tag: _controllerTag);
-
-    if (widget.slug == 'gaming-zone') {
-      controller.fetchGamingZoneProducts(slug: widget.slug!);
-      log("Fetching gaming zone products");
-    } else {
       controller.fetchProducts(
         id: widget.id,
         parentType: widget.parentType,
       );
       log("Fetching products for id=${widget.id}, parentType=${widget.parentType}");
-    }
+    
   }
 
   @override
@@ -214,8 +209,7 @@ class _ShopState extends State<Shop> {
       num? offerPriceNum;
 
       if (offerPrice is num) {
-        offerPriceNum = offerPrice;
-      } else if (offerPrice is String) {
+        } else if (offerPrice is String) {
         offerPriceNum = num.tryParse(offerPrice);
       }
 

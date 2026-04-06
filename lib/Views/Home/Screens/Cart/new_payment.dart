@@ -264,7 +264,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.lightGreen,
+                        backgroundColor: kPrimaryColor,
                       ),
                       child: Obx(
                         () => Text(

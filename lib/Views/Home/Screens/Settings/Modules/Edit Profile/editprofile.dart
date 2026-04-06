@@ -25,6 +25,7 @@ class EditProfileState extends State<EditProfile> {
   String selectedCountryCode = '+971';
   String initialCountryCode = 'AE';
   bool _isParsingPhone = false; // Flag to prevent recursive parsing
+  final TextEditingController _phoneDisplayController = TextEditingController();
 
   // Country dial code to ISO code mapping
   final Map<String, String> dialCodeToCountry = {
@@ -83,9 +84,15 @@ class EditProfileState extends State<EditProfile> {
     if (_isParsingPhone) return; // Prevent recursive calls
 
     final phone = _authController.editPhoneController.text.trim();
-    // Only parse if the phone has country code format and hasn't been parsed yet
-    if (phone.isNotEmpty && phone.startsWith('+') && completePhoneNumber != phone) {
+    // Keep the visible field in sync with the stored full phone number.
+    if (phone.isNotEmpty && completePhoneNumber != phone) {
       _parseAndSetCountry(phone);
+    } else if (phone.isEmpty) {
+      _phoneDisplayController.clear();
+      completePhoneNumber = '';
+      selectedCountryCode = '+971';
+      initialCountryCode = 'AE';
+      if (mounted) setState(() {});
     }
   }
 
@@ -95,7 +102,7 @@ class EditProfileState extends State<EditProfile> {
 
     _isParsingPhone = true; // Set flag to prevent recursive calls
 
-    String cleanPhone = phone.trim();
+    String cleanPhone = phone.trim().replaceAll(RegExp(r'[\s\-\(\)]'), '');
     if (!cleanPhone.startsWith('+')) {
       cleanPhone = '+$cleanPhone';
     }
@@ -107,13 +114,14 @@ class EditProfileState extends State<EditProfile> {
     for (String dialCode in sortedCodes) {
       if (cleanPhone.startsWith(dialCode)) {
         String numberPart = cleanPhone.substring(dialCode.length);
+        final digitsOnlyNumber = _digitsOnly(numberPart);
 
         initialCountryCode = dialCodeToCountry[dialCode]!;
         selectedCountryCode = dialCode;
-        completePhoneNumber = cleanPhone;
+        completePhoneNumber = digitsOnlyNumber.isEmpty ? '' : cleanPhone;
 
-        // Update controller with just the number part (no country code)
-        _authController.editPhoneController.text = numberPart;
+        // Show only the national number in the field; keep the full number separately.
+        _phoneDisplayController.text = digitsOnlyNumber;
 
         if (mounted) setState(() {});
 
@@ -121,6 +129,12 @@ class EditProfileState extends State<EditProfile> {
         return;
       }
     }
+
+    final digitsOnlyPhone = _digitsOnly(cleanPhone);
+    _phoneDisplayController.text = digitsOnlyPhone;
+    completePhoneNumber = digitsOnlyPhone.isEmpty ? '' : cleanPhone;
+
+    if (mounted) setState(() {});
 
     _isParsingPhone = false; // Reset flag if no match found
   }
@@ -142,6 +156,7 @@ class EditProfileState extends State<EditProfile> {
   void dispose() {
     _authController.editStateController.removeListener(_onStateChanged);
     _authController.editPhoneController.removeListener(_onPhoneChanged);
+    _phoneDisplayController.dispose();
     _verificationCodeController.dispose();
     super.dispose();
   }
@@ -214,8 +229,8 @@ class EditProfileState extends State<EditProfile> {
                                       textColor: kdefwhiteColor,
                                       onPressFunction: () {
                                         // Validate phone if entered
-                                        final phone = _authController.editPhoneController.text.trim();
-                                        if (phone.isNotEmpty && phone.length < 6) {
+                                        final phone = _phoneDisplayController.text.trim();
+                                        if (phone.isNotEmpty && _digitsOnly(phone).length < 6) {
                                           setState(() {
                                             _phoneError = 'Enter a valid phone number';
                                           });
@@ -227,7 +242,7 @@ class EditProfileState extends State<EditProfile> {
                                         // Use complete phone number with country code
                                         final fullPhone = completePhoneNumber.isNotEmpty
                                             ? completePhoneNumber
-                                            : phone;
+                                            : (phone.isNotEmpty ? '$selectedCountryCode${_digitsOnly(phone)}' : '');
 
                                         _authController.sendUserData(
                                           phone: fullPhone,
@@ -310,24 +325,25 @@ class EditProfileState extends State<EditProfile> {
           SizedBox(height: 6),
           IntlPhoneField(
             key: ValueKey(initialCountryCode),
-            controller: _authController.editPhoneController,
+            controller: _phoneDisplayController,
             decoration: InputDecoration(
-              labelText: 'Phone Number',
               hintText: 'Enter phone number',
               hintStyle: TextStyle(color: Colors.grey, fontSize: 13),
               border: OutlineInputBorder(),
               errorText: _phoneError,
             ),
             initialCountryCode: initialCountryCode,
-            disableLengthCheck: false,
+            disableLengthCheck: true,
             dropdownIconPosition: IconPosition.trailing,
             flagsButtonPadding: const EdgeInsets.only(left: 10),
             showDropdownIcon: true,
             dropdownTextStyle: const TextStyle(fontSize: 14),
             onChanged: (PhoneNumber phone) {
               setState(() {
-                completePhoneNumber = phone.completeNumber;
-                selectedCountryCode = '+${phone.countryCode}';
+                completePhoneNumber = phone.number.isEmpty ? '' : phone.completeNumber;
+                selectedCountryCode = phone.countryCode.startsWith('+')
+                    ? phone.countryCode
+                    : '+${phone.countryCode}';
                 if (phone.number.isEmpty) {
                   _phoneError = null;
                 } else {
@@ -337,7 +353,10 @@ class EditProfileState extends State<EditProfile> {
             },
             onCountryChanged: (country) {
               setState(() {
+                initialCountryCode = country.code;
                 selectedCountryCode = '+${country.dialCode}';
+                final digits = _digitsOnly(_phoneDisplayController.text);
+                completePhoneNumber = digits.isEmpty ? '' : '$selectedCountryCode$digits';
               });
             },
           ),

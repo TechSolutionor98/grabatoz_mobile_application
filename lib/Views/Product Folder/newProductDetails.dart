@@ -34,6 +34,7 @@ import 'package:graba2z/Controllers/review_update_bus.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
+import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
 import '../Home/Screens/Search Screen/searchscreensecond.dart';
 
@@ -47,6 +48,9 @@ const String _homeSvg = '''
 const String _chat = '''
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-circle-icon lucide-message-circle"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></svg>
 ''';
+
+const String _placeholderProductImageUrl =
+    'https://i.postimg.cc/SsWYSvq6/noimage.png';
 
 class NewProductDetails extends StatefulWidget {
   List images;
@@ -470,7 +474,57 @@ class _NewProductDetailsState extends State<NewProductDetails>
     if (img != null && img.isNotEmpty) return img;
     final g = p['galleryImages'];
     if (g is List && g.isNotEmpty && g.first != null) return g.first.toString();
-    return 'https://i.postimg.cc/SsWYSvq6/noimage.png';
+    return _placeholderProductImageUrl;
+  }
+
+  String _rawImageAt(int index) {
+    if (index < 0 || index >= widget.images.length) {
+      return _placeholderProductImageUrl;
+    }
+
+    final raw = widget.images[index];
+    if (raw == null) return _placeholderProductImageUrl;
+
+    final value = raw.toString().trim();
+    return value.isEmpty ? _placeholderProductImageUrl : value;
+  }
+
+  List<String> _imageUrlsForViewer() {
+    final urls = <String>[];
+
+    for (final image in widget.images) {
+      if (image == null) continue;
+      final raw = image.toString().trim();
+      if (raw.isEmpty) continue;
+      urls.add(ImageHelper.getUrl(raw));
+    }
+
+    if (urls.isEmpty) {
+      urls.add(_placeholderProductImageUrl);
+    }
+
+    return urls;
+  }
+
+  void _openImageViewer({required int initialIndex}) {
+    final imageUrls = _imageUrlsForViewer();
+    final safeIndex = initialIndex.clamp(0, imageUrls.length - 1);
+
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: true,
+        transitionDuration: const Duration(milliseconds: 180),
+        pageBuilder: (_, __, ___) {
+          return _ProductImageViewer(
+            imageUrls: imageUrls,
+            initialIndex: safeIndex,
+          );
+        },
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
   }
 
   @override
@@ -508,9 +562,8 @@ class _NewProductDetailsState extends State<NewProductDetails>
     });
 
     _selectedImageUrl = widget.images.isNotEmpty
-        ? ImageHelper.getUrl(widget.images.first) ??
-            "https://i.postimg.cc/SsWYSvq6/noimage.png"
-        : "https://i.postimg.cc/SsWYSvq6/noimage.png";
+        ? ImageHelper.getUrl(_rawImageAt(0))
+        : _placeholderProductImageUrl;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -1420,7 +1473,7 @@ class _NewProductDetailsState extends State<NewProductDetails>
   Widget build(BuildContext context) {
     log('NewProductDetails build START ------------------------');
     log('NewProductDetails build: Product ID: ${widget.productId}, Name: ${widget.name}');
-    const placeholderImage = 'https://i.postimg.cc/SsWYSvq6/noimage.png';
+    const placeholderImage = _placeholderProductImageUrl;
 
     try {
       return Scaffold(
@@ -1513,55 +1566,52 @@ class _NewProductDetailsState extends State<NewProductDetails>
                               itemCount: widget.images.length,
                               itemBuilder: (BuildContext context, int itemIndex,
                                   int pageViewIndex) {
-                                String imageUrl =
-                                    (widget.images[itemIndex] is String
-                                            ? widget.images[itemIndex]
-                                            : null) ??
-                                        _selectedImageUrl.toString();
+                                String imageUrl = _rawImageAt(itemIndex);
                                 String urlForImage =
                                     ImageHelper.getUrl(imageUrl);
 
-                                if (imageUrl.isEmpty)
-                                  imageUrl = placeholderImage;
-
-                                return CachedNetworkImage(
-                                  imageUrl: urlForImage,
-                                  imageBuilder: (context, imageProvider) =>
-                                      Container(
-                                    constraints: BoxConstraints(
-                                      maxHeight:
-                                          MediaQuery.of(context).size.height *
-                                              0.3,
-                                      maxWidth:
-                                          MediaQuery.of(context).size.width,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      image: DecorationImage(
-                                        image: imageProvider,
-                                        fit: BoxFit.contain,
+                                return GestureDetector(
+                                  onTap: () =>
+                                      _openImageViewer(initialIndex: itemIndex),
+                                  child: CachedNetworkImage(
+                                    imageUrl: urlForImage,
+                                    imageBuilder: (context, imageProvider) =>
+                                        Container(
+                                      constraints: BoxConstraints(
+                                        maxHeight:
+                                            MediaQuery.of(context).size.height *
+                                                0.3,
+                                        maxWidth:
+                                            MediaQuery.of(context).size.width,
                                       ),
-                                    ),
-                                  ),
-                                  placeholder: (context, url) =>
-                                      Shimmer.fromColors(
-                                    baseColor: Colors.grey.shade300,
-                                    highlightColor: Colors.grey.shade100,
-                                    child: Container(
                                       decoration: BoxDecoration(
-                                        color: Colors.grey.shade300,
+                                        image: DecorationImage(
+                                          image: imageProvider,
+                                          fit: BoxFit.contain,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  errorWidget: (context, url, error) =>
-                                      Container(
-                                    height: 100,
-                                    width: 150,
-                                    decoration: BoxDecoration(
-                                      image: const DecorationImage(
-                                        image: AssetImage(
-                                          'assets/images/noimage.png',
+                                    placeholder: (context, url) =>
+                                        Shimmer.fromColors(
+                                      baseColor: Colors.grey.shade300,
+                                      highlightColor: Colors.grey.shade100,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.shade300,
                                         ),
-                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                    errorWidget: (context, url, error) =>
+                                        Container(
+                                      height: 100,
+                                      width: 150,
+                                      decoration: BoxDecoration(
+                                        image: const DecorationImage(
+                                          image: AssetImage(
+                                            'assets/images/noimage.png',
+                                          ),
+                                          fit: BoxFit.contain,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -1573,18 +1623,10 @@ class _NewProductDetailsState extends State<NewProductDetails>
                                 autoPlay: false,
                                 autoPlayInterval: const Duration(seconds: 3),
                                 onPageChanged: (index, reason) {
+                                  if (!mounted) return;
                                   setState(() {
                                     _currentImageIndex = index;
-                                    String newSelectedImageUrl =
-                                        (widget.images[index] is String
-                                                ? widget.images[index]
-                                                : null) ??
-                                            placeholderImage.toString();
-
-                                    if (newSelectedImageUrl.isEmpty)
-                                      newSelectedImageUrl =
-                                          placeholderImage;
-                                    _selectedImageUrl = newSelectedImageUrl;
+                                    _selectedImageUrl = _rawImageAt(index);
                                   });
                                 },
                               ),
@@ -3566,6 +3608,239 @@ class _NewProductDetailsState extends State<NewProductDetails>
       discountedTotal: disc,
       savings: sav,
       selectedCount: count
+    );
+  }
+}
+
+class _ProductImageViewer extends StatefulWidget {
+  final List<String> imageUrls;
+  final int initialIndex;
+
+  const _ProductImageViewer({
+    required this.imageUrls,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_ProductImageViewer> createState() => _ProductImageViewerState();
+}
+
+class _ProductImageViewerState extends State<_ProductImageViewer> {
+  late final PageController _pageController;
+  List<TransformationController> _zoomControllers = <TransformationController>[];
+  late int _currentIndex;
+  Offset _doubleTapPosition = Offset.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+    _zoomControllers = List.generate(
+      widget.imageUrls.length,
+      (_) => TransformationController(),
+    );
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _zoomControllers) {
+      controller.dispose();
+    }
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  bool _isZoomed(int index) {
+    if (index < 0 || index >= _zoomControllers.length) return false;
+    return _zoomControllers[index].value.getMaxScaleOnAxis() > 1.01;
+  }
+
+  void _toggleZoom(int index) {
+    if (index < 0 || index >= _zoomControllers.length) return;
+
+    final controller = _zoomControllers[index];
+    final isZoomed = controller.value.getMaxScaleOnAxis() > 1.01;
+
+    if (isZoomed) {
+      controller.value = Matrix4.identity();
+      return;
+    }
+
+    final scale = 2.5;
+    final dx = -_doubleTapPosition.dx * (scale - 1);
+    final dy = -_doubleTapPosition.dy * (scale - 1);
+    controller.value = Matrix4.identity()
+      ..translate(dx, dy)
+      ..scale(scale);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                Expanded(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: widget.imageUrls.length,
+                    onPageChanged: (index) {
+                      if (!mounted) return;
+                      setState(() {
+                        _currentIndex = index;
+                      });
+                    },
+                    itemBuilder: (context, index) {
+                      return GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onDoubleTapDown: (details) {
+                          _doubleTapPosition = details.localPosition;
+                        },
+                        onDoubleTap: () => _toggleZoom(index),
+                        child: Center(
+                          child: InteractiveViewer(
+                            key: ValueKey('viewer-$index'),
+                            transformationController: _zoomControllers[index],
+                            minScale: 1,
+                            maxScale: 4,
+                            panEnabled: _isZoomed(index),
+                            scaleEnabled: true,
+                            boundaryMargin: const EdgeInsets.all(80),
+                            child: CachedNetworkImage(
+                              imageUrl: widget.imageUrls[index],
+                              fit: BoxFit.contain,
+                              placeholder: (context, url) => Center(
+                                child: Shimmer.fromColors(
+                                  baseColor: Colors.grey.shade800,
+                                  highlightColor: Colors.grey.shade600,
+                                  child: Container(
+                                    width: 220,
+                                    height: 220,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey.shade700,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                padding: const EdgeInsets.all(24),
+                                child: Image.asset(
+                                  'assets/images/noimage.png',
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                if (widget.imageUrls.length > 1)
+                  Container(
+                    height: 92,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: widget.imageUrls.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                      itemBuilder: (context, index) {
+                        final isSelected = _currentIndex == index;
+                        return GestureDetector(
+                          onTap: () {
+                            if (!mounted) return;
+                            setState(() {
+                              _currentIndex = index;
+                            });
+                            _pageController.animateToPage(
+                              index,
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeOut,
+                            );
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            width: 70,
+                            height: 70,
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isSelected
+                                    ? kPrimaryColor
+                                    : Colors.white24,
+                                width: isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: CachedNetworkImage(
+                                imageUrl: widget.imageUrls[index],
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.white10,
+                                ),
+                                errorWidget: (context, url, error) =>
+                                    Container(
+                                  color: Colors.white10,
+                                  child: const Icon(
+                                    Icons.image_not_supported_outlined,
+                                    color: Colors.white54,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+            Positioned(
+              top: 8,
+              left: 8,
+              right: 8,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                  ),
+                  if (widget.imageUrls.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '${_currentIndex + 1}/${widget.imageUrls.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 48),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
