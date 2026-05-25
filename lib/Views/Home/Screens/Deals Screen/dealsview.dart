@@ -11,7 +11,6 @@ import '../../../../Controllers/deals_controller.dart';
 import '../../../../Utils/appcolors.dart';
 import '../../../../Widgets/customappbar.dart';
 import '../../../../Configs/config.dart';
-import '../../../Filter Screen/filter.dart';
 import '../Search Screen/searchscreensecond.dart';
 import '../banner redirect/filter_screen.dart';
 import 'deals_product_card.dart';

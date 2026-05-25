@@ -175,13 +175,13 @@ class _DealsProductCardState extends State<DealsProductCard> {
   Color _getOfferLabelColor() {
     // مختلف colors کی list
     final colors = [
-      const Color(0xFFFEE2E2),
-      const Color(0xFFDCFCE7),
-      const Color(0xFFECFCCB),
+      // const Color(0xFFFEE2E2),
+      // const Color(0xFFDCFCE7),
+      // const Color(0xFFECFCCB),
       const Color(0xFFFFD900),
-      const Color(0xFFF37021),
-      const Color(0xFFDBB27C),
-      const Color(0xFFFF4500),
+      // const Color(0xFFF37021),
+        // const Color(0xFFDBB27C),
+      // const Color(0xFFFF4500),
     ];
 
     // Product ID کی بنیاد پر ہیش کریں تاکہ ہر product کو مختلف رنگ ملے
