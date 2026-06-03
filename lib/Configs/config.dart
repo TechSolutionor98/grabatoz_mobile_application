@@ -8,6 +8,11 @@ class Configss {
   static String getBanners = '$baseUrl/api/banners';
   static String getallbrands = '$baseUrl/api/brands';
   static String getAllProducts = '$baseUrl/api/mobile/products';
+  static String productSystemMakeOptions =
+      '$baseUrl/api/product-system-options/make';
+  static String productSystemModelOptions =
+      '$baseUrl/api/product-system-options/model';
+  static String shopQueryProducts = '$baseUrl/api/products/shop-query';
   static String getuserProfile = '$baseUrl/api/users/profile';
   static String verifyEmail = "$baseUrl/api/users/verify-email";
   static String forgotPassword = "$baseUrl/api/users/forgot-password";
@@ -17,9 +22,13 @@ class Configss {
   static String getReview = "$baseUrl/api/reviews/product/:productId";
   // Add guest verification endpoints
   static String verifyReviewEmail = "$baseUrl/api/reviews/verify-email";
-  static String resendReviewVerification = "$baseUrl/api/reviews/resend-verification";
+  static String resendReviewVerification =
+      "$baseUrl/api/reviews/resend-verification";
   static String getCoupon = "$baseUrl/api/coupons";
   static String requestCallback = "$baseUrl/api/request-callback";
+  static String firstUserDiscountStatus =
+      "$baseUrl/api/app-discounts/me/first-user-discount";
+  static String firstUserDiscountPreview = "$baseUrl/api/app-discounts/preview";
   // static String userProfile = "$baseUrl/api/users/profile";
   static String updateProfile = "$baseUrl/api/users/profile";
   static String createOrder = "$baseUrl/api/orders";
@@ -41,6 +50,8 @@ class Configss {
   static String newHomeCategory = "$baseUrl/api/custom-slider-items/active";
 
   // Account deletion endpoints
-  static String requestAccountDeletion = "$baseUrl/api/users/request-account-deletion";
-  static String verifyAccountDeletion = "$baseUrl/api/users/verify-account-deletion";
+  static String requestAccountDeletion =
+      "$baseUrl/api/users/request-account-deletion";
+  static String verifyAccountDeletion =
+      "$baseUrl/api/users/verify-account-deletion";
 }

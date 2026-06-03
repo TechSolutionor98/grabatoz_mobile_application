@@ -5,6 +5,7 @@ import 'package:graba2z/Api/Models/newProductModel.dart';
 import 'package:graba2z/Configs/config.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Controllers/favController.dart';
+import 'package:graba2z/Controllers/first_user_discount_controller.dart';
 import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Utils/image_helper.dart';
 import 'package:graba2z/Views/Product%20Folder/newProductDetails.dart';
@@ -51,6 +52,7 @@ class _NewProductCardState extends State<NewProductCard> {
     if (v is num) return v.toDouble();
     return double.tryParse(v.toString()) ?? 0.0;
   }
+
   double _avgRatingFromMap(Map m) {
     // Prefer explicit average fields if provided
     if (m.containsKey('averageRating')) return _toDouble(m['averageRating']);
@@ -58,22 +60,26 @@ class _NewProductCardState extends State<NewProductCard> {
     // Fallback: compute from reviews list
     final revs = m['reviews'];
     if (revs is List && revs.isNotEmpty) {
-      double sum = 0; int cnt = 0;
+      double sum = 0;
+      int cnt = 0;
       for (final r in revs) {
         if (r is Map && r['rating'] != null) {
-          sum += _toDouble(r['rating']); cnt++;
+          sum += _toDouble(r['rating']);
+          cnt++;
         }
       }
       if (cnt > 0) return sum / cnt;
     }
     return 0.0;
   }
+
   int _reviewsCountFromMap(Map m) {
     final revs = m['reviews'];
     if (revs is List) return revs.length;
     if (m['reviewsCount'] is num) return (m['reviewsCount'] as num).toInt();
     return 0;
   }
+
   Widget _buildStars(double avg, {double size = 20}) {
     List<Widget> stars = [];
     for (int i = 0; i < 5; i++) {
@@ -87,6 +93,14 @@ class _NewProductCardState extends State<NewProductCard> {
       }
     }
     return Row(children: stars);
+  }
+
+  ProductCardDeal _firstUserDeal() {
+    if (!Get.isRegistered<FirstUserDiscountController>()) {
+      return ProductCardDeal.none;
+    }
+    return Get.find<FirstUserDiscountController>()
+        .getProductCardDeal(widget.prdouctList, showGuestFallback: true);
   }
 
   // --- Added: API-driven review stats for this product
@@ -150,10 +164,16 @@ class _NewProductCardState extends State<NewProductCard> {
 
       if (res.statusCode == 200) {
         final data = json.decode(res.body) as Map<String, dynamic>;
-        final stats = (data['stats'] is Map) ? Map<String, dynamic>.from(data['stats']) : null;
+        final stats = (data['stats'] is Map)
+            ? Map<String, dynamic>.from(data['stats'])
+            : null;
         setState(() {
-          _apiAvgRating = (stats?['averageRating'] is num) ? (stats!['averageRating'] as num).toDouble() : null;
-          _apiReviewsCount = (stats?['totalReviews'] is num) ? (stats!['totalReviews'] as num).toInt() : null;
+          _apiAvgRating = (stats?['averageRating'] is num)
+              ? (stats!['averageRating'] as num).toDouble()
+              : null;
+          _apiReviewsCount = (stats?['totalReviews'] is num)
+              ? (stats!['totalReviews'] as num).toInt()
+              : null;
         });
       }
     } catch (_) {
@@ -178,7 +198,9 @@ class _NewProductCardState extends State<NewProductCard> {
             scale: scale,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(40)),
+              decoration: BoxDecoration(
+                  color: Colors.black87,
+                  borderRadius: BorderRadius.circular(40)),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -190,7 +212,8 @@ class _NewProductCardState extends State<NewProductCard> {
                   const SizedBox(width: 8),
                   Text(
                     added ? 'Added to wishlist' : 'Removed from wishlist',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -222,22 +245,23 @@ class _NewProductCardState extends State<NewProductCard> {
       galleryImages = widget.prdouctList['galleryImages'];
       mainImage = widget.prdouctList['image'];
     } else {
-      print("NewProductCard build: widget.prdouctList is not a Map, using placeholder image.");
+      print(
+          "NewProductCard build: widget.prdouctList is not a Map, using placeholder image.");
       imageUrlToDisplay = placeholderImage;
     }
 
     if (imageUrlToDisplay == null) {
-        if (mainImage != null && mainImage.toString().isNotEmpty) {
+      if (mainImage != null && mainImage.toString().isNotEmpty) {
         imageUrlToDisplay = mainImage.toString();
-        } else if (galleryImages != null &&
-            galleryImages is List &&
-            galleryImages.isNotEmpty &&
-            galleryImages[0] != null &&
-            galleryImages[0].toString().isNotEmpty) {
+      } else if (galleryImages != null &&
+          galleryImages is List &&
+          galleryImages.isNotEmpty &&
+          galleryImages[0] != null &&
+          galleryImages[0].toString().isNotEmpty) {
         imageUrlToDisplay = galleryImages[0].toString();
-        } else {
+      } else {
         imageUrlToDisplay = placeholderImage;
-        }
+      }
     }
 
     // Extract subcategory name for display under product name (fallbacks to category/parentCategory)
@@ -249,8 +273,10 @@ class _NewProductCardState extends State<NewProductCard> {
       final sc2 = map['subCategory'];
       final sc3 = map['childCategory']; // optional extra fallback if exists
       Map? sc;
-      if (sc1 is Map) sc = sc1;
-      else if (sc2 is Map) sc = sc2;
+      if (sc1 is Map)
+        sc = sc1;
+      else if (sc2 is Map)
+        sc = sc2;
       else if (sc3 is Map) sc = sc3;
 
       if (sc != null && (sc['name']?.toString().isNotEmpty ?? false)) {
@@ -272,7 +298,8 @@ class _NewProductCardState extends State<NewProductCard> {
     // Define the onTap logic once to avoid duplication
     void navigateToDetails() {
       if (widget.prdouctList == null || widget.prdouctList is! Map) {
-        print('NewProductCard.onTap: Error - productList is null or not a Map. Cannot navigate.');
+        print(
+            'NewProductCard.onTap: Error - productList is null or not a Map. Cannot navigate.');
         return;
       }
       var productData = widget.prdouctList as Map;
@@ -313,12 +340,11 @@ class _NewProductCardState extends State<NewProductCard> {
           imagesForDetails.add(mainProductImage);
         }
       }
-      
+
       // Ensure at least one placeholder if no images are found, so NewProductDetails doesn't crash.
       if (imagesForDetails.isEmpty) {
         imagesForDetails.add(placeholderImage);
       }
-
 
       List<dynamic> specsForDetails = [];
       final rawSpecs = productData['specifications'];
@@ -326,22 +352,25 @@ class _NewProductCardState extends State<NewProductCard> {
         try {
           specsForDetails = List<dynamic>.from(rawSpecs);
         } catch (e) {
-          print('NewProductCard.onTap: ERROR converting specifications to List<dynamic>: $e');
+          print(
+              'NewProductCard.onTap: ERROR converting specifications to List<dynamic>: $e');
         }
       }
 
       List<dynamic> reviewsForDetails = [];
       final rawReviews = productData['reviews'];
       if (rawReviews is List) {
-          try {
-            reviewsForDetails = List<dynamic>.from(rawReviews);
-          } catch (e) {
-            print('NewProductCard.onTap: ERROR converting reviews to List<dynamic>: $e');
-          }
+        try {
+          reviewsForDetails = List<dynamic>.from(rawReviews);
+        } catch (e) {
+          print(
+              'NewProductCard.onTap: ERROR converting reviews to List<dynamic>: $e');
+        }
       }
 
       String productId = productData['_id']?.toString() ?? '';
-      String name = productData['name']?.toString() ?? 'Product Name Not Available';
+      String name =
+          productData['name']?.toString() ?? 'Product Name Not Available';
 
       dynamic brandData = productData['brand'];
       String brandName = '';
@@ -353,8 +382,8 @@ class _NewProductCardState extends State<NewProductCard> {
       String categoryName = '';
       String categoryId = '';
       if (parentCategoryData is Map) {
-          categoryName = parentCategoryData['name']?.toString() ?? '';
-          categoryId = parentCategoryData['_id']?.toString() ?? '';
+        categoryName = parentCategoryData['name']?.toString() ?? '';
+        categoryId = parentCategoryData['_id']?.toString() ?? '';
       }
 
       // NEW: Extract subcategory name
@@ -363,8 +392,10 @@ class _NewProductCardState extends State<NewProductCard> {
       final sc2 = productData['subCategory'];
       final sc3 = productData['childCategory'];
       Map? sc;
-      if (sc1 is Map) sc = sc1;
-      else if (sc2 is Map) sc = sc2;
+      if (sc1 is Map)
+        sc = sc1;
+      else if (sc2 is Map)
+        sc = sc2;
       else if (sc3 is Map) sc = sc3;
 
       if (sc != null && (sc['name']?.toString().isNotEmpty ?? false)) {
@@ -383,45 +414,48 @@ class _NewProductCardState extends State<NewProductCard> {
       String shortdesc = productData['shortDescription']?.toString() ?? '';
 
       try {
-        Get.to(
-          () {
-            try {
-              return NewProductDetails(
-                specs: specsForDetails,
-                reviews: reviewsForDetails,
-                images: imagesForDetails,
-                productId: productId,
-                name: name,
-                brandName: brandName,
-                categoryName: categoryName,
-                categoryId: categoryId,
-                sku: sku,
-                offerPrice: (offerPriceForDetails ?? 0).toString(),
-                price: (priceForDetails ?? 0).toString(),
-                stockStatus: stockStatus,
-                description: description,
-                shortdesc: shortdesc,
-                subcategoryName: subcategoryName, // NEW: Pass subcategory
-              );
-            } catch (e, s) {
-              print('NewProductCard.onTap: CATCH within Get.to lambda - ERROR INSTANTIATING NewProductDetails: $e');
-              print('NewProductCard.onTap: Stacktrace for NewProductDetails instantiation error: $s');
-              return const SizedBox.shrink(); // Fallback UI
-            }
-          },
-          preventDuplicates: false
-        );
+        Get.to(() {
+          try {
+            return NewProductDetails(
+              specs: specsForDetails,
+              reviews: reviewsForDetails,
+              images: imagesForDetails,
+              productId: productId,
+              name: name,
+              brandName: brandName,
+              categoryName: categoryName,
+              categoryId: categoryId,
+              sku: sku,
+              offerPrice: (offerPriceForDetails ?? 0).toString(),
+              price: (priceForDetails ?? 0).toString(),
+              stockStatus: stockStatus,
+              description: description,
+              shortdesc: shortdesc,
+              subcategoryName: subcategoryName, // NEW: Pass subcategory
+            );
+          } catch (e, s) {
+            print(
+                'NewProductCard.onTap: CATCH within Get.to lambda - ERROR INSTANTIATING NewProductDetails: $e');
+            print(
+                'NewProductCard.onTap: Stacktrace for NewProductDetails instantiation error: $s');
+            return const SizedBox.shrink(); // Fallback UI
+          }
+        }, preventDuplicates: false);
       } catch (e, s) {
-        print('NewProductCard.onTap: CATCH in outer try block - EXCEPTION DURING Get.to or its setup: $e');
-        print('NewProductCard.onTap: Stacktrace for outer Get.to exception: $s');
+        print(
+            'NewProductCard.onTap: CATCH in outer try block - EXCEPTION DURING Get.to or its setup: $e');
+        print(
+            'NewProductCard.onTap: Stacktrace for outer Get.to exception: $s');
       }
     }
 
     return Stack(
       children: [
-        GestureDetector( // WRAPPER FOR THE ENTIRE CARD CONTENT
+        GestureDetector(
+          // WRAPPER FOR THE ENTIRE CARD CONTENT
           onTap: navigateToDetails, // Use the extracted onTap logic
-          child: SizedBox.expand( // ensure card fills the exact slot (matches shimmer)
+          child: SizedBox.expand(
+            // ensure card fills the exact slot (matches shimmer)
             child: defaultStyledContainer(
               padding: const EdgeInsets.all(6.0),
               // Fill available width from Grid/Horizontal item
@@ -430,28 +464,33 @@ class _NewProductCardState extends State<NewProductCard> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   // Make content adapt to available height to avoid tiny overflows
-                  final maxH = constraints.maxHeight.isFinite ? constraints.maxHeight : 220.0;
+                  final maxH = constraints.maxHeight.isFinite
+                      ? constraints.maxHeight
+                      : 220.0;
                   // Slightly smaller image on tighter cards
-                  final double _imgScale = maxH < 190 ? 0.38 : (maxH < 210 ? 0.40 : 0.42);
+                  final double _imgScale =
+                      maxH < 190 ? 0.38 : (maxH < 210 ? 0.40 : 0.42);
                   final imgSize = (maxH * _imgScale).clamp(90.0, 120.0);
                   final gapBelowImage = 6.0; // was 8.0
-                  final gapBelowChip = 4.0;  // was 6.0
+                  final gapBelowChip = 4.0; // was 6.0
                   final gapTiny = 2.0;
-                  final urlForImage = ImageHelper.getUrl(imageUrlToDisplay ?? placeholderImage);
-                  final addToCartH = 26.0;   // shave a bit to prevent 5px overflow
+                  final urlForImage =
+                      ImageHelper.getUrl(imageUrlToDisplay ?? placeholderImage);
+                  final addToCartH =
+                      26.0; // shave a bit to prevent 5px overflow
                   return Column(
                     children: [
                       // Image
 
                       CachedNetworkImage(
-
                         imageUrl: urlForImage,
                         imageBuilder: (context, imageProvider) => Container(
                           height: imgSize.toDouble(),
                           width: imgSize.toDouble(),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(6),
-                            image: DecorationImage(image: imageProvider, fit: BoxFit.contain),
+                            image: DecorationImage(
+                                image: imageProvider, fit: BoxFit.contain),
                           ),
                         ),
                         placeholder: (context, url) => SizedBox(
@@ -487,23 +526,60 @@ class _NewProductCardState extends State<NewProductCard> {
                         child: Builder(
                           builder: (_) {
                             final status = (widget.prdouctList is Map
-                                    ? widget.prdouctList['stockStatus']?.toString()
-                                    : null) ?? 'Unknown';
+                                    ? widget.prdouctList['stockStatus']
+                                        ?.toString()
+                                    : null) ??
+                                'Unknown';
                             final s = status.toLowerCase();
                             final Color bg = (s == 'out of stock')
                                 ? kredColor
                                 : (s == 'preorder' || s == 'pre order')
                                     ? Colors.orange
-                                    : (s == 'available product' || s == 'available' || s == 'in stock')
-                                        ? kdefgreenColor 
+                                    : (s == 'available product' ||
+                                            s == 'available' ||
+                                            s == 'in stock')
+                                        ? kdefgreenColor
                                         : kSecondaryColor;
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(4)),
-                              child: Text(
-                                status,
-                                style: const TextStyle(color: kdefwhiteColor, fontSize: 8, fontWeight: FontWeight.bold),
-                              ),
+                            return Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                      color: bg,
+                                      borderRadius: BorderRadius.circular(4)),
+                                  child: Text(
+                                    status,
+                                    style: const TextStyle(
+                                        color: kdefwhiteColor,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                5.0.widthbox,
+                                Obx(() {
+                                  final deal = _firstUserDeal();
+                                  if (!deal.showBadge)
+                                    return const SizedBox.shrink();
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDCFCE7),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: kPrimaryColor),
+                                    ),
+                                    child: const Text(
+                                      '10% discount',
+                                      style: TextStyle(
+                                        color: Color(0xFF166534),
+                                        fontSize: 7,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ],
                             );
                           },
                         ),
@@ -521,9 +597,16 @@ class _NewProductCardState extends State<NewProductCard> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    (widget.prdouctList is Map ? widget.prdouctList['name']?.toString() : null) ?? "Product Name",
+                                    (widget.prdouctList is Map
+                                            ? widget.prdouctList['name']
+                                                ?.toString()
+                                            : null) ??
+                                        "Product Name",
                                     maxLines: widget.maxLines,
-                                    style: const TextStyle(fontSize: 10, color: kSecondaryColor, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                        fontSize: 10,
+                                        color: kSecondaryColor,
+                                        fontWeight: FontWeight.bold),
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   if (subcategoryNameForCard.isNotEmpty) ...[
@@ -540,60 +623,100 @@ class _NewProductCardState extends State<NewProductCard> {
                                     ),
                                   ],
                                   gapTiny.heightbox,
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      RichText(
-                                        text: TextSpan(
-                                          children: [
-                                            const TextSpan(
-                                              text: "Inclusive VAT ",
-                                              style: TextStyle(fontSize: 8, fontWeight: FontWeight.w500, color: Color(0xFF16A34A)),
-                                            ),
-                                            TextSpan(
-                                              text: (widget.prdouctList is Map &&
-                                                      widget.prdouctList['offerPrice'] != null &&
-                                                      widget.prdouctList['offerPrice'].toString() != '0' &&
-                                                      widget.prdouctList['offerPrice'].toString().isNotEmpty)
-                                                  ? "${widget.prdouctList['offerPrice']} AED"
-                                                  : "${(widget.prdouctList is Map ? widget.prdouctList['price']?.toString() : null) ?? 'N/A'} AED",
-                                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: kredColor),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      if (widget.prdouctList is Map &&
-                                          widget.prdouctList['offerPrice'] != null &&
-                                          widget.prdouctList['offerPrice'].toString() != '0' &&
-                                          widget.prdouctList['offerPrice'].toString().isNotEmpty)
-                                        Text(
-                                          "AED ${(widget.prdouctList is Map ? widget.prdouctList['price']?.toString() : null) ?? 'N/A'}",
-                                          style: const TextStyle(
-                                            fontSize: 8,
-                                            fontWeight: FontWeight.bold,
-                                            color: kSecondaryColor,
-                                            decoration: TextDecoration.lineThrough,
-                                            decorationColor: kredColor,
+                                  Obx(() {
+                                    final deal = _firstUserDeal();
+                                    final hasOffer =
+                                        widget.prdouctList is Map &&
+                                            widget.prdouctList['offerPrice'] !=
+                                                null &&
+                                            widget.prdouctList['offerPrice']
+                                                    .toString() !=
+                                                '0' &&
+                                            widget.prdouctList['offerPrice']
+                                                .toString()
+                                                .isNotEmpty;
+                                    final currentPrice = hasOffer
+                                        ? widget.prdouctList['offerPrice']
+                                            .toString()
+                                        : ((widget.prdouctList is Map
+                                                ? widget.prdouctList['price']
+                                                    ?.toString()
+                                                : null) ??
+                                            'N/A');
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        RichText(
+                                          text: TextSpan(
+                                            children: [
+                                              const TextSpan(
+                                                text: "Inclusive VAT ",
+                                                style: TextStyle(
+                                                    fontSize: 8,
+                                                    fontWeight: FontWeight.w500,
+                                                    color: Color(0xFF16A34A)),
+                                              ),
+                                              TextSpan(
+                                                text: deal.showPriceCut
+                                                    ? "${deal.discountedPrice!.toStringAsFixed(2)} AED"
+                                                    : "$currentPrice AED",
+                                                style: const TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: kredColor),
+                                              ),
+                                            ],
                                           ),
                                         ),
-                                    ],
-                                  ),
+                                        if (deal.showPriceCut)
+                                          Text(
+                                            "AED ${deal.originalPrice!.toStringAsFixed(2)}",
+                                            style: const TextStyle(
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.bold,
+                                              color: kSecondaryColor,
+                                              decoration:
+                                                  TextDecoration.lineThrough,
+                                              decorationColor: kredColor,
+                                            ),
+                                          )
+                                        else if (hasOffer)
+                                          Text(
+                                            "AED ${(widget.prdouctList is Map ? widget.prdouctList['price']?.toString() : null) ?? 'N/A'}",
+                                            style: const TextStyle(
+                                              fontSize: 8,
+                                              fontWeight: FontWeight.bold,
+                                              color: kSecondaryColor,
+                                              decoration:
+                                                  TextDecoration.lineThrough,
+                                              decorationColor: kredColor,
+                                            ),
+                                          ),
+                                      ],
+                                    );
+                                  }),
                                   // Rating stars + count
                                   Padding(
                                     padding: EdgeInsets.only(top: gapTiny),
                                     child: Row(
-                                      crossAxisAlignment: CrossAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
                                       children: [
                                         () {
                                           double baseAvg = 0;
                                           int baseCount = 0;
                                           if (widget.prdouctList is Map) {
-                                            final map = widget.prdouctList as Map;
+                                            final map =
+                                                widget.prdouctList as Map;
                                             baseAvg = _avgRatingFromMap(map);
-                                            baseCount = _reviewsCountFromMap(map);
+                                            baseCount =
+                                                _reviewsCountFromMap(map);
                                           }
-                                          final double avg = _apiAvgRating ?? baseAvg;
-                                          final int count = _apiReviewsCount ?? baseCount;
+                                          final double avg =
+                                              _apiAvgRating ?? baseAvg;
+                                          final int count =
+                                              _apiReviewsCount ?? baseCount;
 
                                           return Row(
                                             children: [
@@ -601,7 +724,9 @@ class _NewProductCardState extends State<NewProductCard> {
                                               const SizedBox(width: 4),
                                               Text(
                                                 '(${count.toString()})',
-                                                style: const TextStyle(fontSize: 10, color: klightblackColor),
+                                                style: const TextStyle(
+                                                    fontSize: 10,
+                                                    color: klightblackColor),
                                               ),
                                             ],
                                           );
@@ -609,8 +734,20 @@ class _NewProductCardState extends State<NewProductCard> {
                                       ],
                                     ),
                                   ),
-                                  (((widget.prdouctList is Map ? widget.prdouctList['stockStatus']?.toString() : null) == 'Out of Stock') ? 6.0 : 2.0).heightbox,
-                                  if ((widget.prdouctList is Map ? widget.prdouctList['stockStatus']?.toString() : null) == 'Out of Stock')
+                                  (((widget.prdouctList is Map
+                                                  ? widget.prdouctList[
+                                                          'stockStatus']
+                                                      ?.toString()
+                                                  : null) ==
+                                              'Out of Stock')
+                                          ? 6.0
+                                          : 2.0)
+                                      .heightbox,
+                                  if ((widget.prdouctList is Map
+                                          ? widget.prdouctList['stockStatus']
+                                              ?.toString()
+                                          : null) ==
+                                      'Out of Stock')
                                     Center(
                                       child: GestureDetector(
                                         onTap: () {
@@ -623,7 +760,8 @@ class _NewProductCardState extends State<NewProductCard> {
                                             color: kPrimaryColor,
                                             fontSize: 9,
                                             fontWeight: FontWeight.bold,
-                                            decoration: TextDecoration.underline,
+                                            decoration:
+                                                TextDecoration.underline,
                                           ),
                                         ),
                                       ),
@@ -634,41 +772,68 @@ class _NewProductCardState extends State<NewProductCard> {
                             // Bottom: Add to cart button
                             Center(
                               child: GetBuilder<CartNotifier>(builder: (cart) {
-                                bool isOutOfStock = (widget.prdouctList is Map ? widget.prdouctList['stockStatus']?.toString() : null) == 'Out of Stock';
+                                bool isOutOfStock = (widget.prdouctList is Map
+                                        ? widget.prdouctList['stockStatus']
+                                            ?.toString()
+                                        : null) ==
+                                    'Out of Stock';
                                 return GestureDetector(
                                   onTap: () async {
                                     if (isOutOfStock) return;
                                     try {
                                       // Resolve minimal product info
-                                      final map = (widget.prdouctList is Map) ? Map<String, dynamic>.from(widget.prdouctList) : <String, dynamic>{};
-                                      final String productId = (map['_id'] ?? '').toString();
-                                      final String productName = (map['name'] ?? 'Unknown Product').toString();
+                                      final map = (widget.prdouctList is Map)
+                                          ? Map<String, dynamic>.from(
+                                              widget.prdouctList)
+                                          : <String, dynamic>{};
+                                      final String productId =
+                                          (map['_id'] ?? '').toString();
+                                      final String productName =
+                                          (map['name'] ?? 'Unknown Product')
+                                              .toString();
 
                                       // Price: prefer offerPrice if > 0
-                                      final double offerP = _toDouble(map['offerPrice']);
-                                      final double regularP = _toDouble(map['price']);
-                                      final double finalPrice = offerP > 0 ? offerP : regularP;
+                                      final double offerP =
+                                          _toDouble(map['offerPrice']);
+                                      final double regularP =
+                                          _toDouble(map['price']);
+                                      final double finalPrice =
+                                          offerP > 0 ? offerP : regularP;
                                       if (finalPrice <= 0) {
-                                        Get.snackbar('Info', 'Price not available for this product.');
+                                        Get.snackbar('Info',
+                                            'Price not available for this product.');
                                         return;
                                       }
 
                                       // Image: main image -> first gallery -> placeholder
-                                      const placeholderImage = 'https://i.postimg.cc/SsWYSvq6/noimage.png';
-                                      String productImageForCart = placeholderImage;
-                                      final mainImage = map['image']?.toString();
+                                      const placeholderImage =
+                                          'https://i.postimg.cc/SsWYSvq6/noimage.png';
+                                      String productImageForCart =
+                                          placeholderImage;
+                                      final mainImage =
+                                          map['image']?.toString();
                                       final gallery = map['galleryImages'];
-                                      if (mainImage != null && mainImage.isNotEmpty) {
+                                      if (mainImage != null &&
+                                          mainImage.isNotEmpty) {
                                         productImageForCart = mainImage;
-                                      } else if (gallery is List && gallery.isNotEmpty && (gallery.first?.toString().isNotEmpty ?? false)) {
-                                        productImageForCart = gallery.first.toString();
+                                      } else if (gallery is List &&
+                                          gallery.isNotEmpty &&
+                                          (gallery.first
+                                                  ?.toString()
+                                                  .isNotEmpty ??
+                                              false)) {
+                                        productImageForCart =
+                                            gallery.first.toString();
                                       }
 
                                       // Optional userId
                                       String? userId;
                                       try {
-                                        final prefs = await SharedPreferences.getInstance();
-                                        userId = prefs.getString('userId')?.toString();
+                                        final prefs = await SharedPreferences
+                                            .getInstance();
+                                        userId = prefs
+                                            .getString('userId')
+                                            ?.toString();
                                       } catch (_) {}
 
                                       // Add to cart
@@ -686,17 +851,20 @@ class _NewProductCardState extends State<NewProductCard> {
                                       // Feedback
                                       widget.onAddedToCart?.call();
                                     } catch (e) {
-                                      Get.snackbar('Error', 'Failed to add item to cart.');
+                                      Get.snackbar('Error',
+                                          'Failed to add item to cart.');
                                     }
                                   },
                                   child: isOutOfStock
                                       ? const SizedBox.shrink()
                                       : Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 1),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 1),
                                           width: Get.width / 2.8,
                                           height: addToCartH,
                                           decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.circular(3),
+                                            borderRadius:
+                                                BorderRadius.circular(3),
                                             color: kPrimaryColor,
                                           ),
                                           child: Center(
@@ -736,14 +904,17 @@ class _NewProductCardState extends State<NewProductCard> {
             ),
           ),
         ),
-        if (widget.prdouctList is Map && widget.prdouctList['discount'] != null && widget.prdouctList['discount'] != 0)
+        if (widget.prdouctList is Map &&
+            widget.prdouctList['discount'] != null &&
+            widget.prdouctList['discount'] != 0)
           Positioned(
             top: 6,
             left: 7,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
               decoration: BoxDecoration(
-                color: Colors.white, // Consider defining this color in your constants
+                color: Colors
+                    .white, // Consider defining this color in your constants
               ),
               child: Text(
                 "${widget.prdouctList['discount']}% OFF",
@@ -771,13 +942,16 @@ class _NewProductCardState extends State<NewProductCard> {
                 } else if (productData is Map<String, dynamic>) {
                   model = Newproductmodel.fromJson(productData);
                 } else if (productData is Map) {
-                  model = Newproductmodel.fromJson(Map<String, dynamic>.from(productData));
+                  model = Newproductmodel.fromJson(
+                      Map<String, dynamic>.from(productData));
                 } else {
-                  print("FavoriteController: Cannot convert productData to Newproductmodel. Type: ${productData.runtimeType}");
+                  print(
+                      "FavoriteController: Cannot convert productData to Newproductmodel. Type: ${productData.runtimeType}");
                   return SizedBox.shrink();
                 }
               } catch (e) {
-                print("FavoriteController: Error converting to Newproductmodel: $e");
+                print(
+                    "FavoriteController: Error converting to Newproductmodel: $e");
                 return SizedBox.shrink();
               }
 
@@ -794,17 +968,25 @@ class _NewProductCardState extends State<NewProductCard> {
                     }
 
                     if (model.id != null && model.id!.isNotEmpty) {
-                      final nowFav = await favorite.toggleFavorite(model, context, silent: true);
+                      final nowFav = await favorite
+                          .toggleFavorite(model, context, silent: true);
                       _showFavPopup(added: nowFav);
                     } else {
-                      print("FavoriteController: Cannot toggle favorite, model or model.id is not valid.");
+                      print(
+                          "FavoriteController: Cannot toggle favorite, model or model.id is not valid.");
                     }
                   },
                   child: Icon(
-                    (model.id != null && model.id!.isNotEmpty && favorite.isExist(model))
+                    (model.id != null &&
+                            model.id!.isNotEmpty &&
+                            favorite.isExist(model))
                         ? Icons.favorite
                         : Icons.favorite_border,
-                    color: (model.id != null && model.id!.isNotEmpty && favorite.isExist(model)) ? kredColor : klightblackColor,
+                    color: (model.id != null &&
+                            model.id!.isNotEmpty &&
+                            favorite.isExist(model))
+                        ? kredColor
+                        : klightblackColor,
                     size: 20,
                   ),
                 ),

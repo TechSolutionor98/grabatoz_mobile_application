@@ -717,24 +717,36 @@ class _offerDealsState extends State<offerDeals> {
 
             SliverPadding(
               padding: const EdgeInsets.all(8),
-              sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.65,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final product = products[index];
-                    return DealsProductCard(
-                      offerName: widget.displayTitle.toString(),
-                      productList: product,
-                      onAddedToCart: _showAddedToCartPopup,
-                    );
-                  },
-                  childCount: products.length,
-                ),
+              sliver: SliverLayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.crossAxisExtent;
+                  final crossAxisCount = width >= 900
+                      ? 4
+                      : width >= 600
+                          ? 3
+                          : 2;
+                  final childAspectRatio = width < 360 ? 0.58 : 0.60;
+
+                  return SliverGrid(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: crossAxisCount,
+                      childAspectRatio: childAspectRatio,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final product = products[index];
+                        return DealsProductCard(
+                          offerName: widget.displayTitle.toString(),
+                          productList: product,
+                          onAddedToCart: _showAddedToCartPopup,
+                        );
+                      },
+                      childCount: products.length,
+                    ),
+                  );
+                },
               ),
             ),
             // Load More

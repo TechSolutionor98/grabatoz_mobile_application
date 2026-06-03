@@ -9,6 +9,7 @@ import 'package:graba2z/Configs/config.dart';
 import 'package:get/get.dart';
 import 'package:graba2z/Api/Services/apiservices.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
+import 'package:graba2z/Controllers/first_user_discount_controller.dart';
 import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Views/Auth/signup.dart';
 // Add: explicit login import (it's referenced in showCheckoutDialog)
@@ -42,6 +43,13 @@ class _CartState extends State<Cart> {
     final cartNotifier = Get.find<CartNotifier>();
 
     _loadUserIdAndCart(cartNotifier);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !Get.isRegistered<FirstUserDiscountController>()) return;
+      final discountController = Get.find<FirstUserDiscountController>();
+      discountController.loadStatus().then((_) {
+        discountController.previewCart(cartNotifier.cartOtherInfoList);
+      });
+    });
   }
 
   /// **New method to load `userId` from `SharedPreferences`**
@@ -59,7 +67,8 @@ class _CartState extends State<Cart> {
     final uri = Uri.parse('${Configss.baseUrl}/api/products/$productId');
     final res = await http.get(uri);
     if (res.statusCode != 200) {
-      throw Exception('Failed to fetch product ($productId): ${res.statusCode}');
+      throw Exception(
+          'Failed to fetch product ($productId): ${res.statusCode}');
     }
     final body = json.decode(res.body);
     final product = (body is Map && body['data'] is Map)
@@ -74,7 +83,8 @@ class _CartState extends State<Cart> {
   Future<void> _openProductDetailsFromCart(CartOtherInfo cartItem) async {
     final String pid = cartItem.productId?.toString() ?? '';
     if (pid.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Missing product ID')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Missing product ID')));
       return;
     }
 
@@ -84,13 +94,22 @@ class _CartState extends State<Cart> {
 
       // Extract/massage data for NewProductDetails
       List images = [];
-      final rawImages = product['images'] ?? product['gallery'] ?? product['imageUrls'] ?? product['productImages'] ?? product['galleryImages'] ?? product['image'];
+      final rawImages = product['images'] ??
+          product['gallery'] ??
+          product['imageUrls'] ??
+          product['productImages'] ??
+          product['galleryImages'] ??
+          product['image'];
       if (rawImages is List) {
-        images = rawImages.map((e) {
-          if (e is String) return e;
-          if (e is Map && e['url'] is String) return e['url'];
-          return null;
-        }).whereType<String>().where((s) => s.isNotEmpty).toList();
+        images = rawImages
+            .map((e) {
+              if (e is String) return e;
+              if (e is Map && e['url'] is String) return e['url'];
+              return null;
+            })
+            .whereType<String>()
+            .where((s) => s.isNotEmpty)
+            .toList();
       } else if (rawImages is String && rawImages.isNotEmpty) {
         images = [rawImages];
       }
@@ -109,7 +128,9 @@ class _CartState extends State<Cart> {
       final rawReviews = product['reviews'] ?? product['productReviews'];
       if (rawReviews is List) reviews = rawReviews;
 
-      String name = product['name']?.toString() ?? cartItem.productName ?? 'Unknown Product';
+      String name = product['name']?.toString() ??
+          cartItem.productName ??
+          'Unknown Product';
 
       // FIX: brand/category extraction without map?['key']
       String brandName = '';
@@ -124,8 +145,7 @@ class _CartState extends State<Cart> {
       String categoryName = '';
       String categoryId = '';
 
-      dynamic categoryField =
-          product['parentCategory'] ??
+      dynamic categoryField = product['parentCategory'] ??
           product['parentCategoryId'] ??
           product['category'] ??
           product['categoryId'] ??
@@ -165,17 +185,24 @@ class _CartState extends State<Cart> {
         categoryName = product['categoryName']?.toString() ?? categoryName;
       }
 
-      String sku = product['sku']?.toString() ?? product['model']?.toString() ?? '';
-      String offerPrice = product['offerPrice']?.toString() ?? product['salePrice']?.toString() ?? '';
-      String price = product['price']?.toString() ?? product['regularPrice']?.toString() ?? (cartItem.productPrice ?? 0).toString();
-      String stockStatus = product['stockStatus']?.toString()
-          ?? ((product['stock'] is num && (product['stock'] as num) > 0) ? 'Available' : 'Out of Stock');
-      String description = product['description']?.toString()
-          ?? product['longDescription']?.toString()
-          ?? '';
-      String shortdesc = product['shortdesc']?.toString()
-          ?? product['shortDescription']?.toString()
-          ?? '';
+      String sku =
+          product['sku']?.toString() ?? product['model']?.toString() ?? '';
+      String offerPrice = product['offerPrice']?.toString() ??
+          product['salePrice']?.toString() ??
+          '';
+      String price = product['price']?.toString() ??
+          product['regularPrice']?.toString() ??
+          (cartItem.productPrice ?? 0).toString();
+      String stockStatus = product['stockStatus']?.toString() ??
+          ((product['stock'] is num && (product['stock'] as num) > 0)
+              ? 'Available'
+              : 'Out of Stock');
+      String description = product['description']?.toString() ??
+          product['longDescription']?.toString() ??
+          '';
+      String shortdesc = product['shortdesc']?.toString() ??
+          product['shortDescription']?.toString() ??
+          '';
 
       Get.to(() => NewProductDetails(
             images: images,
@@ -306,18 +333,22 @@ class _CartState extends State<Cart> {
                                 confirmDismiss: (direction) async {
                                   // CHANGED: only confirm, do not remove here
                                   return await _confirmRemoveDialog(
-                                    context,
-                                    cartItem.productName!,
-                                    cartItem.productImage!,
-                                    cartItem.productPrice.toString(),
-                                    cartItem.quantity.toString(),
-                                  ) == true;
+                                        context,
+                                        cartItem.productName!,
+                                        cartItem.productImage!,
+                                        cartItem.productPrice.toString(),
+                                        cartItem.quantity.toString(),
+                                      ) ==
+                                      true;
                                 },
                                 onDismissed: (direction) async {
                                   // CHANGED: perform actual removal here so Dismissible and data stay in sync
-                                  final prefs = await SharedPreferences.getInstance();
-                                  String? userId = prefs.getString('userId')?.toString();
-                                  cartNotifier.removeItemInfo(cartItem.productName!, userId);
+                                  final prefs =
+                                      await SharedPreferences.getInstance();
+                                  String? userId =
+                                      prefs.getString('userId')?.toString();
+                                  cartNotifier.removeItemInfo(
+                                      cartItem.productName!, userId);
                                   setState(() {});
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
@@ -371,7 +402,9 @@ class _CartState extends State<Cart> {
                                           _showRemoveDialog(
                                             context,
                                             cartItem.productName ?? "",
-                                            ImageHelper.getUrl(cartItem.productImage.toString()) ??
+                                            ImageHelper.getUrl(cartItem
+                                                    .productImage
+                                                    .toString()) ??
                                                 "https://i.postimg.cc/SsWYSvq6/noimage.png",
                                             cartItem.productPrice.toString(),
                                             cartItem.quantity.toString(),
@@ -388,7 +421,9 @@ class _CartState extends State<Cart> {
                                           cartItem.productName ?? "",
                                           cartItem.productImage?.isNotEmpty ??
                                                   false
-                                              ? ImageHelper.getUrl(cartItem.productImage.toString())!
+                                              ? ImageHelper.getUrl(cartItem
+                                                  .productImage
+                                                  .toString())!
                                               : "https://i.postimg.cc/SsWYSvq6/noimage.png",
                                           cartItem.productPrice.toString(),
                                           cartItem.quantity.toString(),
@@ -557,6 +592,33 @@ class _CartState extends State<Cart> {
                             )
                           : SizedBox.shrink(),
                     ),
+                    if (Get.isRegistered<FirstUserDiscountController>())
+                      Obx(() {
+                        final firstUserDiscount =
+                            Get.find<FirstUserDiscountController>();
+                        if (!firstUserDiscount.previewApplied.value ||
+                            firstUserDiscount.previewDiscountAmount.value <=
+                                0) {
+                          return const SizedBox.shrink();
+                        }
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'First app order discount:',
+                              style: TextStyle(
+                                  fontSize: 14, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              '- ${firstUserDiscount.previewDiscountAmount.value.toStringAsFixed(2)} AED',
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red),
+                            ),
+                          ],
+                        );
+                      }),
 
                     // Final Price Row
                     Row(
@@ -568,15 +630,32 @@ class _CartState extends State<Cart> {
                               fontSize: 14, fontWeight: FontWeight.bold),
                         ),
                         Obx(
-                          () => Text(
-                            cartNotifier.discountAmountApplied.value == 0.0
-                                ? "${cartNotifier.cartTotalPriceF().toStringAsFixed(2)} AED"
-                                : '${(cartNotifier.totalAmount.value).toStringAsFixed(2)} AED',
-                            style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: kPrimaryColor),
-                          ),
+                          () {
+                            final couponAdjustedTotal =
+                                cartNotifier.discountAmountApplied.value == 0.0
+                                    ? cartNotifier.cartTotalPriceF()
+                                    : cartNotifier.totalAmount.value;
+                            var firstUserDiscount = 0.0;
+                            if (Get.isRegistered<
+                                FirstUserDiscountController>()) {
+                              final discountController =
+                                  Get.find<FirstUserDiscountController>();
+                              if (discountController.previewApplied.value) {
+                                firstUserDiscount = discountController
+                                    .previewDiscountAmount.value;
+                              }
+                            }
+                            final displayTotal =
+                                (couponAdjustedTotal - firstUserDiscount)
+                                    .clamp(0.0, double.infinity);
+                            return Text(
+                              "${displayTotal.toStringAsFixed(2)} AED",
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: kPrimaryColor),
+                            );
+                          },
                         )
                       ],
                     ),
@@ -650,7 +729,8 @@ class _CartState extends State<Cart> {
       barrierDismissible: true,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text(
             'Remove from Cart?',
             style: TextStyle(
@@ -697,7 +777,8 @@ class _CartState extends State<Cart> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(6),
                         image: const DecorationImage(
-                          image: NetworkImage('https://i.postimg.cc/SsWYSvq6/noimage.png'),
+                          image: NetworkImage(
+                              'https://i.postimg.cc/SsWYSvq6/noimage.png'),
                           fit: BoxFit.contain,
                         ),
                       ),
@@ -708,16 +789,24 @@ class _CartState extends State<Cart> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(itemName, maxLines: 2, overflow: TextOverflow.ellipsis, style: Get.textTheme.titleSmall),
+                        Text(itemName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Get.textTheme.titleSmall),
                         const SizedBox(height: 6),
                         Text(
                           "Quantity: $quantity pcs",
-                          style: const TextStyle(color: kmediumblackColor, fontSize: 13, fontWeight: FontWeight.w500),
+                          style: const TextStyle(
+                              color: kmediumblackColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           '${(double.tryParse(price) ?? 0.0).toStringAsFixed(2)} AED',
-                          style: const TextStyle(fontWeight: FontWeight.w600, color: kPrimaryColor),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: kPrimaryColor),
                         ),
                       ],
                     ),
@@ -726,12 +815,14 @@ class _CartState extends State<Cart> {
               ),
             ],
           ),
-          actionsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          actionsPadding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 minimumSize: const Size(0, 44),
                 tapTargetSize: MaterialTapTargetSize.padded,
                 foregroundColor: kPrimaryColor,
@@ -740,7 +831,8 @@ class _CartState extends State<Cart> {
                   side: const BorderSide(color: kPrimaryColor),
                 ),
               ),
-              child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+              child: const Text('Cancel',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
             ),
             TextButton(
               onPressed: () async {
@@ -749,17 +841,21 @@ class _CartState extends State<Cart> {
                 // Remove and force rebuild so list reflects the change immediately
                 cartNotifier.removeItemInfo(itemName, userId);
                 setState(() {}); // ADD: rebuild Cart screen
-                Navigator.of(dialogContext).pop(true); // let Dismissible animate
+                Navigator.of(dialogContext)
+                    .pop(true); // let Dismissible animate
               },
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                 minimumSize: const Size(0, 44),
                 tapTargetSize: MaterialTapTargetSize.padded,
                 backgroundColor: kPrimaryColor,
                 foregroundColor: kdefwhiteColor,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(60)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(60)),
               ),
-              child: const Text('Yes, Remove', style: TextStyle(fontWeight: FontWeight.w600)),
+              child: const Text('Yes, Remove',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
             ),
           ],
         );
@@ -784,7 +880,8 @@ Future<bool?> _confirmRemoveDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'Remove from Cart?',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: kPrimaryColor),
+          style: TextStyle(
+              fontSize: 16, fontWeight: FontWeight.bold, color: kPrimaryColor),
         ),
         // content mirrors _showRemoveDialog's summary UI
         content: Column(
@@ -802,23 +899,29 @@ Future<bool?> _confirmRemoveDialog(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(6),
                       color: kPrimaryColor.withValues(alpha: 0.9),
-                      image: DecorationImage(image: imageProvider, fit: BoxFit.contain),
+                      image: DecorationImage(
+                          image: imageProvider, fit: BoxFit.contain),
                     ),
                   ),
                   placeholder: (context, url) => Shimmer.fromColors(
                     baseColor: Colors.grey.shade300,
                     highlightColor: Colors.grey.shade100,
                     child: Container(
-                      width: 70, height: 70,
-                      decoration: BoxDecoration(color: kdefgreyColor, borderRadius: BorderRadius.circular(6)),
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                          color: kdefgreyColor,
+                          borderRadius: BorderRadius.circular(6)),
                     ),
                   ),
                   errorWidget: (context, url, error) => Container(
-                    height: 70, width: 70,
+                    height: 70,
+                    width: 70,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(6),
                       image: const DecorationImage(
-                        image: NetworkImage('https://i.postimg.cc/SsWYSvq6/noimage.png'),
+                        image: NetworkImage(
+                            'https://i.postimg.cc/SsWYSvq6/noimage.png'),
                         fit: BoxFit.contain,
                       ),
                     ),
@@ -829,11 +932,22 @@ Future<bool?> _confirmRemoveDialog(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(itemName, maxLines: 2, overflow: TextOverflow.ellipsis, style: Get.textTheme.titleSmall),
+                      Text(itemName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Get.textTheme.titleSmall),
                       const SizedBox(height: 6),
-                      Text("Quantity: $quantity pcs", style: const TextStyle(color: kmediumblackColor, fontSize: 13, fontWeight: FontWeight.w500)),
+                      Text("Quantity: $quantity pcs",
+                          style: const TextStyle(
+                              color: kmediumblackColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500)),
                       const SizedBox(height: 6),
-                      Text('${(double.tryParse(price) ?? 0.0).toStringAsFixed(2)} AED', style: const TextStyle(fontWeight: FontWeight.w600, color: kPrimaryColor)),
+                      Text(
+                          '${(double.tryParse(price) ?? 0.0).toStringAsFixed(2)} AED',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: kPrimaryColor)),
                     ],
                   ),
                 ),
@@ -855,7 +969,8 @@ Future<bool?> _confirmRemoveDialog(
                 side: const BorderSide(color: kPrimaryColor),
               ),
             ),
-            child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: const Text('Cancel',
+                style: TextStyle(fontWeight: FontWeight.w600)),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -865,9 +980,11 @@ Future<bool?> _confirmRemoveDialog(
               tapTargetSize: MaterialTapTargetSize.padded,
               backgroundColor: kPrimaryColor,
               foregroundColor: kdefwhiteColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(60)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(60)),
             ),
-            child: const Text('Yes, Remove', style: TextStyle(fontWeight: FontWeight.w600)),
+            child: const Text('Yes, Remove',
+                style: TextStyle(fontWeight: FontWeight.w600)),
           ),
         ],
       );
@@ -910,7 +1027,8 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               children: [
                 CachedNetworkImage(
                   imageUrl: widget.cartItem.productImage?.isNotEmpty ?? false
-                      ? ImageHelper.getUrl(widget.cartItem.productImage.toString())!
+                      ? ImageHelper.getUrl(
+                          widget.cartItem.productImage.toString())!
                       : "https://i.postimg.cc/SsWYSvq6/noimage.png",
                   imageBuilder: (context, imageProvider) => Container(
                     padding: const EdgeInsets.all(5),
@@ -1152,6 +1270,9 @@ void showCheckoutDialog(BuildContext context) {
 
               final auth = Get.find<AuthController>();
               auth.isGuest.value = true;
+              if (Get.isRegistered<FirstUserDiscountController>()) {
+                Get.find<FirstUserDiscountController>().clearAll();
+              }
 
               Get.to(() => CheckoutStepper(isforguest: true));
             },

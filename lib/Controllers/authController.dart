@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:graba2z/Configs/config.dart';
+import 'package:graba2z/Controllers/first_user_discount_controller.dart';
 import 'package:graba2z/Views/Auth/otp_view.dart';
 import 'package:graba2z/Views/Home/home.dart';
 import 'package:graba2z/Controllers/checkout_controller.dart'; // Add this import
@@ -57,6 +59,24 @@ class AuthController extends GetxController {
   final address = "--".obs;
   final phoneNumber = "--".obs;
   final email = "--".obs;
+
+  String get _registrationPlatform {
+    if (Platform.isIOS) return 'ios';
+    if (Platform.isAndroid) return 'android';
+    return Platform.operatingSystem;
+  }
+
+  void _refreshFirstUserDiscountStatus() {
+    if (Get.isRegistered<FirstUserDiscountController>()) {
+      Get.find<FirstUserDiscountController>().markAuthSessionPresent();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (Get.isRegistered<FirstUserDiscountController>()) {
+          Get.find<FirstUserDiscountController>().loadStatus();
+        }
+      });
+    }
+  }
+
   Future<void> loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
     userID.value = prefs.getString('userId') ?? ''; // Convert to String
@@ -72,17 +92,17 @@ class AuthController extends GetxController {
 
     final prefs = await SharedPreferences.getInstance();
     String url = "${Configss.getuserProfile}";
-    
+
     var response = await http.get(Uri.parse(url),
         headers: {"Authorization": "Bearer ${token.value}"});
     log('🔍 GET Profile API Response: ${response.body}');
     isProfileLoading.value = false;
-    
+
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      
+
       print("🔍 Phone from API: '${data['phone']}'");
-      
+
       fullName.value = data['name'] ?? '';
       email.value = data['email'] ?? '';
       phoneNumber.value = data['phone'] ?? '';
@@ -96,20 +116,20 @@ class AuthController extends GetxController {
       editzipcodeController.text = data['address']['zipCode'] ?? '';
       editcityController.text = data['address']['city'] ?? '';
       editStateController.text = data['address']['state'] ?? ''; // Add this
-      
+
       prefs.setString('user_address', data['address']['street'] ?? '');
       prefs.setString('user_zipCode', data['address']['zipCode'] ?? '');
       prefs.setString('user_city', data['address']['city'] ?? '');
       prefs.setString('user_state', data['address']['state'] ?? '');
-      
+
       hasProfileDataLoaded.value = true;
       update();
       return;
-    }if (isGuest.value) {
+    }
+    if (isGuest.value) {
       print("🟡 Guest user → profile API skipped");
       return;
-    }
-    else {
+    } else {
       await prefs.clear();
       final bottomNavProvider = Get.put(BottomNavigationController());
       bottomNavProvider.setTabIndex(0);
@@ -139,7 +159,7 @@ class AuthController extends GetxController {
     final url = Uri.parse(Configss.updateProfile);
     final prefs = await SharedPreferences.getInstance();
     bearerToken.value = prefs.getString('token') ?? '';
-    
+
     final Map<String, dynamic> data = {};
 
     // Send null for empty values to signal field deletion to API
@@ -155,11 +175,11 @@ class AuthController extends GetxController {
       "zipCode": (zipCode == null || zipCode.isEmpty) ? null : zipCode,
       "country": country ?? 'UAE',
     };
-    
+
     data["address"] = addressMap;
-    
+
     print("📤 Sending data to API: ${jsonEncode(data)}");
-    
+
     isprofileUpdating.value = true;
     try {
       final response = await http.put(
@@ -173,11 +193,11 @@ class AuthController extends GetxController {
 
       print("📥 API Response Status: ${response.statusCode}");
       print("📥 API Response Body: ${response.body}");
-      
+
       isprofileUpdating.value = false;
       if (response.statusCode == 200 || response.statusCode == 201) {
         print("✅ Update successful");
-        
+
         // Update local controllers with whatever was sent (including empty strings)
         editPhoneController.text = phone ?? '';
         editNameController.text = name ?? '';
@@ -185,25 +205,25 @@ class AuthController extends GetxController {
         editaddressController.text = street ?? '';
         editcityController.text = city ?? '';
         editzipcodeController.text = zipCode ?? '';
-        
+
         print("📝 Updated editPhoneController: '${editPhoneController.text}'");
-        
+
         // Also update observable values
         phoneNumber.value = phone ?? '';
         fullName.value = name ?? '';
         this.email.value = email ?? '';
         address.value = street ?? '';
-        
+
         print("📝 Updated phoneNumber observable: '${phoneNumber.value}'");
-        
+
         // Save to SharedPreferences for persistence (including empty values)
         await prefs.setString('user_address', street ?? '');
         await prefs.setString('user_zipCode', zipCode ?? '');
         await prefs.setString('user_city', city ?? '');
         await prefs.setString('user_phone', phone ?? '');
-        
+
         print("💾 Saved to SharedPreferences");
-        
+
         // Also sync to checkout if UserController exists
         try {
           if (Get.isRegistered<UserController>()) {
@@ -214,9 +234,11 @@ class AuthController extends GetxController {
             userController.city.value = city ?? '';
             userController.zipcode.value = zipCode ?? '';
             // Force clear state even when API returns null
-            userController.state.value = (state == null || state.isEmpty) ? '' : state;
-            print("🔄 Synced to UserController including state: '${userController.state.value}'");
-            
+            userController.state.value =
+                (state == null || state.isEmpty) ? '' : state;
+            print(
+                "🔄 Synced to UserController including state: '${userController.state.value}'");
+
             // Force update the editStateController to trigger listeners
             final currentState = editStateController.text;
             final newState = (state == null || state.isEmpty) ? '' : state;
@@ -230,27 +252,26 @@ class AuthController extends GetxController {
         } catch (e) {
           print('⚠️ UserController not available: $e');
         }
-        
+
         // Trigger update to notify all listeners
         update();
-        
+
         print("✅ All updates complete");
-        
+
         // Show success message only if requested
         if (showSuccessMessage) {
           // Get.snackbar(
-          //   'Success', 
+          //   'Success',
           //   'Profile updated successfully',
           //   backgroundColor: Colors.green,
           //   colorText: Colors.white,
           //   snackPosition: SnackPosition.BOTTOM,
           // );
         }
-          
       } else {
         print("❌ Failed: ${response.statusCode} - ${response.body}");
         Get.snackbar(
-          'Error', 
+          'Error',
           'Failed to update profile',
           backgroundColor: Colors.red,
           colorText: Colors.white,
@@ -261,7 +282,7 @@ class AuthController extends GetxController {
       isprofileUpdating.value = false;
       print("⚠️ Error: $e");
       Get.snackbar(
-        'Error', 
+        'Error',
         'An error occurred',
         backgroundColor: Colors.red,
         colorText: Colors.white,
@@ -333,6 +354,7 @@ class AuthController extends GetxController {
         }
 
         loadUserData();
+        _refreshFirstUserDiscountStatus();
         // Check if the response contains the 'success' field and is true
       } else if (response.statusCode == 401) {
         EasyLoading.showError('Invalid email or password');
@@ -358,7 +380,13 @@ class AuthController extends GetxController {
     setLoading(true);
     update();
 
-    var bodyobj = {"name": userName, "email": email, "password": password};
+    var bodyobj = {
+      "name": userName,
+      "email": email,
+      "password": password,
+      "registrationSource": "app",
+      "registrationPlatform": _registrationPlatform,
+    };
 
     final response = await http.post(
       Uri.parse(url),
@@ -411,16 +439,19 @@ class AuthController extends GetxController {
     editcityController.clear();
     editzipcodeController.clear();
     editStateController.clear();
-    
+
     // Reset observable values
     userID.value = '';
     fullName.value = '--';
     email.value = '--';
     phoneNumber.value = '--';
     address.value = '--';
-    
+
     // Reset profile loaded flag so it will fetch fresh data on next login
     hasProfileDataLoaded.value = false;
+    if (Get.isRegistered<FirstUserDiscountController>()) {
+      Get.find<FirstUserDiscountController>().clearAll();
+    }
 
     update();
   }

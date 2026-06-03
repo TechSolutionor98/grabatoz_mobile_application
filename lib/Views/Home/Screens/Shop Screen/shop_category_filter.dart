@@ -8,12 +8,24 @@ import 'package:graba2z/Controllers/menuController.dart';
 import 'package:graba2z/Configs/config.dart';
 import 'package:graba2z/Utils/appcolors.dart';
 
+class ProductSystemOption {
+  final String id;
+  final String name;
+
+  const ProductSystemOption({
+    required this.id,
+    required this.name,
+  });
+}
+
 class ShopCategoryFilter extends StatefulWidget {
   final Function(Map<String, dynamic>) onApplyFilters;
   final String? initialCategoryId;
   final String? initialSubCategoryId;
   final List<dynamic> products; // Products list to extract brands
   final List<String>? initialSelectedBrands; // Initially selected brands
+  final List<String>? initialSelectedMakes;
+  final List<String>? initialSelectedModels;
 
   const ShopCategoryFilter({
     Key? key,
@@ -22,6 +34,8 @@ class ShopCategoryFilter extends StatefulWidget {
     this.initialSubCategoryId,
     this.products = const [],
     this.initialSelectedBrands,
+    this.initialSelectedMakes,
+    this.initialSelectedModels,
   }) : super(key: key);
 
   @override
@@ -44,39 +58,88 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
   bool _isBrandSectionExpanded = true;
   bool _isBrandsLoading = true;
 
+  // Make/model filters
+  List<ProductSystemOption> _makeOptions = [];
+  List<ProductSystemOption> _modelOptions = [];
+  Set<String> _selectedMakeIds = {};
+  Set<String> _selectedModelIds = {};
+  bool _isMakeSectionExpanded = true;
+  bool _isModelSectionExpanded = true;
+  bool _isMakesLoading = false;
+  bool _isModelsLoading = false;
+  int _systemOptionRequestId = 0;
+
   @override
   void initState() {
     super.initState();
+    _syncStateFromWidget();
+
+    // Fetch all brands from API, then extract brands from products
+    _fetchAllBrands();
+    _refreshSystemOptionsForSelection();
+  }
+
+  @override
+  void didUpdateWidget(covariant ShopCategoryFilter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final selectionChanged =
+        oldWidget.initialCategoryId != widget.initialCategoryId ||
+            oldWidget.initialSubCategoryId != widget.initialSubCategoryId;
+    final filterSelectionsChanged = !_sameStringSet(
+          oldWidget.initialSelectedBrands,
+          widget.initialSelectedBrands,
+        ) ||
+        !_sameStringSet(
+          oldWidget.initialSelectedMakes,
+          widget.initialSelectedMakes,
+        ) ||
+        !_sameStringSet(
+          oldWidget.initialSelectedModels,
+          widget.initialSelectedModels,
+        );
+
+    if (selectionChanged || filterSelectionsChanged) {
+      setState(() {
+        _syncStateFromWidget();
+      });
+    }
+
+    if (selectionChanged) {
+      _refreshSystemOptionsForSelection();
+    }
+  }
+
+  void _syncStateFromWidget() {
     _selectedCategoryId = widget.initialCategoryId ?? 'all';
     _selectedSubCategoryId = widget.initialSubCategoryId;
+    _selectedTitle = null;
+    _selectedBrandIds = Set<String>.from(widget.initialSelectedBrands ?? []);
+    _selectedMakeIds = Set<String>.from(widget.initialSelectedMakes ?? []);
+    _selectedModelIds = Set<String>.from(widget.initialSelectedModels ?? []);
 
-    // Auto-expand the parent category if it's selected
     if (_selectedCategoryId != null && _selectedCategoryId != 'all') {
       _expandedCategories.add(_selectedCategoryId!);
     }
 
-    // Also expand parent if subcategory is selected
     if (_selectedSubCategoryId != null && _selectedSubCategoryId!.isNotEmpty) {
-      // Add parent category to expanded set
       if (_selectedCategoryId != null && _selectedCategoryId != 'all') {
         _expandedCategories.add(_selectedCategoryId!);
       }
-      // Also add the subcategory itself in case it has children
       _expandedCategories.add(_selectedSubCategoryId!);
 
-      // Find and expand all parent categories in the hierarchy after frame is built
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _expandParentCategoriesForSubcategory(_selectedSubCategoryId!);
+        if (mounted) {
+          _expandParentCategoriesForSubcategory(_selectedSubCategoryId!);
+        }
       });
     }
+  }
 
-    // Initialize selected brands
-    if (widget.initialSelectedBrands != null) {
-      _selectedBrandIds = Set<String>.from(widget.initialSelectedBrands!);
-    }
-
-    // Fetch all brands from API, then extract brands from products
-    _fetchAllBrands();
+  bool _sameStringSet(List<String>? a, List<String>? b) {
+    final left = Set<String>.from(a ?? const []);
+    final right = Set<String>.from(b ?? const []);
+    return left.length == right.length && left.containsAll(right);
   }
 
   // Find and expand all parent categories for a given subcategory
@@ -99,7 +162,8 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
   }
 
   // Recursively find subcategory and expand the path
-  bool _findAndExpandPath(List<Child> children, String targetId, String parentId) {
+  bool _findAndExpandPath(
+      List<Child> children, String targetId, String parentId) {
     for (final child in children) {
       if (child.id == targetId) {
         return true;
@@ -117,9 +181,12 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
   // Fetch all brands from API
   Future<void> _fetchAllBrands() async {
     try {
-      setState(() => _isBrandsLoading = true);
+      if (mounted) {
+        setState(() => _isBrandsLoading = true);
+      }
 
       final response = await http.get(Uri.parse(Configss.getallbrands));
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -141,10 +208,223 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
     } catch (e) {
       log('Error fetching brands: $e');
     } finally {
-      // Now extract brands from products using the map
-      _extractBrandsFromProducts();
-      setState(() => _isBrandsLoading = false);
+      if (mounted) {
+        // Now extract brands from products using the map
+        _extractBrandsFromProducts();
+        setState(() => _isBrandsLoading = false);
+      }
     }
+  }
+
+  Future<void> _refreshSystemOptionsForSelection() async {
+    final requestId = ++_systemOptionRequestId;
+
+    if (!_hasSpecificCategorySelection) {
+      if (mounted) {
+        setState(() {
+          _makeOptions = [];
+          _modelOptions = [];
+          _selectedMakeIds.clear();
+          _selectedModelIds.clear();
+          _isMakesLoading = false;
+          _isModelsLoading = false;
+        });
+      }
+      return;
+    }
+
+    if (mounted) {
+      setState(() {
+        _isMakesLoading = true;
+        _isModelsLoading = true;
+      });
+    }
+
+    try {
+      final localProducts = _filterProductsForSelectedCategory(widget.products);
+      final fetchedProducts = await _fetchProductsForSelectedCategory();
+      if (!mounted || requestId != _systemOptionRequestId) return;
+
+      final fetchedScopedProducts =
+          _filterProductsForSelectedCategory(fetchedProducts);
+      final sourceProducts = fetchedScopedProducts.isNotEmpty
+          ? fetchedScopedProducts
+          : localProducts;
+      final makeOptions = _extractOptionsFromProducts(sourceProducts, 'make');
+      final modelOptions = _extractOptionsFromProducts(sourceProducts, 'model');
+      final makeIds = makeOptions.map((option) => option.id).toSet();
+      final modelIds = modelOptions.map((option) => option.id).toSet();
+
+      setState(() {
+        _makeOptions = makeOptions;
+        _modelOptions = modelOptions;
+        _selectedMakeIds.removeWhere((id) => !makeIds.contains(id));
+        _selectedModelIds.removeWhere((id) => !modelIds.contains(id));
+      });
+
+      log('Loaded ${makeOptions.length} make and ${modelOptions.length} model options for selected category');
+    } catch (e) {
+      log('Error loading category make/model options: $e');
+    } finally {
+      if (mounted && requestId == _systemOptionRequestId) {
+        setState(() {
+          _isMakesLoading = false;
+          _isModelsLoading = false;
+        });
+      }
+    }
+  }
+
+  bool get _hasSpecificCategorySelection {
+    final hasSubCategory =
+        _selectedSubCategoryId != null && _selectedSubCategoryId!.isNotEmpty;
+    final hasCategory = _selectedCategoryId != null &&
+        _selectedCategoryId != 'all' &&
+        _selectedCategoryId!.isNotEmpty;
+    return hasSubCategory || hasCategory;
+  }
+
+  Future<List<dynamic>> _fetchProductsForSelectedCategory() async {
+    final selectedSubCategoryId = _selectedSubCategoryId;
+    final selectedCategoryId = _selectedCategoryId;
+    final queryParams = <String, String>{};
+
+    if (selectedCategoryId != null &&
+        selectedCategoryId != 'all' &&
+        selectedCategoryId.isNotEmpty) {
+      queryParams['parentCategory'] = selectedCategoryId;
+    } else if (selectedSubCategoryId != null &&
+        selectedSubCategoryId.isNotEmpty) {
+      queryParams['subcategory'] = selectedSubCategoryId;
+    } else {
+      return const [];
+    }
+
+    final uri = Uri.parse(Configss.product).replace(
+      queryParameters: queryParams,
+    );
+    final response = await http.get(uri);
+    if (response.statusCode != 200) return const [];
+
+    return _extractList(jsonDecode(response.body));
+  }
+
+  List<dynamic> _filterProductsForSelectedCategory(List<dynamic> products) {
+    if (!_hasSpecificCategorySelection) return const [];
+
+    return products.where((product) {
+      if (product is! Map) return false;
+
+      final selectedSubCategoryId = _selectedSubCategoryId;
+      if (selectedSubCategoryId != null && selectedSubCategoryId.isNotEmpty) {
+        return _productHasCategoryId(product, selectedSubCategoryId, const [
+          'category',
+          'subCategory',
+          'subCategory2',
+          'subCategory3',
+          'subCategory4',
+        ]);
+      }
+
+      final selectedCategoryId = _selectedCategoryId;
+      if (selectedCategoryId != null &&
+          selectedCategoryId != 'all' &&
+          selectedCategoryId.isNotEmpty) {
+        return _productHasCategoryId(
+          product,
+          selectedCategoryId,
+          const ['parentCategory'],
+        );
+      }
+
+      return false;
+    }).toList();
+  }
+
+  bool _productHasCategoryId(
+    Map product,
+    String selectedId,
+    List<String> fields,
+  ) {
+    for (final field in fields) {
+      final value = product[field];
+      if (_optionLikeId(value) == selectedId) return true;
+    }
+    return false;
+  }
+
+  List<ProductSystemOption> _extractOptionsFromProducts(
+    List<dynamic> products,
+    String fieldName,
+  ) {
+    final options = <ProductSystemOption>[];
+    final seenIds = <String>{};
+
+    for (final product in products) {
+      if (product is! Map) continue;
+
+      final value = product[fieldName];
+      final id = _optionLikeId(value);
+      final name = _optionLikeName(value, product['${fieldName}Name']);
+
+      if (id.isNotEmpty && name.isNotEmpty && seenIds.add(id)) {
+        options.add(ProductSystemOption(id: id, name: name));
+      }
+    }
+
+    options.sort((a, b) => a.name.compareTo(b.name));
+    return options;
+  }
+
+  String _optionLikeId(dynamic value) {
+    if (value is Map) {
+      return _firstStringValue(value, const ['_id', 'id', 'value']);
+    }
+    if (value is String) return value.trim();
+    return '';
+  }
+
+  String _optionLikeName(dynamic value, dynamic fallback) {
+    if (value is Map) {
+      return _firstStringValue(value, const ['name', 'title', 'label']);
+    }
+    if (fallback != null && fallback.toString().trim().isNotEmpty) {
+      return fallback.toString().trim();
+    }
+    if (value is String) return value.trim();
+    return '';
+  }
+
+  List<dynamic> _extractList(dynamic decoded) {
+    if (decoded is List) return decoded;
+    if (decoded is Map) {
+      for (final key in const ['data', 'options', 'items', 'results']) {
+        final value = decoded[key];
+        if (value is List) return value;
+        if (value is Map) {
+          final nested = _extractList(value);
+          if (nested.isNotEmpty) return nested;
+        }
+      }
+    }
+    return const [];
+  }
+
+  String _firstStringValue(Map item, List<String> keys) {
+    for (final key in keys) {
+      final value = item[key];
+      if (value != null && value.toString().trim().isNotEmpty) {
+        return value.toString().trim();
+      }
+    }
+    return '';
+  }
+
+  void _clearSystemSelectionsAndOptions() {
+    _selectedMakeIds.clear();
+    _selectedModelIds.clear();
+    _makeOptions = [];
+    _modelOptions = [];
   }
 
   // Extract brands from current products and map to names
@@ -180,6 +460,8 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
     // Sort by name
     brandsList.sort((a, b) => (a['name'] ?? '').compareTo(b['name'] ?? ''));
 
+    if (!mounted) return;
+
     setState(() {
       _availableBrands = brandsList;
     });
@@ -189,6 +471,7 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
 
   @override
   void dispose() {
+    _systemOptionRequestId++;
     super.dispose();
   }
 
@@ -198,6 +481,8 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
       _selectedSubCategoryId = null;
       _selectedTitle = null;
       _selectedBrandIds.clear();
+      _selectedMakeIds.clear();
+      _selectedModelIds.clear();
       _expandedCategories.clear();
     });
 
@@ -209,6 +494,8 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
       'parentType': '',
       'title': 'All Products',
       'selectedBrandIds': [],
+      'selectedMakeIds': [],
+      'selectedModelIds': [],
     };
     log('Resetting filters: $resetFilters');
     widget.onApplyFilters(resetFilters);
@@ -221,7 +508,8 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
     final categoryName = category.name;
     final hasChildren = category.children.isNotEmpty;
     final isExpanded = _expandedCategories.contains(categoryId);
-    final isSelected = _selectedCategoryId == categoryId && _selectedSubCategoryId == null;
+    final isSelected =
+        _selectedCategoryId == categoryId && _selectedSubCategoryId == null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -232,8 +520,11 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
               _selectedCategoryId = categoryId;
               _selectedSubCategoryId = null;
               _selectedTitle = categoryName;
+              _selectedMakeIds.clear();
+              _selectedModelIds.clear();
               log('Selected category: $categoryName ($categoryId)');
             });
+            _refreshSystemOptionsForSelection();
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -270,7 +561,8 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
                     categoryName,
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
                       color: isSelected ? kPrimaryColor : Colors.black87,
                     ),
                   ),
@@ -302,13 +594,18 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
         ),
         // Children (subcategories level 1) - only show level 1 children
         if (hasChildren && isExpanded)
-          ...category.children.where((c) => c.level == 1).map((child) => _buildChildTile(child, parentId: categoryId, level: 1)).toList(),
+          ...category.children
+              .where((c) => c.level == 1)
+              .map((child) =>
+                  _buildChildTile(child, parentId: categoryId, level: 1))
+              .toList(),
       ],
     );
   }
 
   // Build child category tile (levels 1, 2, 3, 4...)
-  Widget _buildChildTile(Child child, {required String parentId, int level = 1}) {
+  Widget _buildChildTile(Child child,
+      {required String parentId, int level = 1}) {
     final childId = child.id;
     final childName = child.name;
     final hasChildren = child.children.isNotEmpty;
@@ -324,8 +621,11 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
               _selectedCategoryId = parentId;
               _selectedSubCategoryId = childId;
               _selectedTitle = childName;
+              _selectedMakeIds.clear();
+              _selectedModelIds.clear();
               log('Selected subcategory level $level: $childName ($childId)');
             });
+            _refreshSystemOptionsForSelection();
           },
           child: Padding(
             padding: EdgeInsets.only(
@@ -367,7 +667,8 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
                     childName,
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
                       color: isSelected ? kPrimaryColor : Colors.black54,
                     ),
                   ),
@@ -408,11 +709,13 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
         ),
         // Nested children (levels 2, 3, 4...)
         if (hasChildren && isExpanded)
-          ...child.children.map((nestedChild) => _buildChildTile(
-            nestedChild,
-            parentId: parentId,
-            level: level + 1,
-          )).toList(),
+          ...child.children
+              .map((nestedChild) => _buildChildTile(
+                    nestedChild,
+                    parentId: parentId,
+                    level: level + 1,
+                  ))
+              .toList(),
       ],
     );
   }
@@ -457,6 +760,59 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
 
                       const SizedBox(height: 16),
 
+                      // Model Section
+                      if (_isModelsLoading || _modelOptions.isNotEmpty) ...[
+                        _buildSystemOptionsSection(
+                          title: 'Model',
+                          options: _modelOptions,
+                          selectedIds: _selectedModelIds,
+                          isExpanded: _isModelSectionExpanded,
+                          isLoading: _isModelsLoading,
+                          onHeaderTap: () {
+                            setState(() {
+                              _isModelSectionExpanded =
+                                  !_isModelSectionExpanded;
+                            });
+                          },
+                          onToggle: (id) {
+                            setState(() {
+                              if (_selectedModelIds.contains(id)) {
+                                _selectedModelIds.remove(id);
+                              } else {
+                                _selectedModelIds.add(id);
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Make Section
+                      if (_isMakesLoading || _makeOptions.isNotEmpty) ...[
+                        _buildSystemOptionsSection(
+                          title: 'Make',
+                          options: _makeOptions,
+                          selectedIds: _selectedMakeIds,
+                          isExpanded: _isMakeSectionExpanded,
+                          isLoading: _isMakesLoading,
+                          onHeaderTap: () {
+                            setState(() {
+                              _isMakeSectionExpanded = !_isMakeSectionExpanded;
+                            });
+                          },
+                          onToggle: (id) {
+                            setState(() {
+                              if (_selectedMakeIds.contains(id)) {
+                                _selectedMakeIds.remove(id);
+                              } else {
+                                _selectedMakeIds.add(id);
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
                       // Brands Section (below categories)
                       _buildBrandsSection(),
                     ],
@@ -490,25 +846,32 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
                         // Determine the ID and parentType based on selection
                         String? selectedId;
                         String parentType = '';
-                        String title = _selectedTitle ?? 'Products';
+                        String title = _selectedTitle ?? '';
 
-                        if (_selectedSubCategoryId != null && _selectedSubCategoryId!.isNotEmpty) {
+                        if (_selectedSubCategoryId != null &&
+                            _selectedSubCategoryId!.isNotEmpty) {
                           // Subcategory selected
                           selectedId = _selectedSubCategoryId;
                           parentType = 'subcategory';
-                        } else if (_selectedCategoryId != null && _selectedCategoryId != 'all' && _selectedCategoryId!.isNotEmpty) {
+                        } else if (_selectedCategoryId != null &&
+                            _selectedCategoryId != 'all' &&
+                            _selectedCategoryId!.isNotEmpty) {
                           // Parent category selected
                           selectedId = _selectedCategoryId;
                           parentType = 'parentCategory';
                         }
 
                         final filters = <String, dynamic>{
-                          'categoryId': _selectedCategoryId == 'all' ? '' : _selectedCategoryId,
+                          'categoryId': _selectedCategoryId == 'all'
+                              ? ''
+                              : _selectedCategoryId,
                           'subCategoryId': _selectedSubCategoryId ?? '',
                           'selectedId': selectedId ?? '',
                           'parentType': parentType,
                           'title': title,
                           'selectedBrandIds': _selectedBrandIds.toList(),
+                          'selectedMakeIds': _selectedMakeIds.toList(),
+                          'selectedModelIds': _selectedModelIds.toList(),
                         };
                         log('Applying filters: $filters');
                         widget.onApplyFilters(filters);
@@ -584,10 +947,12 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
                       _selectedCategoryId = 'all';
                       _selectedSubCategoryId = null;
                       _selectedTitle = null;
+                      _clearSystemSelectionsAndOptions();
                     });
                   },
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                     child: Row(
                       children: [
                         Container(
@@ -633,10 +998,137 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
                   ),
                 ),
                 // Category list from menuController
-                ..._menuController.categories.map((category) => _buildCategoryTile(category)).toList(),
+                ..._menuController.categories
+                    .map((category) => _buildCategoryTile(category))
+                    .toList(),
               ],
             );
           }),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSystemOptionsSection({
+    required String title,
+    required List<ProductSystemOption> options,
+    required Set<String> selectedIds,
+    required bool isExpanded,
+    required bool isLoading,
+    required VoidCallback onHeaderTap,
+    required ValueChanged<String> onToggle,
+  }) {
+    final rows = options.map((option) {
+      final isSelected = selectedIds.contains(option.id);
+
+      return InkWell(
+        onTap: () => onToggle(option.id),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          child: Row(
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(3),
+                  border: Border.all(
+                    color: isSelected ? kPrimaryColor : Colors.grey,
+                    width: 1.5,
+                  ),
+                  color: isSelected ? kPrimaryColor : Colors.transparent,
+                ),
+                child: isSelected
+                    ? const Icon(
+                        Icons.check,
+                        size: 15,
+                        color: Colors.white,
+                      )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  option.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? kPrimaryColor : Colors.black87,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }).toList();
+
+    Widget optionsBody;
+    if (isLoading) {
+      optionsBody = const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    } else if (options.isEmpty) {
+      optionsBody = Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          'No ${title.toLowerCase()} options available',
+          style: const TextStyle(color: Colors.grey, fontSize: 13),
+        ),
+      );
+    } else if (options.length > 8) {
+      optionsBody = SizedBox(
+        height: 300,
+        child: Scrollbar(
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: rows,
+          ),
+        ),
+      );
+    } else {
+      optionsBody = Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: rows,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: onHeaderTap,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                isLoading ? title : '$title (${options.length})',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: kPrimaryColor,
+                ),
+              ),
+              Icon(
+                isExpanded ? Icons.remove : Icons.add,
+                color: kPrimaryColor,
+              ),
+            ],
+          ),
+        ),
+        if (isExpanded) ...[
+          const SizedBox(height: 8),
+          optionsBody,
         ],
       ],
     );
@@ -658,7 +1150,9 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                _isBrandsLoading ? "Brands" : "Brands (${_availableBrands.length})",
+                _isBrandsLoading
+                    ? "Brands"
+                    : "Brands (${_availableBrands.length})",
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -675,7 +1169,6 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
 
         if (_isBrandSectionExpanded) ...[
           const SizedBox(height: 8),
-
           if (_isBrandsLoading)
             const Padding(
               padding: EdgeInsets.all(16),
@@ -713,7 +1206,8 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
                   });
                 },
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
                   child: Row(
                     children: [
                       // Checkbox
@@ -726,7 +1220,8 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
                             color: isSelected ? kPrimaryColor : Colors.grey,
                             width: 2,
                           ),
-                          color: isSelected ? kPrimaryColor : Colors.transparent,
+                          color:
+                              isSelected ? kPrimaryColor : Colors.transparent,
                         ),
                         child: isSelected
                             ? const Icon(
@@ -742,7 +1237,9 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
                           brandName,
                           style: TextStyle(
                             fontSize: 14,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                             color: isSelected ? kPrimaryColor : Colors.black87,
                           ),
                         ),

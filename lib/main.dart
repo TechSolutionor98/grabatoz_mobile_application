@@ -4,6 +4,7 @@ import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Controllers/bannerProductController.dart';
 import 'package:graba2z/Controllers/deliveryController.dart';
 import 'package:graba2z/Controllers/favController.dart';
+import 'package:graba2z/Controllers/first_user_discount_controller.dart';
 import 'package:graba2z/Controllers/menuController.dart';
 import 'package:graba2z/Controllers/orderController.dart';
 import 'package:graba2z/Controllers/paymentprovider.dart';
@@ -77,6 +78,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  bool _didLoadFirstUserDiscountStatus = false;
+
   @override
   void initState() {
     super.initState();
@@ -96,6 +99,7 @@ class _MyAppState extends State<MyApp> {
     // Initialize GetX controllers
     Get.put(ThemeController());
     Get.put(AuthController());
+    final firstUserDiscountController = Get.put(FirstUserDiscountController());
     Get.put(BottomNavigationController());
     Get.put(FavoriteController());
     Get.put(ApiServiceController());
@@ -107,6 +111,14 @@ class _MyAppState extends State<MyApp> {
     Get.put(OrderController());
     Get.put(menuController());
     Get.put(bannerProductController());
+    if ((widget.userId ?? '').isNotEmpty &&
+        !_didLoadFirstUserDiscountStatus) {
+      _didLoadFirstUserDiscountStatus = true;
+      firstUserDiscountController.markAuthSessionPresent();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        firstUserDiscountController.loadStatus();
+      });
+    }
     // Get.put(AddressLabelController());
     // Get.put(PaymentMethodProvider(widget.userId ?? 'guest_user'));
 

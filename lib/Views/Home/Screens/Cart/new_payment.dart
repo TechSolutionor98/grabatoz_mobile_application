@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:graba2z/Configs/config.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Controllers/checkout_controller.dart';
+import 'package:graba2z/Controllers/first_user_discount_controller.dart';
 import 'package:graba2z/Utils/packages.dart';
 import 'package:graba2z/Views/success_page/successpayment.dart';
 import 'package:graba2z/Views/Home/Screens/Cart/pay_by_card_webview.dart';
@@ -30,11 +31,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   getcalculations() {
     subtotal = _cartNotifier.cartOtherInfoList.fold(
         0.0, (sum, item) => sum + (item.productPrice! * (item.quantity ?? 0)));
-    // _userController.subtotalAmount.value = subtotal;
+    _usercontroller.subtotalAmount.value = subtotal;
     // Fixed VAT per item (1.19 AED)
 
     // Fixed delivery charge (AED 5)
-    deliveryFee = _cartNotifier.deliveryFee;
+    deliveryFee = _usercontroller.isHomeDelivery.value && subtotal <= 500
+        ? _cartNotifier.deliveryFeeCharge.value
+        : 0.0;
 
     // Calculate total VAT (multiply VAT per item by the quantity of each item)
     totalVAT = _cartNotifier.cartOtherInfoList
@@ -42,6 +45,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
     // Total amount (subtotal + total VAT)
     total = subtotal + totalVAT + deliveryFee;
+    _cartNotifier.totalAmount.value = total;
     setState(() {});
   }
 
@@ -49,7 +53,15 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
   void initState() {
     // TODO: implement initState
     super.initState();
-    getcalculations();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      getcalculations();
+      if (!Get.isRegistered<FirstUserDiscountController>()) return;
+      final discountController = Get.find<FirstUserDiscountController>();
+      discountController.loadStatus().then((_) {
+        discountController.previewCart(_cartNotifier.cartOtherInfoList);
+      });
+    });
   }
 
   @override
@@ -267,12 +279,28 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
                         backgroundColor: kPrimaryColor,
                       ),
                       child: Obx(
-                        () => Text(
-                          _cartNotifier.totalAmount.value == 0.0
-                              ? "Place Order - AED ${total}"
-                              : "Place Order - AED ${_cartNotifier.totalAmount.value}",
-                          style: TextStyle(color: Colors.white),
-                        ),
+                        () {
+                          final baseTotal =
+                              _cartNotifier.totalAmount.value == 0.0
+                                  ? total
+                                  : _cartNotifier.totalAmount.value;
+                          var firstUserDiscount = 0.0;
+                          if (Get.isRegistered<
+                              FirstUserDiscountController>()) {
+                            final discountController =
+                                Get.find<FirstUserDiscountController>();
+                            if (discountController.previewApplied.value) {
+                              firstUserDiscount = discountController
+                                  .previewDiscountAmount.value;
+                            }
+                          }
+                          final displayTotal = (baseTotal - firstUserDiscount)
+                              .clamp(0.0, double.infinity);
+                          return Text(
+                            "Place Order - AED ${displayTotal.toStringAsFixed(2)}",
+                            style: TextStyle(color: Colors.white),
+                          );
+                        },
                       )),
             )),
           ],
@@ -297,6 +325,12 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     }
   }
 
+  double _toDouble(dynamic value, {double fallback = 0.0}) {
+    if (value == null) return fallback;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString()) ?? fallback;
+  }
+
   Future<void> createOrder(
     List orderItems,
     String deliveryType,
@@ -311,6 +345,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     final url = Uri.parse(Configss.createOrder);
     SharedPreferences sp = await SharedPreferences.getInstance();
     _usercontroller.token.value = sp.getString('token') ?? '';
+    final bool isGuestOrder = sp.getBool('Guest') ?? false;
 
     // Basic validations (do not set loading yet)
     // if (_usercontroller.token.value.isEmpty) {
@@ -341,6 +376,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     _usercontroller.iscardLoading.value = true;
 
     final Map<String, dynamic> orderData = {
+      "orderSource": "app",
       "orderItems": composedOrderItems,
       "deliveryType": deliveryType,
       "shippingAddress": shippingAdress,
@@ -349,6 +385,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       "shippingPrice": (shippingPrice).toDouble(),
       "totalPrice": (totalPrice).toDouble(),
       "paymentMethod": paymentMethod,
+      "actualPaymentMethod": paymentMethod,
       "customerNotes": customerNotes
     };
 
@@ -362,6 +399,7 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ${_usercontroller.token.value}',
+          'X-Order-Source': 'app',
         },
         body: jsonEncode(orderData),
       );
@@ -369,25 +407,55 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        final serverTotalPrice = _toDouble(
+          data['totalPrice'],
+          fallback: _toDouble(data['finalTotal'], fallback: totalPrice),
+        );
+        final payableTotalPrice = isGuestOrder ? totalPrice : serverTotalPrice;
+        final bool appDiscountApplied =
+            !isGuestOrder && data['appDiscountApplied'] == true;
+        final double appDiscountAmount =
+            appDiscountApplied ? _toDouble(data['appDiscountAmount']) : 0.0;
+        final String appDiscountName = appDiscountApplied
+            ? (data['appDiscountName']?.toString() ?? '')
+            : '';
+        final String? userId = sp.getString('userId')?.toString();
         if (selectedMethod == 'Card' || selectedMethod == 'Tabby') {
-          await paymentRequest(data['_id'], totalPrice);
+          await paymentRequest(
+            data['_id'],
+            payableTotalPrice,
+            userId: userId,
+            appDiscountApplied: appDiscountApplied,
+            appDiscountAmount: appDiscountAmount,
+            appDiscountName: appDiscountName,
+          );
         } else if (selectedMethod == 'Tamara') {
           await tamaraPaymentRequest(
             orderId: data['_id'],
-            totalAmount: totalPrice,
+            totalAmount: payableTotalPrice,
             customer: {
               "name": shippingAdress?['name'] ?? '',
               "email": shippingAdress?['email'] ?? '',
               "phone": shippingAdress?['phone'] ?? '',
             },
+            userId: userId,
+            appDiscountApplied: appDiscountApplied,
+            appDiscountAmount: appDiscountAmount,
+            appDiscountName: appDiscountName,
           );
         } else {
           final navigationProvider = Get.put(BottomNavigationController());
           navigationProvider.setTabIndex(0);
-          String? userId = sp.getString('userId')?.toString();
           setState(() {});
-          _cartNotifier.clearCartDataInPrefs(userId);
-          Get.offAll(() => SuccessPayment());
+          await _cartNotifier.clearCartDataInPrefs(userId);
+          if (Get.isRegistered<FirstUserDiscountController>()) {
+            await Get.find<FirstUserDiscountController>().refreshAfterOrder();
+          }
+          Get.offAll(() => SuccessPayment(
+                appDiscountApplied: appDiscountApplied,
+                appDiscountAmount: appDiscountAmount,
+                appDiscountName: appDiscountName,
+              ));
         }
         print('Order Created: $data');
       } else {
@@ -407,6 +475,10 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     required String orderId,
     required double totalAmount,
     Map<String, dynamic>? customer,
+    String? userId,
+    bool appDiscountApplied = false,
+    double appDiscountAmount = 0.0,
+    String appDiscountName = '',
   }) async {
     final url = Uri.parse(Configss.paymentTamaraRequest);
     SharedPreferences sp = await SharedPreferences.getInstance();
@@ -483,7 +555,13 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
           EasyLoading.showError('Invalid Tamara response');
           return;
         }
-        Get.to(() => WebViewScreen(url: checkoutUrl));
+        Get.to(() => WebViewScreen(
+              url: checkoutUrl,
+              userId: userId,
+              appDiscountApplied: appDiscountApplied,
+              appDiscountAmount: appDiscountAmount,
+              appDiscountName: appDiscountName,
+            ));
       } else {
         final msg = _extractServerMessage(response.body);
         EasyLoading.showError('Tamara init failed: $msg');
@@ -554,7 +632,14 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
     };
   }
 
-  Future<void> paymentRequest(String orderId, double totalAmount) async {
+  Future<void> paymentRequest(
+    String orderId,
+    double totalAmount, {
+    String? userId,
+    bool appDiscountApplied = false,
+    double appDiscountAmount = 0.0,
+    String appDiscountName = '',
+  }) async {
     final url = Uri.parse(Configss.paymentCardRequest); // <-- replace this
     SharedPreferences sp = await SharedPreferences.getInstance();
     _usercontroller.token.value = sp.getString('token') ?? '';
@@ -578,8 +663,17 @@ class _PaymentMethodScreenState extends State<PaymentMethodScreen> {
       EasyLoading.dismiss();
       if (response.statusCode == 201 || response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        final paymentUrl = data['paymentUrl']?.toString() ?? '';
+        if (paymentUrl.isEmpty) {
+          EasyLoading.showError('Invalid payment response');
+          return;
+        }
         Get.to(() => WebViewScreen(
-              url: data['paymentUrl'],
+              url: paymentUrl,
+              userId: userId,
+              appDiscountApplied: appDiscountApplied,
+              appDiscountAmount: appDiscountAmount,
+              appDiscountName: appDiscountName,
             ));
         print('payment order Created: $data');
       } else {

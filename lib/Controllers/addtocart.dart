@@ -4,6 +4,7 @@ import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:dio/dio.dart';
 import 'package:graba2z/Api/Models/ordercreatemodel.dart' as order_create;
 import 'package:graba2z/Configs/config.dart';
+import 'package:graba2z/Controllers/first_user_discount_controller.dart';
 import 'package:http/http.dart' as http;
 import '../Utils/packages.dart';
 import 'package:get/get.dart';
@@ -62,6 +63,14 @@ class CartNotifier extends GetxController {
     }
   }
 
+  void _refreshFirstUserDiscountPreview() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (Get.isRegistered<FirstUserDiscountController>()) {
+        Get.find<FirstUserDiscountController>().previewCart(cartOtherInfoList);
+      }
+    });
+  }
+
   Future<Map<String, dynamic>?> applyCouponRe(
       String couponCode, List cpList) async {
     final String baseUrl = Configss.applyCoupon;
@@ -113,6 +122,7 @@ class CartNotifier extends GetxController {
       cartOtherInfoList = [];
     }
     update();
+    _refreshFirstUserDiscountPreview();
   }
 
   /// **Merge Guest Cart into User Cart After Login**
@@ -139,6 +149,7 @@ class CartNotifier extends GetxController {
       await prefs.remove('guest_cart'); // Remove guest cart after merging
       await saveCartToPrefs(userId);
       update();
+      _refreshFirstUserDiscountPreview();
     }
   }
 
@@ -149,6 +160,7 @@ class CartNotifier extends GetxController {
     await prefs.remove(cartKey);
     cartOtherInfoList.clear();
     update();
+    _refreshFirstUserDiscountPreview();
   }
 
   void increaseQuantity(int index, String? userId) {
@@ -157,6 +169,7 @@ class CartNotifier extends GetxController {
     createLineItems();
     saveCartToPrefs(userId);
     update();
+    _refreshFirstUserDiscountPreview();
   }
 
   void decreaseQuantity(int index, String? userId) {
@@ -166,6 +179,7 @@ class CartNotifier extends GetxController {
       createLineItems();
       saveCartToPrefs(userId);
       update();
+      _refreshFirstUserDiscountPreview();
     }
   }
 
@@ -282,7 +296,8 @@ class CartNotifier extends GetxController {
   }
 
   /// **Add Item to Cart (Handles Guest & Logged-in User)**
-  Future<void> addItemInfo(CartOtherInfo cart, String? userId, {bool showNotification = true}) async {
+  Future<void> addItemInfo(CartOtherInfo cart, String? userId,
+      {bool showNotification = true}) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     bool isNotificationEnabled = prefs.getBool('notification_enabled') ?? true;
     int existingItemIndex = cartOtherInfoList
@@ -326,6 +341,7 @@ class CartNotifier extends GetxController {
     createLineItems();
     await saveCartToPrefs(userId);
     update();
+    _refreshFirstUserDiscountPreview();
   }
 
   void removeItemInfo(String name, String? userId) {
@@ -333,6 +349,7 @@ class CartNotifier extends GetxController {
     createLineItems();
     saveCartToPrefs(userId);
     update();
+    _refreshFirstUserDiscountPreview();
   }
 
   double cartTotalPriceF() {

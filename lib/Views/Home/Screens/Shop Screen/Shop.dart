@@ -53,8 +53,12 @@ class _ShopState extends State<Shop> {
   String? _filterCategoryId;
   String? _filterSubCategoryId;
   List<String> _selectedBrandIds = [];
+  List<String> _selectedMakeIds = [];
+  List<String> _selectedModelIds = [];
   double _filterMinPrice = 0;
   double _filterMaxPrice = 100000;
+  String? _activeProductId;
+  String? _activeParentType;
 
   @override
   void initState() {
@@ -62,14 +66,42 @@ class _ShopState extends State<Shop> {
 
     // Create unique tag for this Shop instance
     _controllerTag =
-    'shop_${widget.id ?? 'default'}_${DateTime.now().millisecondsSinceEpoch}';
+        'shop_${widget.id ?? 'default'}_${DateTime.now().millisecondsSinceEpoch}';
     controller = Get.put(ShopController(), tag: _controllerTag);
-      controller.fetchProducts(
-        id: widget.id,
-        parentType: widget.parentType,
-      );
-      log("Fetching products for id=${widget.id}, parentType=${widget.parentType}");
-    
+    _activeProductId = widget.id;
+    _activeParentType = widget.parentType;
+    controller.fetchProducts(
+      id: widget.id,
+      parentType: widget.parentType,
+    );
+    log("Fetching products for id=${widget.id}, parentType=${widget.parentType}");
+  }
+
+  @override
+  void didUpdateWidget(covariant Shop oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final routeFilterChanged =
+        oldWidget.id != widget.id || oldWidget.parentType != widget.parentType;
+    if (!routeFilterChanged) return;
+
+    setState(() {
+      visibleCount = pageSize;
+      _filterCategoryId = null;
+      _filterSubCategoryId = null;
+      _selectedBrandIds = [];
+      _selectedMakeIds = [];
+      _selectedModelIds = [];
+      _activeProductId = widget.id;
+      _activeParentType = widget.parentType;
+      _currentTitle = null;
+    });
+
+    controller.fetchProducts(
+      id: widget.id,
+      parentType: widget.parentType,
+    );
+    log("Route category changed, fetching products for id=${widget.id}, parentType=${widget.parentType}");
   }
 
   @override
@@ -126,10 +158,16 @@ class _ShopState extends State<Shop> {
     return PopupMenuButton<String>(
       onOpened: () => setState(() => _sortMenuOpen = true),
       onCanceled: () => setState(() => _sortMenuOpen = false),
-      onSelected: (val) => setState(() {
-        _sortLabel = val;
-        _sortMenuOpen = false;
-      }),
+      onSelected: (val) {
+        setState(() {
+          _sortLabel = val;
+          _sortMenuOpen = false;
+          visibleCount = pageSize;
+        });
+        if (_hasMakeModelFilters) {
+          _fetchActiveProducts();
+        }
+      },
       itemBuilder: (_) => const [
         PopupMenuItem(value: 'Newest First', child: Text('Newest First')),
         PopupMenuItem(
@@ -159,13 +197,48 @@ class _ShopState extends State<Shop> {
             Transform.rotate(
               angle: _sortMenuOpen ? 3.14159 : 0,
               child:
-              const Icon(Icons.expand_more, size: 16, color: Colors.black),
+                  const Icon(Icons.expand_more, size: 16, color: Colors.black),
             ),
           ],
         ),
       ),
     );
   }
+
+  bool get _hasMakeModelFilters =>
+      _selectedMakeIds.isNotEmpty || _selectedModelIds.isNotEmpty;
+
+  String _sortApiValue() {
+    switch (_sortLabel) {
+      case 'Price: Low to High':
+        return 'price-low';
+      case 'Price: High to Low':
+        return 'price-high';
+      case 'Name: A to Z':
+        return 'name';
+      case 'Newest First':
+      default:
+        return 'newest';
+    }
+  }
+
+  Future<void> _fetchActiveProducts() {
+    return controller.fetchProducts(
+      id: _activeProductId,
+      parentType: _activeParentType,
+      makeIds: _selectedMakeIds,
+      modelIds: _selectedModelIds,
+      sortBy: _sortApiValue(),
+    );
+  }
+
+  String? get _drawerInitialCategoryId =>
+      _filterCategoryId ??
+      (widget.parentType == 'parentCategory' ? widget.id : null);
+
+  String? get _drawerInitialSubCategoryId =>
+      _filterSubCategoryId ??
+      (widget.parentType == 'subcategory' ? widget.id : null);
 
   ButtonStyle _webLikeLoadMoreStyle() {
     const Color green600 = Color(0xFF16A34A); // Tailwind green-600
@@ -180,7 +253,7 @@ class _ShopState extends State<Shop> {
       // FIX: was MaterialStateProperty.shrinkWrap
       visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
       backgroundColor: MaterialStateProperty.resolveWith<Color>(
-            (states) => states.contains(MaterialState.pressed)
+        (states) => states.contains(MaterialState.pressed)
             ? green700
             : green600, // hover/pressed -> green-700
       ),
@@ -209,7 +282,7 @@ class _ShopState extends State<Shop> {
       num? offerPriceNum;
 
       if (offerPrice is num) {
-        } else if (offerPrice is String) {
+      } else if (offerPrice is String) {
         offerPriceNum = num.tryParse(offerPrice);
       }
 
@@ -277,7 +350,7 @@ class _ShopState extends State<Shop> {
         break;
       case 'Newest First':
       default:
-      // Preserve incoming order (already grouped)
+        // Preserve incoming order (already grouped)
         return base;
     }
 
@@ -322,73 +395,83 @@ class _ShopState extends State<Shop> {
     final categoryId = filters['categoryId']?.toString() ?? '';
     final subCategoryId = filters['subCategoryId']?.toString() ?? '';
     final selectedBrandIds = (filters['selectedBrandIds'] as List<dynamic>?)
-        ?.map((e) => e.toString())
-        .toList() ??
+            ?.map((e) => e.toString())
+            .toList() ??
+        [];
+    final selectedMakeIds = (filters['selectedMakeIds'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .where((e) => e.isNotEmpty)
+            .toList() ??
+        [];
+    final selectedModelIds = (filters['selectedModelIds'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .where((e) => e.isNotEmpty)
+            .toList() ??
         [];
 
-    // Reset case: all filters empty (including brands)
-    if (selectedId.isEmpty && parentType.isEmpty && selectedBrandIds.isEmpty) {
+    // Reset case: all filters empty.
+    if (selectedId.isEmpty &&
+        parentType.isEmpty &&
+        selectedBrandIds.isEmpty &&
+        selectedMakeIds.isEmpty &&
+        selectedModelIds.isEmpty) {
       log('Reset filters detected - restoring original state');
-      controller.fetchProducts(
-        id: widget.id,
-        parentType: widget.parentType,
-      );
 
       setState(() {
         visibleCount = pageSize;
         _filterCategoryId = null;
         _filterSubCategoryId = null;
         _selectedBrandIds = [];
+        _selectedMakeIds = [];
+        _selectedModelIds = [];
+        _activeProductId = widget.id;
+        _activeParentType = widget.parentType;
         _currentTitle = null;
       });
+      _fetchActiveProducts();
       return;
     }
 
-    // If a specific category/subcategory is selected, fetch products for that category
-    if (selectedId.isNotEmpty && parentType.isNotEmpty) {
-      // Fetch products for selected category in same controller
-      controller.fetchProducts(
-        id: selectedId,
-        parentType: parentType,
-      );
+    final hadMakeModelFilters = _hasMakeModelFilters;
 
-      // Reset pagination and update filters, update title
+    // If a specific category/subcategory is selected, fetch products for that category.
+    if (selectedId.isNotEmpty && parentType.isNotEmpty) {
       setState(() {
         visibleCount = pageSize;
         _filterCategoryId = categoryId.isNotEmpty ? categoryId : selectedId;
         _filterSubCategoryId = subCategoryId.isNotEmpty ? subCategoryId : null;
         _selectedBrandIds = selectedBrandIds;
+        _selectedMakeIds = selectedMakeIds;
+        _selectedModelIds = selectedModelIds;
+        _activeProductId = selectedId;
+        _activeParentType = parentType;
         _currentTitle = title.isNotEmpty ? title : null;
       });
 
-      log('Fetching products for: id=$selectedId, parentType=$parentType, title=$title, brands=$selectedBrandIds');
+      _fetchActiveProducts();
+      log('Fetching products for: id=$selectedId, parentType=$parentType, title=$title, brands=$selectedBrandIds, makes=$selectedMakeIds, models=$selectedModelIds');
       return;
     }
 
-    // If only brand filter changed (no category change)
-    if (selectedBrandIds.isNotEmpty || _selectedBrandIds.isNotEmpty) {
-      setState(() {
-        visibleCount = pageSize;
-        _selectedBrandIds = selectedBrandIds;
-      });
-      log('Brand filter applied: $selectedBrandIds');
-      return;
-    }
-
-    // If "All Categories" selected, fetch all products
     setState(() {
       visibleCount = pageSize;
-      _filterCategoryId = 'all';
+      _filterCategoryId = null;
       _filterSubCategoryId = null;
-      _selectedBrandIds = [];
-      _currentTitle = null; // Reset to original title
+      _selectedBrandIds = selectedBrandIds;
+      _selectedMakeIds = selectedMakeIds;
+      _selectedModelIds = selectedModelIds;
+      _activeProductId = widget.id;
+      _activeParentType = widget.parentType;
+      _currentTitle = null;
     });
 
-    // Refetch all products
-    controller.fetchProducts(
-      id: widget.id,
-      parentType: widget.parentType,
-    );
+    if (_hasMakeModelFilters || hadMakeModelFilters) {
+      _fetchActiveProducts();
+      log('Make/model filter applied: makes=$selectedMakeIds, models=$selectedModelIds');
+      return;
+    }
+
+    log('Brand filter applied: $selectedBrandIds');
   }
 
   // Filter products based on current filter state (brand filter is local)
@@ -429,11 +512,16 @@ class _ShopState extends State<Shop> {
     return Scaffold(
       key: _scaffoldKey,
       endDrawer: ShopCategoryFilter(
+        key: ValueKey(
+          'shop-filter-${_drawerInitialCategoryId ?? ''}-${_drawerInitialSubCategoryId ?? ''}',
+        ),
         onApplyFilters: _applyFilters,
-        initialCategoryId: _filterCategoryId,
-        initialSubCategoryId: _filterSubCategoryId,
+        initialCategoryId: _drawerInitialCategoryId,
+        initialSubCategoryId: _drawerInitialSubCategoryId,
         products: controller.productList,
         initialSelectedBrands: _selectedBrandIds,
+        initialSelectedMakes: _selectedMakeIds,
+        initialSelectedModels: _selectedModelIds,
       ),
       appBar: CustomAppBar(
           showLeading: true,
@@ -587,12 +675,16 @@ class _ShopState extends State<Shop> {
                             ),
                           ],
                         ),
-                        SizedBox(height: 8,),
+                        SizedBox(
+                          height: 8,
+                        ),
                         Row(
                           children: [
                             const Icon(Icons.inventory_2,
                                 size: 18, color: kPrimaryColor),
-                            SizedBox(width: 10,),
+                            SizedBox(
+                              width: 10,
+                            ),
                             Text(
                               '${filteredProducts.length} products found',
                               style: const TextStyle(
@@ -601,7 +693,6 @@ class _ShopState extends State<Shop> {
                             ),
                           ],
                         ),
-
                       ],
                     );
                   },
@@ -619,7 +710,7 @@ class _ShopState extends State<Shop> {
                   mainAxisSpacing: 8,
                 ),
                 delegate: SliverChildBuilderDelegate(
-                      (context, index) {
+                  (context, index) {
                     final product = products[index];
                     return NewProductCard(
                       prdouctList: product,
@@ -637,16 +728,16 @@ class _ShopState extends State<Shop> {
                 child: Center(
                   child: (visibleCount < displayable.length)
                       ? ElevatedButton(
-                    style: _webLikeLoadMoreStyle(),
-                    onPressed: () {
-                      final total = displayable.length;
-                      final next = visibleCount + pageSize;
-                      setState(() {
-                        visibleCount = next > total ? total : next;
-                      });
-                    },
-                    child: const Text('Load More'),
-                  )
+                          style: _webLikeLoadMoreStyle(),
+                          onPressed: () {
+                            final total = displayable.length;
+                            final next = visibleCount + pageSize;
+                            setState(() {
+                              visibleCount = next > total ? total : next;
+                            });
+                          },
+                          child: const Text('Load More'),
+                        )
                       : const SizedBox.shrink(),
                 ),
               ),

@@ -6,7 +6,16 @@ import 'package:graba2z/Views/Home/home.dart';
 import '../../Utils/packages.dart';
 
 class SuccessPayment extends StatelessWidget {
-  const SuccessPayment({super.key});
+  final bool appDiscountApplied;
+  final double appDiscountAmount;
+  final String appDiscountName;
+
+  const SuccessPayment({
+    super.key,
+    this.appDiscountApplied = false,
+    this.appDiscountAmount = 0.0,
+    this.appDiscountName = '',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +150,27 @@ class SuccessPayment extends StatelessWidget {
                         color: kdefblackColor,
                         fontWeight: FontWeight.w500),
                   ),
+                  if (appDiscountApplied && appDiscountAmount > 0) ...[
+                    16.0.heightbox,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCFCE7),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: kPrimaryColor),
+                      ),
+                      child: Text(
+                        '${appDiscountName.isNotEmpty ? appDiscountName : 'First app order discount'} applied: AED ${appDiscountAmount.toStringAsFixed(2)}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFF166534),
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

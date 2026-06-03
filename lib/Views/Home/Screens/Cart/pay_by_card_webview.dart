@@ -3,12 +3,26 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
+import 'package:graba2z/Controllers/addtocart.dart';
+import 'package:graba2z/Controllers/first_user_discount_controller.dart';
 import 'package:graba2z/Views/Home/Screens/Cart/cancel_page.dart';
+import 'package:graba2z/Views/success_page/successpayment.dart';
 
 class WebViewScreen extends StatefulWidget {
   final String url;
+  final String? userId;
+  final bool appDiscountApplied;
+  final double appDiscountAmount;
+  final String appDiscountName;
 
-  const WebViewScreen({Key? key, required this.url}) : super(key: key);
+  const WebViewScreen({
+    Key? key,
+    required this.url,
+    this.userId,
+    this.appDiscountApplied = false,
+    this.appDiscountAmount = 0.0,
+    this.appDiscountName = '',
+  }) : super(key: key);
 
   @override
   State<WebViewScreen> createState() => _WebViewScreenState();
@@ -17,6 +31,30 @@ class WebViewScreen extends StatefulWidget {
 class _WebViewScreenState extends State<WebViewScreen> {
   InAppWebViewController? webViewController;
   double progress = 0;
+  bool _handledTerminalUrl = false;
+
+  Future<void> _handlePaymentSuccess() async {
+    if (_handledTerminalUrl) return;
+    _handledTerminalUrl = true;
+    if (Get.isRegistered<CartNotifier>()) {
+      await Get.find<CartNotifier>().clearCartDataInPrefs(widget.userId);
+    }
+    if (Get.isRegistered<FirstUserDiscountController>()) {
+      await Get.find<FirstUserDiscountController>().refreshAfterOrder();
+    }
+    Get.offAll(() => SuccessPayment(
+          appDiscountApplied: widget.appDiscountApplied,
+          appDiscountAmount: widget.appDiscountAmount,
+          appDiscountName: widget.appDiscountName,
+        ));
+  }
+
+  void _handlePaymentCancel() {
+    if (_handledTerminalUrl) return;
+    _handledTerminalUrl = true;
+    log('get back to shopping');
+    Get.offAll(() => const CancelPagePayment());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,18 +79,18 @@ class _WebViewScreenState extends State<WebViewScreen> {
                   webViewController = controller;
                 },
                 onProgressChanged: (controller, progressValue) {
+                  if (!mounted) return;
                   setState(() {
                     progress = progressValue / 100;
                   });
                 },
                 onLoadStop: (controller, url) {
+                  if (url == null) return;
                   final currentUrl = url.toString();
                   if (currentUrl.contains("payment/success")) {
-                    // Navigator.pushReplacementNamed(context, "/payment-success");
+                    _handlePaymentSuccess();
                   } else if (currentUrl.contains("payment/cancel")) {
-                    log('get back to shopping');
-                    Get.offAll(() => CancelPagePayment());
-                    // Navigator.pushReplacementNamed(context, "/payment-cancel");
+                    _handlePaymentCancel();
                   }
                 },
               ),

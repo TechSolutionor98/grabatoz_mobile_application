@@ -1,21 +1,16 @@
-import 'dart:convert';
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:graba2z/Api/Services/apiservices.dart';
-import 'package:graba2z/Configs/config.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Controllers/checkout_controller.dart';
-import 'package:graba2z/Controllers/paymentprovider.dart';
+import 'package:graba2z/Controllers/first_user_discount_controller.dart';
 import 'package:graba2z/Utils/appcolors.dart';
 import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Utils/image_helper.dart';
 import 'package:graba2z/Utils/packages.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:http/http.dart' as http;
 
 class NewSummaryView extends StatefulWidget {
   String shippingType;
@@ -45,8 +40,87 @@ class _NewSummaryViewState extends State<NewSummaryView> {
   UserController _userController = Get.put(UserController());
   CartNotifier _cartNotifier = Get.put(CartNotifier());
   final cart2provider = Get.put(CartNotifier());
+
+  double get _cartSubtotal => _cartNotifier.cartOtherInfoList.fold(
+        0.0,
+        (sum, item) => sum + ((item.productPrice ?? 0.0) * (item.quantity ?? 0)),
+      );
+
+  bool _hasHomeShippingCharge(double subtotal) {
+    return widget.shippingType == 'Home Delivery' && subtotal <= 500;
+  }
+
+  DeliveryMethod? _selectedDeliveryMethod() {
+    if (widget.deliveryMethods.isEmpty) return null;
+
+    final selectedId = _cartNotifier.selectedDeliveryMethodId.value;
+    if (selectedId.isNotEmpty) {
+      for (final method in widget.deliveryMethods) {
+        if (method.id == selectedId) return method;
+      }
+    }
+
+    return widget.deliveryMethods.first;
+  }
+
+  double _shippingChargeFor(double subtotal) {
+    if (!_hasHomeShippingCharge(subtotal)) return 0.0;
+    final selectedCharge = _selectedDeliveryMethod()?.charge;
+    if (selectedCharge != null && selectedCharge > 0) return selectedCharge;
+    if (_cartNotifier.deliveryFeeCharge.value > 0) {
+      return _cartNotifier.deliveryFeeCharge.value;
+    }
+    return 20.0;
+  }
+
+  double _totalBeforeFirstOrderDiscount(double subtotal) {
+    return subtotal + _shippingChargeFor(subtotal);
+  }
+
+  void _syncSummaryTotals() {
+    final subtotal = _cartSubtotal;
+    final selectedMethod = _selectedDeliveryMethod();
+    if (_hasHomeShippingCharge(subtotal)) {
+      if (selectedMethod != null) {
+        _cartNotifier.selectedDeliveryMethodId.value = selectedMethod.id;
+      }
+      _cartNotifier.deliveryFeeCharge.value = _shippingChargeFor(subtotal);
+    } else if (!_hasHomeShippingCharge(subtotal)) {
+      _cartNotifier.deliveryFeeCharge.value = 0.0;
+    }
+    _userController.subtotalAmount.value = subtotal;
+    _cartNotifier.totalAmount.value = _totalBeforeFirstOrderDiscount(subtotal);
+  }
+
+  @override
+  void didUpdateWidget(covariant NewSummaryView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _syncSummaryTotals();
+      setState(() {});
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();  
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncSummaryTotals();
+      if (!mounted || !Get.isRegistered<FirstUserDiscountController>()) return;
+      final discountController = Get.find<FirstUserDiscountController>();
+      discountController.loadStatus().then((_) {
+        discountController.previewCart(_cartNotifier.cartOtherInfoList);
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final subtotal = _cartSubtotal;
+    final shippingCharge = _shippingChargeFor(subtotal);
+    final totalBeforeDiscount = _totalBeforeFirstOrderDiscount(subtotal);
+
     return Column(
       children: [
         const Padding(
@@ -123,74 +197,6 @@ class _NewSummaryViewState extends State<NewSummaryView> {
               enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: Colors.grey))),
         ),
-        widget.shippingType == 'Home Delivery'
-            ? _cartNotifier.totalAmount.value <= 500
-                ? Column(
-                    children: [
-                      const Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 4.0, vertical: 6),
-                        child: Row(
-                          children: [
-                            Text(
-                              'Delivery Options',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Card(
-                        elevation: 3,
-                        child: DropdownButtonFormField(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          decoration: const InputDecoration(
-                            hintStyle: TextStyle(fontWeight: FontWeight.bold),
-                            hintText: "Select Delivery Method",
-                            border: InputBorder.none,
-                          ),
-                          value: _cartNotifier
-                                  .selectedDeliveryMethodId.value.isEmpty
-                              ? null
-                              : _cartNotifier.selectedDeliveryMethodId.value,
-                          items: widget.deliveryMethods.map((method) {
-                            final formattedText =
-                                "${method.name} (AED ${method.charge.toStringAsFixed(2)})";
-                            return DropdownMenuItem(
-                              value: method.id,
-                              child: Text(formattedText),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            _cartNotifier.selectedDeliveryMethodId.value =
-                                value ?? '';
-
-                            final selectedMethod =
-                                widget.deliveryMethods.firstWhere(
-                              (method) => method.id == value,
-                              orElse: () => DeliveryMethod(
-                                  id: '',
-                                  name: '',
-                                  charge: 0.0,
-                                  deliveryTime: ''),
-                            );
-
-                            _cartNotifier.deliveryFeeCharge.value =
-                                selectedMethod.charge;
-                            _cartNotifier.totalAmount.value = widget.subtotal +
-                                _cartNotifier.deliveryFeeCharge.value;
-
-                            log('Selected delivery fee: ${_cartNotifier.deliveryFeeCharge.value}');
-                          },
-                        ),
-                      ),
-                    ],
-                  )
-                : const SizedBox.shrink()
-            : const SizedBox.shrink(),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 4.0, vertical: 10),
           child: Row(
@@ -340,31 +346,59 @@ class _NewSummaryViewState extends State<NewSummaryView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSummaryRow("Subtotal",
-                        "AED ${widget.subtotal.toStringAsFixed(2)}"),
+                    _buildSummaryRow(
+                        "Subtotal", "AED ${subtotal.toStringAsFixed(2)}"),
                     15.0.heightbox,
                     _buildSummaryRow(
                       "VAT Included",
-                      "AED ${(widget.subtotal*5/100).toStringAsFixed(2)}",
+                      "AED ${(subtotal * 5 / 100).toStringAsFixed(2)}",
                     ),
                     15.0.heightbox,
                     _buildSummaryRow(
                       "Shipping",
-                      widget.shippingType == 'Home Delivery' &&
-                              _cartNotifier.totalAmount.value <= 500
-                          ? "AED ${_cartNotifier.deliveryFeeCharge.value.toStringAsFixed(2)}"
+                      _hasHomeShippingCharge(subtotal)
+                          ? "AED ${shippingCharge.toStringAsFixed(2)}"
                           : 'Free',
                     ),
                     15.0.heightbox,
-                    _buildSummaryRow(
-                      "Total Amount",
-                      widget.shippingType == 'Home Delivery' &&
-                          _cartNotifier.totalAmount.value <= 500
-                          ? "AED ${_cartNotifier.totalAmount.value}"
-                          : 'AED ${_cartNotifier.totalAmount.value-20}',
-                      // "AED ${_cartNotifier.totalAmount.value}",
-                      isBold: true,
-                    )
+                    if (Get.isRegistered<FirstUserDiscountController>())
+                      Obx(() {
+                        final firstUserDiscount =
+                            Get.find<FirstUserDiscountController>();
+                        if (!firstUserDiscount.previewApplied.value ||
+                            firstUserDiscount.previewDiscountAmount.value <=
+                                0) {
+                          return const SizedBox.shrink();
+                        }
+                        return Column(
+                          children: [
+                            _buildSummaryRow(
+                              "First app order discount",
+                              "- AED ${firstUserDiscount.previewDiscountAmount.value.toStringAsFixed(2)}",
+                            ),
+                            15.0.heightbox,
+                          ],
+                        );
+                      }),
+                    Obx(() {
+                      var firstUserDiscount = 0.0;
+                      if (Get.isRegistered<FirstUserDiscountController>()) {
+                        final discountController =
+                            Get.find<FirstUserDiscountController>();
+                        if (discountController.previewApplied.value) {
+                          firstUserDiscount =
+                              discountController.previewDiscountAmount.value;
+                        }
+                      }
+                      final displayTotal =
+                          (totalBeforeDiscount - firstUserDiscount)
+                          .clamp(0.0, double.infinity);
+                      return _buildSummaryRow(
+                        "Total Amount",
+                        "AED ${displayTotal.toStringAsFixed(2)}",
+                        isBold: true,
+                      );
+                    })
                   ],
                 ),
               ),
