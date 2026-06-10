@@ -7,13 +7,10 @@ import 'package:graba2z/Utils/image_helper.dart';
 import 'package:http/http.dart' as http;
 import 'package:graba2z/Configs/config.dart';
 import 'package:get/get.dart';
-import 'package:graba2z/Api/Services/apiservices.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Controllers/first_user_discount_controller.dart';
 import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Views/Auth/signup.dart';
-// Add: explicit login import (it's referenced in showCheckoutDialog)
-import 'package:graba2z/Views/Auth/login.dart';
 import 'package:graba2z/Views/Home/Screens/Cart/new_checkout_view.dart';
 import 'package:graba2z/Views/Home/home.dart';
 import 'package:intl/intl.dart';
@@ -60,6 +57,42 @@ class _CartState extends State<Cart> {
 
     String? userId = storedUserId?.toString();
     cartNotifier.loadCartFromPrefs(userId); // Pass userId to load cart
+  }
+
+  double _couponAdjustedCartTotal(CartNotifier cartNotifier) {
+    return cartNotifier.discountAmountApplied.value == 0.0
+        ? cartNotifier.cartTotalPriceF()
+        : cartNotifier.totalAmount.value;
+  }
+
+  double _guestRegistrationDiscountAmount(
+    CartNotifier cartNotifier,
+    AuthController authProvider,
+  ) {
+    if (authProvider.userID.value.isNotEmpty ||
+        cartNotifier.cartOtherInfoList.isEmpty) {
+      return 0.0;
+    }
+
+    final cartTotal = _couponAdjustedCartTotal(cartNotifier);
+    final discount = cartTotal *
+        (FirstUserDiscountController.guestCardDiscountPercent / 100);
+    return double.parse(discount.clamp(0.0, cartTotal).toStringAsFixed(2));
+  }
+
+  double _appOrderDiscountAmount(
+    CartNotifier cartNotifier,
+    AuthController authProvider,
+  ) {
+    if (Get.isRegistered<FirstUserDiscountController>()) {
+      final discountController = Get.find<FirstUserDiscountController>();
+      if (discountController.previewApplied.value &&
+          discountController.previewDiscountAmount.value > 0) {
+        return discountController.previewDiscountAmount.value;
+      }
+    }
+
+    return _guestRegistrationDiscountAmount(cartNotifier, authProvider);
   }
 
   // ADD: Local product fetch to avoid undefined ApiServices error
@@ -402,10 +435,12 @@ class _CartState extends State<Cart> {
                                           _showRemoveDialog(
                                             context,
                                             cartItem.productName ?? "",
-                                            ImageHelper.getUrl(cartItem
+                                            cartItem.productImage?.isNotEmpty ??
+                                                    false
+                                                ? ImageHelper.getUrl(cartItem
                                                     .productImage
-                                                    .toString()) ??
-                                                "https://i.postimg.cc/SsWYSvq6/noimage.png",
+                                                    .toString())
+                                                : "https://i.postimg.cc/SsWYSvq6/noimage.png",
                                             cartItem.productPrice.toString(),
                                             cartItem.quantity.toString(),
                                             cartNotifier,
@@ -423,7 +458,7 @@ class _CartState extends State<Cart> {
                                                   false
                                               ? ImageHelper.getUrl(cartItem
                                                   .productImage
-                                                  .toString())!
+                                                  .toString())
                                               : "https://i.postimg.cc/SsWYSvq6/noimage.png",
                                           cartItem.productPrice.toString(),
                                           cartItem.quantity.toString(),
@@ -592,33 +627,53 @@ class _CartState extends State<Cart> {
                             )
                           : SizedBox.shrink(),
                     ),
-                    if (Get.isRegistered<FirstUserDiscountController>())
-                      Obx(() {
-                        final firstUserDiscount =
-                            Get.find<FirstUserDiscountController>();
-                        if (!firstUserDiscount.previewApplied.value ||
-                            firstUserDiscount.previewDiscountAmount.value <=
-                                0) {
-                          return const SizedBox.shrink();
-                        }
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            const Text(
-                              'First app order discount:',
-                              style: TextStyle(
-                                  fontSize: 14, fontWeight: FontWeight.bold),
+                    Obx(() {
+                      final authProvider = Get.find<AuthController>();
+                      final appDiscountAmount = _appOrderDiscountAmount(
+                          cartNotifier, authProvider);
+                      if (appDiscountAmount <= 0) {
+                        return const SizedBox.shrink();
+                      }
+
+                      final isGuestPreview =
+                          authProvider.userID.value.isEmpty;
+                      return Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                isGuestPreview
+                                    ? 'App registration discount:'
+                                    : 'First app order discount:',
+                                style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                '- ${appDiscountAmount.toStringAsFixed(2)} AED',
+                                style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red),
+                              ),
+                            ],
+                          ),
+                          if (isGuestPreview)
+                            const Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'Register before checkout to get this discount.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: kmediumblackColor,
+                                ),
+                              ),
                             ),
-                            Text(
-                              '- ${firstUserDiscount.previewDiscountAmount.value.toStringAsFixed(2)} AED',
-                              style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.red),
-                            ),
-                          ],
-                        );
-                      }),
+                        ],
+                      );
+                    }),
 
                     // Final Price Row
                     Row(
@@ -631,22 +686,13 @@ class _CartState extends State<Cart> {
                         ),
                         Obx(
                           () {
+                            final authProvider = Get.find<AuthController>();
                             final couponAdjustedTotal =
-                                cartNotifier.discountAmountApplied.value == 0.0
-                                    ? cartNotifier.cartTotalPriceF()
-                                    : cartNotifier.totalAmount.value;
-                            var firstUserDiscount = 0.0;
-                            if (Get.isRegistered<
-                                FirstUserDiscountController>()) {
-                              final discountController =
-                                  Get.find<FirstUserDiscountController>();
-                              if (discountController.previewApplied.value) {
-                                firstUserDiscount = discountController
-                                    .previewDiscountAmount.value;
-                              }
-                            }
+                                _couponAdjustedCartTotal(cartNotifier);
+                            final appDiscountAmount = _appOrderDiscountAmount(
+                                cartNotifier, authProvider);
                             final displayTotal =
-                                (couponAdjustedTotal - firstUserDiscount)
+                                (couponAdjustedTotal - appDiscountAmount)
                                     .clamp(0.0, double.infinity);
                             return Text(
                               "${displayTotal.toStringAsFixed(2)} AED",
@@ -992,6 +1038,75 @@ Future<bool?> _confirmRemoveDialog(
   );
 }
 
+Future<bool?> showGuestDiscountWarning(BuildContext context) {
+  return showDialog<bool>(
+    context: context,
+    barrierDismissible: true,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.error_outline, color: kredColor),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Discount not available',
+                style: TextStyle(
+                  color: kredColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'If you place the order as a guest, the app registration discount will not be applied. Please register or log in to get the discount.',
+          style: TextStyle(
+            color: kSecondaryColor,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              foregroundColor: kPrimaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: kPrimaryColor),
+              ),
+            ),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              backgroundColor: kredColor,
+              foregroundColor: kdefwhiteColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              'Continue as Guest',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 class CartItemWidget extends StatefulWidget {
   final CartOtherInfo cartItem;
   final VoidCallback onIncrease;
@@ -1028,7 +1143,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                 CachedNetworkImage(
                   imageUrl: widget.cartItem.productImage?.isNotEmpty ?? false
                       ? ImageHelper.getUrl(
-                          widget.cartItem.productImage.toString())!
+                          widget.cartItem.productImage.toString())
                       : "https://i.postimg.cc/SsWYSvq6/noimage.png",
                   imageBuilder: (context, imageProvider) => Container(
                     padding: const EdgeInsets.all(5),
@@ -1184,9 +1299,10 @@ class _CartItemWidgetState extends State<CartItemWidget> {
 }
 
 void showCheckoutDialog(BuildContext context) {
+  final rootContext = context;
   showDialog(
     context: context,
-    builder: (BuildContext context) {
+    builder: (BuildContext dialogContext) {
       return AlertDialog(
         backgroundColor: kPrimaryColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -1203,9 +1319,9 @@ void showCheckoutDialog(BuildContext context) {
         actions: <Widget>[
           GestureDetector(
             onTap: () {
-              Navigator.of(context).pop();
+              Navigator.of(dialogContext).pop();
               // print("Login pressed");
-              context.route(Login());
+              rootContext.route(Login());
             },
             child: Container(
               alignment: Alignment.centerLeft,
@@ -1233,8 +1349,8 @@ void showCheckoutDialog(BuildContext context) {
           ),
           GestureDetector(
             onTap: () {
-              Navigator.of(context).pop();
-              context.route(SignUp());
+              Navigator.of(dialogContext).pop();
+              rootContext.route(SignUp());
             },
             child: Container(
               alignment: Alignment.centerLeft,
@@ -1261,12 +1377,19 @@ void showCheckoutDialog(BuildContext context) {
             ),
           ),
           GestureDetector(
-            onTap: () {
+            onTap: () async {
               // Navigator.of(context).pop();
               // // context.route(GuestDataForm());
               // Get.to(() => CheckoutStepper(
               //       isforguest: true,
               //     ));
+              Navigator.of(dialogContext).pop();
+
+              final continueAsGuest =
+                  await showGuestDiscountWarning(rootContext);
+              if (continueAsGuest != true) {
+                return;
+              }
 
               final auth = Get.find<AuthController>();
               auth.isGuest.value = true;

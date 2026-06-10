@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:awesome_notifications/awesome_notifications.dart';
-import 'package:dio/dio.dart';
 import 'package:graba2z/Api/Models/ordercreatemodel.dart' as order_create;
 import 'package:graba2z/Configs/config.dart';
 import 'package:graba2z/Controllers/first_user_discount_controller.dart';
@@ -129,28 +128,40 @@ class CartNotifier extends GetxController {
   Future<void> mergeGuestCart(String userId) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? guestCartData = prefs.getString('guest_cart');
+    String userCartKey = await _getCartKey(userId);
+    String? userCartData = prefs.getString(userCartKey);
 
-    if (guestCartData != null && guestCartData.isNotEmpty) {
-      List<CartOtherInfo> guestCart = cartOtherInfoListFromJson(guestCartData);
-
-      for (var guestItem in guestCart) {
-        int existingIndex = cartOtherInfoList
-            .indexWhere((item) => item.productId == guestItem.productId);
-
-        if (existingIndex >= 0) {
-          cartOtherInfoList[existingIndex].quantity =
-              (cartOtherInfoList[existingIndex].quantity ?? 0) +
-                  (guestItem.quantity ?? 1);
-        } else {
-          cartOtherInfoList.add(guestItem);
-        }
-      }
-
-      await prefs.remove('guest_cart'); // Remove guest cart after merging
-      await saveCartToPrefs(userId);
-      update();
-      _refreshFirstUserDiscountPreview();
+    if (guestCartData == null || guestCartData.isEmpty) {
+      await loadCartFromPrefs(userId);
+      return;
     }
+
+    List<CartOtherInfo> mergedCart =
+        userCartData != null && userCartData.isNotEmpty
+            ? cartOtherInfoListFromJson(userCartData)
+            : <CartOtherInfo>[];
+    List<CartOtherInfo> guestCart = cartOtherInfoListFromJson(guestCartData);
+
+    for (var guestItem in guestCart) {
+      int existingIndex = mergedCart
+          .indexWhere((item) => item.productId == guestItem.productId);
+
+      if (existingIndex >= 0) {
+        mergedCart[existingIndex].quantity =
+            (mergedCart[existingIndex].quantity ?? 0) +
+                (guestItem.quantity ?? 1);
+      } else {
+        mergedCart.add(guestItem);
+      }
+    }
+
+    cartOtherInfoList = mergedCart;
+    createLineItems();
+    await prefs.setString(
+        userCartKey, cartOtherInfoListToJson(cartOtherInfoList));
+    await prefs.remove('guest_cart');
+    update();
+    _refreshFirstUserDiscountPreview();
   }
 
   /// **Clear Cart**
@@ -291,6 +302,7 @@ class CartNotifier extends GetxController {
 
   void removeCoupon() {
     // coupon.clear();
+    discountAmountApplied.value = 0.0;
     totalAmount.value = 0.0;
     update();
   }

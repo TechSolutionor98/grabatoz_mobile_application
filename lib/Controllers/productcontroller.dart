@@ -13,6 +13,9 @@ class ShopController extends GetxController {
     required String? parentType,
     List<String> makeIds = const [],
     List<String> modelIds = const [],
+    List<String> seriesIds = const [],
+    List<String> manufacturerIds = const [],
+    List<String> soldByIds = const [],
     String sortBy = 'newest',
     int page = 1,
     int limit = 2500,
@@ -25,6 +28,9 @@ class ShopController extends GetxController {
         parentType: parentType,
         makeIds: makeIds,
         modelIds: modelIds,
+        seriesIds: seriesIds,
+        manufacturerIds: manufacturerIds,
+        soldByIds: soldByIds,
         sortBy: sortBy,
         page: page,
         limit: limit,
@@ -67,14 +73,24 @@ class ShopController extends GetxController {
     required String? parentType,
     required List<String> makeIds,
     required List<String> modelIds,
+    required List<String> seriesIds,
+    required List<String> manufacturerIds,
+    required List<String> soldByIds,
     required String sortBy,
     required int page,
     required int limit,
   }) {
     final cleanMakeIds = makeIds.where((e) => e.trim().isNotEmpty).toList();
     final cleanModelIds = modelIds.where((e) => e.trim().isNotEmpty).toList();
-    final hasSystemFilters =
-        cleanMakeIds.isNotEmpty || cleanModelIds.isNotEmpty;
+    final cleanSeriesIds = seriesIds.where((e) => e.trim().isNotEmpty).toList();
+    final cleanManufacturerIds =
+        manufacturerIds.where((e) => e.trim().isNotEmpty).toList();
+    final cleanSoldByIds = soldByIds.where((e) => e.trim().isNotEmpty).toList();
+    final hasSystemFilters = cleanMakeIds.isNotEmpty ||
+        cleanModelIds.isNotEmpty ||
+        cleanSeriesIds.isNotEmpty ||
+        cleanManufacturerIds.isNotEmpty ||
+        cleanSoldByIds.isNotEmpty;
 
     if (hasSystemFilters) {
       final baseUri = Uri.parse(Configss.shopQueryProducts);
@@ -91,6 +107,15 @@ class ShopController extends GetxController {
       }
       for (final modelId in cleanModelIds) {
         addParam('model', modelId);
+      }
+      for (final seriesId in cleanSeriesIds) {
+        addParam('series', seriesId);
+      }
+      for (final manufacturerId in cleanManufacturerIds) {
+        addParam('manufacturer', manufacturerId);
+      }
+      for (final soldById in cleanSoldByIds) {
+        addParam('soldBy', soldById);
       }
 
       final productParam = _productFilterParam(parentType);

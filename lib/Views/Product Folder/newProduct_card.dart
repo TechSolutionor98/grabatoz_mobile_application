@@ -540,47 +540,61 @@ class _NewProductCardState extends State<NewProductCard> {
                                             s == 'in stock')
                                         ? kdefgreenColor
                                         : kSecondaryColor;
-                            return Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                      color: bg,
-                                      borderRadius: BorderRadius.circular(4)),
-                                  child: Text(
-                                    status,
-                                    style: const TextStyle(
-                                        color: kdefwhiteColor,
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                                5.0.widthbox,
-                                Obx(() {
-                                  final deal = _firstUserDeal();
-                                  if (!deal.showBadge)
-                                    return const SizedBox.shrink();
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFDCFCE7),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: kPrimaryColor),
-                                    ),
-                                    child: const Text(
-                                      '10% discount',
-                                      style: TextStyle(
-                                        color: Color(0xFF166534),
-                                        fontSize: 7,
-                                        fontWeight: FontWeight.bold,
+                            return Obx(() {
+                              final deal = _firstUserDeal();
+                              return Row(
+                                children: [
+                                  Flexible(
+                                    flex: deal.showBadge ? 5 : 1,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                          color: bg,
+                                          borderRadius:
+                                              BorderRadius.circular(4)),
+                                      child: Text(
+                                        status,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            color: kdefwhiteColor,
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.bold),
                                       ),
                                     ),
-                                  );
-                                }),
-                              ],
-                            );
+                                  ),
+                                  if (deal.showBadge)
+                                    Flexible(
+                                      flex: 6,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(left: 5),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFDCFCE7),
+                                            borderRadius:
+                                                BorderRadius.circular(4),
+                                            border: Border.all(
+                                                color: kPrimaryColor),
+                                          ),
+                                          child: const Text(
+                                            '10%  Extra Discount',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              color: Color(0xFF166534),
+                                              fontSize: 7,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              );
+                            });
                           },
                         ),
                       ),

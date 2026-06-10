@@ -55,6 +55,9 @@ class _ShopState extends State<Shop> {
   List<String> _selectedBrandIds = [];
   List<String> _selectedMakeIds = [];
   List<String> _selectedModelIds = [];
+  List<String> _selectedSeriesIds = [];
+  List<String> _selectedManufacturerIds = [];
+  List<String> _selectedSoldByIds = [];
   double _filterMinPrice = 0;
   double _filterMaxPrice = 100000;
   String? _activeProductId;
@@ -92,6 +95,9 @@ class _ShopState extends State<Shop> {
       _selectedBrandIds = [];
       _selectedMakeIds = [];
       _selectedModelIds = [];
+      _selectedSeriesIds = [];
+      _selectedManufacturerIds = [];
+      _selectedSoldByIds = [];
       _activeProductId = widget.id;
       _activeParentType = widget.parentType;
       _currentTitle = null;
@@ -164,7 +170,7 @@ class _ShopState extends State<Shop> {
           _sortMenuOpen = false;
           visibleCount = pageSize;
         });
-        if (_hasMakeModelFilters) {
+        if (_hasSystemFilters) {
           _fetchActiveProducts();
         }
       },
@@ -205,8 +211,12 @@ class _ShopState extends State<Shop> {
     );
   }
 
-  bool get _hasMakeModelFilters =>
-      _selectedMakeIds.isNotEmpty || _selectedModelIds.isNotEmpty;
+  bool get _hasSystemFilters =>
+      _selectedMakeIds.isNotEmpty ||
+      _selectedModelIds.isNotEmpty ||
+      _selectedSeriesIds.isNotEmpty ||
+      _selectedManufacturerIds.isNotEmpty ||
+      _selectedSoldByIds.isNotEmpty;
 
   String _sortApiValue() {
     switch (_sortLabel) {
@@ -228,6 +238,9 @@ class _ShopState extends State<Shop> {
       parentType: _activeParentType,
       makeIds: _selectedMakeIds,
       modelIds: _selectedModelIds,
+      seriesIds: _selectedSeriesIds,
+      manufacturerIds: _selectedManufacturerIds,
+      soldByIds: _selectedSoldByIds,
       sortBy: _sortApiValue(),
     );
   }
@@ -408,13 +421,32 @@ class _ShopState extends State<Shop> {
             .where((e) => e.isNotEmpty)
             .toList() ??
         [];
+    final selectedSeriesIds = (filters['selectedSeriesIds'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .where((e) => e.isNotEmpty)
+            .toList() ??
+        [];
+    final selectedManufacturerIds =
+        (filters['selectedManufacturerIds'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .where((e) => e.isNotEmpty)
+                .toList() ??
+            [];
+    final selectedSoldByIds = (filters['selectedSoldByIds'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .where((e) => e.isNotEmpty)
+            .toList() ??
+        [];
 
     // Reset case: all filters empty.
     if (selectedId.isEmpty &&
         parentType.isEmpty &&
         selectedBrandIds.isEmpty &&
         selectedMakeIds.isEmpty &&
-        selectedModelIds.isEmpty) {
+        selectedModelIds.isEmpty &&
+        selectedSeriesIds.isEmpty &&
+        selectedManufacturerIds.isEmpty &&
+        selectedSoldByIds.isEmpty) {
       log('Reset filters detected - restoring original state');
 
       setState(() {
@@ -424,6 +456,9 @@ class _ShopState extends State<Shop> {
         _selectedBrandIds = [];
         _selectedMakeIds = [];
         _selectedModelIds = [];
+        _selectedSeriesIds = [];
+        _selectedManufacturerIds = [];
+        _selectedSoldByIds = [];
         _activeProductId = widget.id;
         _activeParentType = widget.parentType;
         _currentTitle = null;
@@ -432,7 +467,7 @@ class _ShopState extends State<Shop> {
       return;
     }
 
-    final hadMakeModelFilters = _hasMakeModelFilters;
+    final hadSystemFilters = _hasSystemFilters;
 
     // If a specific category/subcategory is selected, fetch products for that category.
     if (selectedId.isNotEmpty && parentType.isNotEmpty) {
@@ -443,13 +478,16 @@ class _ShopState extends State<Shop> {
         _selectedBrandIds = selectedBrandIds;
         _selectedMakeIds = selectedMakeIds;
         _selectedModelIds = selectedModelIds;
+        _selectedSeriesIds = selectedSeriesIds;
+        _selectedManufacturerIds = selectedManufacturerIds;
+        _selectedSoldByIds = selectedSoldByIds;
         _activeProductId = selectedId;
         _activeParentType = parentType;
         _currentTitle = title.isNotEmpty ? title : null;
       });
 
       _fetchActiveProducts();
-      log('Fetching products for: id=$selectedId, parentType=$parentType, title=$title, brands=$selectedBrandIds, makes=$selectedMakeIds, models=$selectedModelIds');
+      log('Fetching products for: id=$selectedId, parentType=$parentType, title=$title, brands=$selectedBrandIds, makes=$selectedMakeIds, models=$selectedModelIds, series=$selectedSeriesIds, manufacturers=$selectedManufacturerIds, soldBy=$selectedSoldByIds');
       return;
     }
 
@@ -460,14 +498,17 @@ class _ShopState extends State<Shop> {
       _selectedBrandIds = selectedBrandIds;
       _selectedMakeIds = selectedMakeIds;
       _selectedModelIds = selectedModelIds;
+      _selectedSeriesIds = selectedSeriesIds;
+      _selectedManufacturerIds = selectedManufacturerIds;
+      _selectedSoldByIds = selectedSoldByIds;
       _activeProductId = widget.id;
       _activeParentType = widget.parentType;
       _currentTitle = null;
     });
 
-    if (_hasMakeModelFilters || hadMakeModelFilters) {
+    if (_hasSystemFilters || hadSystemFilters) {
       _fetchActiveProducts();
-      log('Make/model filter applied: makes=$selectedMakeIds, models=$selectedModelIds');
+      log('System filter applied: makes=$selectedMakeIds, models=$selectedModelIds, series=$selectedSeriesIds, manufacturers=$selectedManufacturerIds, soldBy=$selectedSoldByIds');
       return;
     }
 
@@ -522,6 +563,9 @@ class _ShopState extends State<Shop> {
         initialSelectedBrands: _selectedBrandIds,
         initialSelectedMakes: _selectedMakeIds,
         initialSelectedModels: _selectedModelIds,
+        initialSelectedSeries: _selectedSeriesIds,
+        initialSelectedManufacturers: _selectedManufacturerIds,
+        initialSelectedSoldBy: _selectedSoldByIds,
       ),
       appBar: CustomAppBar(
           showLeading: true,

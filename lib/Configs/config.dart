@@ -12,6 +12,8 @@ class Configss {
       '$baseUrl/api/product-system-options/make';
   static String productSystemModelOptions =
       '$baseUrl/api/product-system-options/model';
+  static String productSystemOptions(String type) =>
+      '$baseUrl/api/product-system-options/$type';
   static String shopQueryProducts = '$baseUrl/api/products/shop-query';
   static String getuserProfile = '$baseUrl/api/users/profile';
   static String verifyEmail = "$baseUrl/api/users/verify-email";

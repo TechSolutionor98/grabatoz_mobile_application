@@ -26,9 +26,12 @@ class ShopCategoryFilter extends StatefulWidget {
   final List<String>? initialSelectedBrands; // Initially selected brands
   final List<String>? initialSelectedMakes;
   final List<String>? initialSelectedModels;
+  final List<String>? initialSelectedSeries;
+  final List<String>? initialSelectedManufacturers;
+  final List<String>? initialSelectedSoldBy;
 
   const ShopCategoryFilter({
-    Key? key,
+    super.key,
     required this.onApplyFilters,
     this.initialCategoryId,
     this.initialSubCategoryId,
@@ -36,7 +39,10 @@ class ShopCategoryFilter extends StatefulWidget {
     this.initialSelectedBrands,
     this.initialSelectedMakes,
     this.initialSelectedModels,
-  }) : super(key: key);
+    this.initialSelectedSeries,
+    this.initialSelectedManufacturers,
+    this.initialSelectedSoldBy,
+  });
 
   @override
   State<ShopCategoryFilter> createState() => _ShopCategoryFilterState();
@@ -52,7 +58,8 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
   bool _isCategorySectionExpanded = true;
 
   // Brand filter
-  Map<String, String> _allBrandsMap = {}; // All brands from API: {id: name}
+  final Map<String, String> _allBrandsMap =
+      {}; // All brands from API: {id: name}
   List<Map<String, String>> _availableBrands = []; // Brands in current products
   Set<String> _selectedBrandIds = {};
   bool _isBrandSectionExpanded = true;
@@ -61,12 +68,24 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
   // Make/model filters
   List<ProductSystemOption> _makeOptions = [];
   List<ProductSystemOption> _modelOptions = [];
+  List<ProductSystemOption> _seriesOptions = [];
+  List<ProductSystemOption> _manufacturerOptions = [];
+  List<ProductSystemOption> _soldByOptions = [];
   Set<String> _selectedMakeIds = {};
   Set<String> _selectedModelIds = {};
+  Set<String> _selectedSeriesIds = {};
+  Set<String> _selectedManufacturerIds = {};
+  Set<String> _selectedSoldByIds = {};
   bool _isMakeSectionExpanded = true;
   bool _isModelSectionExpanded = true;
+  bool _isSeriesSectionExpanded = true;
+  bool _isManufacturerSectionExpanded = true;
+  bool _isSoldBySectionExpanded = true;
   bool _isMakesLoading = false;
   bool _isModelsLoading = false;
+  bool _isSeriesLoading = false;
+  bool _isManufacturersLoading = false;
+  bool _isSoldByLoading = false;
   int _systemOptionRequestId = 0;
 
   @override
@@ -97,6 +116,18 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
         !_sameStringSet(
           oldWidget.initialSelectedModels,
           widget.initialSelectedModels,
+        ) ||
+        !_sameStringSet(
+          oldWidget.initialSelectedSeries,
+          widget.initialSelectedSeries,
+        ) ||
+        !_sameStringSet(
+          oldWidget.initialSelectedManufacturers,
+          widget.initialSelectedManufacturers,
+        ) ||
+        !_sameStringSet(
+          oldWidget.initialSelectedSoldBy,
+          widget.initialSelectedSoldBy,
         );
 
     if (selectionChanged || filterSelectionsChanged) {
@@ -117,6 +148,10 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
     _selectedBrandIds = Set<String>.from(widget.initialSelectedBrands ?? []);
     _selectedMakeIds = Set<String>.from(widget.initialSelectedMakes ?? []);
     _selectedModelIds = Set<String>.from(widget.initialSelectedModels ?? []);
+    _selectedSeriesIds = Set<String>.from(widget.initialSelectedSeries ?? []);
+    _selectedManufacturerIds =
+        Set<String>.from(widget.initialSelectedManufacturers ?? []);
+    _selectedSoldByIds = Set<String>.from(widget.initialSelectedSoldBy ?? []);
 
     if (_selectedCategoryId != null && _selectedCategoryId != 'all') {
       _expandedCategories.add(_selectedCategoryId!);
@@ -224,10 +259,19 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
         setState(() {
           _makeOptions = [];
           _modelOptions = [];
+          _seriesOptions = [];
+          _manufacturerOptions = [];
+          _soldByOptions = [];
           _selectedMakeIds.clear();
           _selectedModelIds.clear();
+          _selectedSeriesIds.clear();
+          _selectedManufacturerIds.clear();
+          _selectedSoldByIds.clear();
           _isMakesLoading = false;
           _isModelsLoading = false;
+          _isSeriesLoading = false;
+          _isManufacturersLoading = false;
+          _isSoldByLoading = false;
         });
       }
       return;
@@ -237,14 +281,26 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
       setState(() {
         _isMakesLoading = true;
         _isModelsLoading = true;
+        _isSeriesLoading = true;
+        _isManufacturersLoading = true;
+        _isSoldByLoading = true;
       });
     }
 
     try {
       final localProducts = _filterProductsForSelectedCategory(widget.products);
-      final fetchedProducts = await _fetchProductsForSelectedCategory();
+      final responses = await Future.wait([
+        _fetchProductsForSelectedCategory(),
+        _fetchProductSystemOptionsById('series'),
+        _fetchProductSystemOptionsById('manufacturer'),
+        _fetchProductSystemOptionsById('sold-by'),
+      ]);
       if (!mounted || requestId != _systemOptionRequestId) return;
 
+      final fetchedProducts = responses[0] as List<dynamic>;
+      final seriesNamesById = responses[1] as Map<String, String>;
+      final manufacturerNamesById = responses[2] as Map<String, String>;
+      final soldByNamesById = responses[3] as Map<String, String>;
       final fetchedScopedProducts =
           _filterProductsForSelectedCategory(fetchedProducts);
       final sourceProducts = fetchedScopedProducts.isNotEmpty
@@ -252,24 +308,53 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
           : localProducts;
       final makeOptions = _extractOptionsFromProducts(sourceProducts, 'make');
       final modelOptions = _extractOptionsFromProducts(sourceProducts, 'model');
+      final seriesOptions = _extractOptionsFromProducts(
+        sourceProducts,
+        'series',
+        optionNamesById: seriesNamesById,
+      );
+      final manufacturerOptions = _extractOptionsFromProducts(
+        sourceProducts,
+        'manufacturer',
+        optionNamesById: manufacturerNamesById,
+      );
+      final soldByOptions = _extractOptionsFromProducts(
+        sourceProducts,
+        'soldBy',
+        optionNamesById: soldByNamesById,
+      );
       final makeIds = makeOptions.map((option) => option.id).toSet();
       final modelIds = modelOptions.map((option) => option.id).toSet();
+      final seriesIds = seriesOptions.map((option) => option.id).toSet();
+      final manufacturerIds =
+          manufacturerOptions.map((option) => option.id).toSet();
+      final soldByIds = soldByOptions.map((option) => option.id).toSet();
 
       setState(() {
         _makeOptions = makeOptions;
         _modelOptions = modelOptions;
+        _seriesOptions = seriesOptions;
+        _manufacturerOptions = manufacturerOptions;
+        _soldByOptions = soldByOptions;
         _selectedMakeIds.removeWhere((id) => !makeIds.contains(id));
         _selectedModelIds.removeWhere((id) => !modelIds.contains(id));
+        _selectedSeriesIds.removeWhere((id) => !seriesIds.contains(id));
+        _selectedManufacturerIds
+            .removeWhere((id) => !manufacturerIds.contains(id));
+        _selectedSoldByIds.removeWhere((id) => !soldByIds.contains(id));
       });
 
-      log('Loaded ${makeOptions.length} make and ${modelOptions.length} model options for selected category');
+      log('Loaded ${makeOptions.length} make, ${modelOptions.length} model, ${seriesOptions.length} series, ${manufacturerOptions.length} manufacturer, ${soldByOptions.length} sold-by options for selected category');
     } catch (e) {
-      log('Error loading category make/model options: $e');
+      log('Error loading category system options: $e');
     } finally {
       if (mounted && requestId == _systemOptionRequestId) {
         setState(() {
           _isMakesLoading = false;
           _isModelsLoading = false;
+          _isSeriesLoading = false;
+          _isManufacturersLoading = false;
+          _isSoldByLoading = false;
         });
       }
     }
@@ -289,13 +374,12 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
     final selectedCategoryId = _selectedCategoryId;
     final queryParams = <String, String>{};
 
-    if (selectedCategoryId != null &&
+    if (selectedSubCategoryId != null && selectedSubCategoryId.isNotEmpty) {
+      queryParams['subcategory'] = selectedSubCategoryId;
+    } else if (selectedCategoryId != null &&
         selectedCategoryId != 'all' &&
         selectedCategoryId.isNotEmpty) {
       queryParams['parentCategory'] = selectedCategoryId;
-    } else if (selectedSubCategoryId != null &&
-        selectedSubCategoryId.isNotEmpty) {
-      queryParams['subcategory'] = selectedSubCategoryId;
     } else {
       return const [];
     }
@@ -307,6 +391,33 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
     if (response.statusCode != 200) return const [];
 
     return _extractList(jsonDecode(response.body));
+  }
+
+  Future<Map<String, String>> _fetchProductSystemOptionsById(
+    String optionType,
+  ) async {
+    try {
+      final uri = Uri.parse(Configss.productSystemOptions(optionType));
+      final response = await http.get(uri);
+      if (response.statusCode != 200) return const {};
+
+      final options = _extractList(jsonDecode(response.body));
+      final namesById = <String, String>{};
+
+      for (final option in options) {
+        if (option is! Map) continue;
+        final id = _optionLikeId(option);
+        final name = _optionLikeName(option, null);
+        if (id.isNotEmpty && name.isNotEmpty) {
+          namesById[id] = name;
+        }
+      }
+
+      return namesById;
+    } catch (e) {
+      log('Error fetching $optionType options: $e');
+      return const {};
+    }
   }
 
   List<dynamic> _filterProductsForSelectedCategory(List<dynamic> products) {
@@ -355,8 +466,9 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
 
   List<ProductSystemOption> _extractOptionsFromProducts(
     List<dynamic> products,
-    String fieldName,
-  ) {
+    String fieldName, {
+    Map<String, String>? optionNamesById,
+  }) {
     final options = <ProductSystemOption>[];
     final seenIds = <String>{};
 
@@ -365,7 +477,10 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
 
       final value = product[fieldName];
       final id = _optionLikeId(value);
-      final name = _optionLikeName(value, product['${fieldName}Name']);
+      final mappedName = optionNamesById?[id];
+      final name = mappedName != null && mappedName.isNotEmpty
+          ? mappedName
+          : _optionLikeName(value, product['${fieldName}Name']);
 
       if (id.isNotEmpty && name.isNotEmpty && seenIds.add(id)) {
         options.add(ProductSystemOption(id: id, name: name));
@@ -423,8 +538,14 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
   void _clearSystemSelectionsAndOptions() {
     _selectedMakeIds.clear();
     _selectedModelIds.clear();
+    _selectedSeriesIds.clear();
+    _selectedManufacturerIds.clear();
+    _selectedSoldByIds.clear();
     _makeOptions = [];
     _modelOptions = [];
+    _seriesOptions = [];
+    _manufacturerOptions = [];
+    _soldByOptions = [];
   }
 
   // Extract brands from current products and map to names
@@ -483,6 +604,9 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
       _selectedBrandIds.clear();
       _selectedMakeIds.clear();
       _selectedModelIds.clear();
+      _selectedSeriesIds.clear();
+      _selectedManufacturerIds.clear();
+      _selectedSoldByIds.clear();
       _expandedCategories.clear();
     });
 
@@ -496,6 +620,9 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
       'selectedBrandIds': [],
       'selectedMakeIds': [],
       'selectedModelIds': [],
+      'selectedSeriesIds': [],
+      'selectedManufacturerIds': [],
+      'selectedSoldByIds': [],
     };
     log('Resetting filters: $resetFilters');
     widget.onApplyFilters(resetFilters);
@@ -520,8 +647,7 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
               _selectedCategoryId = categoryId;
               _selectedSubCategoryId = null;
               _selectedTitle = categoryName;
-              _selectedMakeIds.clear();
-              _selectedModelIds.clear();
+              _clearSystemSelectionsAndOptions();
               log('Selected category: $categoryName ($categoryId)');
             });
             _refreshSystemOptionsForSelection();
@@ -594,11 +720,8 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
         ),
         // Children (subcategories level 1) - only show level 1 children
         if (hasChildren && isExpanded)
-          ...category.children
-              .where((c) => c.level == 1)
-              .map((child) =>
-                  _buildChildTile(child, parentId: categoryId, level: 1))
-              .toList(),
+          ...category.children.where((c) => c.level == 1).map((child) =>
+              _buildChildTile(child, parentId: categoryId, level: 1)),
       ],
     );
   }
@@ -621,8 +744,7 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
               _selectedCategoryId = parentId;
               _selectedSubCategoryId = childId;
               _selectedTitle = childName;
-              _selectedMakeIds.clear();
-              _selectedModelIds.clear();
+              _clearSystemSelectionsAndOptions();
               log('Selected subcategory level $level: $childName ($childId)');
             });
             _refreshSystemOptionsForSelection();
@@ -709,13 +831,11 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
         ),
         // Nested children (levels 2, 3, 4...)
         if (hasChildren && isExpanded)
-          ...child.children
-              .map((nestedChild) => _buildChildTile(
-                    nestedChild,
-                    parentId: parentId,
-                    level: level + 1,
-                  ))
-              .toList(),
+          ...child.children.map((nestedChild) => _buildChildTile(
+                nestedChild,
+                parentId: parentId,
+                level: level + 1,
+              )),
       ],
     );
   }
@@ -757,6 +877,11 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
                     children: [
                       // Categories Section
                       _buildCategoriesSection(),
+
+                      const SizedBox(height: 16),
+
+                      // Brands Section
+                      _buildBrandsSection(),
 
                       const SizedBox(height: 16),
 
@@ -813,8 +938,87 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
                         const SizedBox(height: 16),
                       ],
 
-                      // Brands Section (below categories)
-                      _buildBrandsSection(),
+                      // Series Section
+                      if (_isSeriesLoading || _seriesOptions.isNotEmpty) ...[
+                        _buildSystemOptionsSection(
+                          title: 'Series',
+                          options: _seriesOptions,
+                          selectedIds: _selectedSeriesIds,
+                          isExpanded: _isSeriesSectionExpanded,
+                          isLoading: _isSeriesLoading,
+                          onHeaderTap: () {
+                            setState(() {
+                              _isSeriesSectionExpanded =
+                                  !_isSeriesSectionExpanded;
+                            });
+                          },
+                          onToggle: (id) {
+                            setState(() {
+                              if (_selectedSeriesIds.contains(id)) {
+                                _selectedSeriesIds.remove(id);
+                              } else {
+                                _selectedSeriesIds.add(id);
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Manufacturer Section
+                      if (_isManufacturersLoading ||
+                          _manufacturerOptions.isNotEmpty) ...[
+                        _buildSystemOptionsSection(
+                          title: 'Manufacturer',
+                          options: _manufacturerOptions,
+                          selectedIds: _selectedManufacturerIds,
+                          isExpanded: _isManufacturerSectionExpanded,
+                          isLoading: _isManufacturersLoading,
+                          onHeaderTap: () {
+                            setState(() {
+                              _isManufacturerSectionExpanded =
+                                  !_isManufacturerSectionExpanded;
+                            });
+                          },
+                          onToggle: (id) {
+                            setState(() {
+                              if (_selectedManufacturerIds.contains(id)) {
+                                _selectedManufacturerIds.remove(id);
+                              } else {
+                                _selectedManufacturerIds.add(id);
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Sold By Section
+                      if (_isSoldByLoading || _soldByOptions.isNotEmpty) ...[
+                        _buildSystemOptionsSection(
+                          title: 'Sold By',
+                          options: _soldByOptions,
+                          selectedIds: _selectedSoldByIds,
+                          isExpanded: _isSoldBySectionExpanded,
+                          isLoading: _isSoldByLoading,
+                          onHeaderTap: () {
+                            setState(() {
+                              _isSoldBySectionExpanded =
+                                  !_isSoldBySectionExpanded;
+                            });
+                          },
+                          onToggle: (id) {
+                            setState(() {
+                              if (_selectedSoldByIds.contains(id)) {
+                                _selectedSoldByIds.remove(id);
+                              } else {
+                                _selectedSoldByIds.add(id);
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                     ],
                   ),
                 ),
@@ -872,6 +1076,10 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
                           'selectedBrandIds': _selectedBrandIds.toList(),
                           'selectedMakeIds': _selectedMakeIds.toList(),
                           'selectedModelIds': _selectedModelIds.toList(),
+                          'selectedSeriesIds': _selectedSeriesIds.toList(),
+                          'selectedManufacturerIds':
+                              _selectedManufacturerIds.toList(),
+                          'selectedSoldByIds': _selectedSoldByIds.toList(),
                         };
                         log('Applying filters: $filters');
                         widget.onApplyFilters(filters);
@@ -999,8 +1207,7 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
                 ),
                 // Category list from menuController
                 ..._menuController.categories
-                    .map((category) => _buildCategoryTile(category))
-                    .toList(),
+                    .map((category) => _buildCategoryTile(category)),
               ],
             );
           }),
@@ -1248,7 +1455,7 @@ class _ShopCategoryFilterState extends State<ShopCategoryFilter> {
                   ),
                 ),
               );
-            }).toList(),
+            }),
         ],
       ],
     );

@@ -616,7 +616,7 @@ class _DealsProductCardState extends State<DealsProductCard> {
                                             Border.all(color: kPrimaryColor),
                                       ),
                                       child: const Text(
-                                        '10% discount',
+                                        '10% Discount Extra',
                                         style: TextStyle(
                                           color: Color(0xFF166534),
                                           fontSize: 7,

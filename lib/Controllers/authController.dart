@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'dart:io';
 
 import 'package:graba2z/Configs/config.dart';
+import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Controllers/first_user_discount_controller.dart';
 import 'package:graba2z/Views/Auth/otp_view.dart';
 import 'package:graba2z/Views/Home/home.dart';
@@ -302,11 +303,6 @@ class AuthController extends GetxController {
   Future login(String email, String password, bool isforbottom) async {
     final prefs = await SharedPreferences.getInstance();
 
-    var headers = {
-      'Content-Type': 'application/json',
-      // 'Cookie': 'PHPSESSID=1qkbb5ikaf1qkud9pg4lk414o4'
-    };
-
     // Encode the data as JSON
 
     var bodyobj = {"email": email, "password": password};
@@ -328,7 +324,7 @@ class AuthController extends GetxController {
 
         final responseData = json.decode(response.body.toString());
         final String userId =
-            responseData['_id'].toString() ?? '0'; // Extract user_id
+            (responseData['_id'] ?? '0').toString(); // Extract user_id
         final String userEmail = responseData['email'] ?? "";
         final String userName = responseData['name'];
         final String token = responseData['token'];
@@ -339,6 +335,17 @@ class AuthController extends GetxController {
         await prefs.setString('userName', userName);
         await prefs.setString('user_name', userName);
         await prefs.setString('token', token);
+        await prefs.remove('Guest');
+        await prefs.remove('guest_name');
+        await prefs.remove('guest_email');
+        await prefs.remove('guest_phone');
+        await prefs.remove('guest_address');
+        await prefs.remove('guest_city');
+        await prefs.remove('guest_state');
+        await prefs.remove('guest_zip');
+        if (Get.isRegistered<CartNotifier>()) {
+          await Get.find<CartNotifier>().mergeGuestCart(userId);
+        }
         print('Login successful: User details saved');
         print('User ID: $userId');
         print('User Email: $userEmail');
@@ -401,7 +408,7 @@ class AuthController extends GetxController {
       final data = json.decode(response.body.toString());
       // print("Success: $data");
       EasyLoading.showSuccess(data['message']);
-      Get.to(() => OtpScreen(email: email));
+      Get.to(() => OtpScreen(email: email, password: password));
       return response;
     } else {
       final errorData = json.decode(response.body);

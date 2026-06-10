@@ -1,10 +1,10 @@
 import 'package:get/get.dart';
 import 'package:graba2z/Controllers/addtocart.dart';
 import 'package:graba2z/Utils/appextensions.dart';
+import 'package:graba2z/Views/Auth/signup.dart';
 import 'package:graba2z/Views/Home/Screens/Favorite%20Product/favproduct_screen.dart';
 import 'package:graba2z/Views/Home/Screens/Settings/accountsettings.dart';
 import 'package:graba2z/Views/Home/Screens/Shop%20Screen/Shop.dart';
-import 'package:graba2z/Views/Product%20Folder/new_all_products.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../Utils/packages.dart';
 
@@ -34,6 +34,9 @@ class _HomeState extends State<Home> {
     _loadUserIdAndCart(cartNotifier);
     final authProvider = Get.find<AuthController>();
     authProvider.loadUserData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showFirstOpenDiscountPopup();
+    });
   }
 
   Future<void> _loadUserIdAndCart(CartNotifier cartNotifier) async {
@@ -76,6 +79,124 @@ class _HomeState extends State<Home> {
   }
 
   bool get isOffline => _connectionStatus.contains(ConnectivityResult.none);
+
+  Future<void> _showFirstOpenDiscountPopup() async {
+    final prefs = await SharedPreferences.getInstance();
+    const popupShownKey = 'first_open_discount_popup_shown';
+    final hasShownPopup = prefs.getBool(popupShownKey) ?? false;
+
+    if (hasShownPopup || !mounted) {
+      return;
+    }
+
+    await prefs.setBool(popupShownKey, true);
+
+    if (!mounted) {
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Container(
+            decoration: BoxDecoration(
+              color: kdefwhiteColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 6,
+                  right: 6,
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.close,
+                      color: kmediumblackColor,
+                      size: 22,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 28, 20, 18),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        decoration: const BoxDecoration(
+                          color: kPrimaryColor,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.local_offer,
+                          color: kdefwhiteColor,
+                          size: 30,
+                        ),
+                      ),
+                      14.0.heightbox,
+                      const Text(
+                        'Get extra 10 % discount',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: kdefblackColor,
+                          fontSize: 21,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      10.0.heightbox,
+                      const Text(
+                        'Register through mobile app then get extra 10% discount on first order.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: kmediumblackColor,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      20.0.heightbox,
+                      SizedBox(
+                        width: double.infinity,
+                        child: TextButton(
+                          style: TextButton.styleFrom(
+                            backgroundColor: kPrimaryColor,
+                            foregroundColor: kdefwhiteColor,
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            Get.to(() => const SignUp());
+                          },
+                          child: const Text(
+                            'Register',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   void showBackDialog(BuildContext context) {
     showDialog(

@@ -1,17 +1,20 @@
-import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:graba2z/Configs/config.dart';
-import 'package:graba2z/Utils/appextensions.dart';
 import 'package:graba2z/Utils/packages.dart';
 import 'package:http/http.dart' as http;
 
 class OtpScreen extends StatefulWidget {
   final String email;
-  const OtpScreen({Key? key, required this.email}) : super(key: key);
+  final String password;
+  const OtpScreen({
+    super.key,
+    required this.email,
+    required this.password,
+  });
 
   @override
-  _OtpScreenState createState() => _OtpScreenState();
+  State<OtpScreen> createState() => _OtpScreenState();
 }
 
 class _OtpScreenState extends State<OtpScreen> {
@@ -126,9 +129,13 @@ class _OtpScreenState extends State<OtpScreen> {
       setState(() => _isLoading = false);
 
       if (response.statusCode == 200) {
-        // Success
         EasyLoading.showSuccess('Account Created');
-        context.routeoffall(const Login());
+        await Future.delayed(const Duration(milliseconds: 700));
+        EasyLoading.show(status: 'Logging in...');
+        final authProvider = Get.isRegistered<AuthController>()
+            ? Get.find<AuthController>()
+            : Get.put(AuthController());
+        await authProvider.login(widget.email, widget.password, false);
       } else {
         // Error response
         ScaffoldMessenger.of(context).showSnackBar(
@@ -136,6 +143,7 @@ class _OtpScreenState extends State<OtpScreen> {
         );
       }
     } catch (e) {
+      EasyLoading.dismiss();
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Something went wrong: $e")),
@@ -146,8 +154,12 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void dispose() {
     _countdownTimer?.cancel();
-    _controllers.forEach((c) => c.dispose());
-    _focusNodes.forEach((f) => f.dispose());
+    for (final controller in _controllers) {
+      controller.dispose();
+    }
+    for (final focusNode in _focusNodes) {
+      focusNode.dispose();
+    }
     super.dispose();
   }
 
